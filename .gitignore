@@ -1,0 +1,4 @@
+.DS_Store
+
+# Secrets / private local config (must not be committed)
+configx.json

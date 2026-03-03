@@ -1,0 +1,3 @@
+interface:
+  display_name: "Plan Mode"
+  short_description: "Explicit 'plan' invocation; docs and planning only"
