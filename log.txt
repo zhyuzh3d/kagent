@@ -1,0 +1,13 @@
+=== DEPLOY id=ca87a05f-9584-42e0-a55f-58b557e314e5 ts=2026-03-07 12:31:39 CST backend=26030401 pid=? ===
+=== DEPLOY id=ca87a05f-9584-42e0-a55f-58b557e314e5 ts=2026-03-07 12:31:39 CST backend=26030401 pid=24204 started ===
+2026/03/07 12:31:40 kagent version backend=26030401 webui=26030401
+2026/03/07 12:31:40 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:36:20 [session] interrupt received reason=barge_in turnID=6
+2026/03/07 12:37:37 [session] interrupt received reason=barge_in turnID=8
+2026/03/07 12:38:01 [session] interrupt received reason=barge_in turnID=10
+2026/03/07 12:38:34 [session] interrupt received reason=barge_in turnID=12
+2026/03/07 12:39:05 [session] interrupt received reason=barge_in turnID=13
+2026/03/07 12:39:12 [session] interrupt received reason=barge_in turnID=14
+2026/03/07 12:39:23 [session] interrupt received reason=barge_in turnID=16
+2026/03/07 12:42:14 [session] interrupt received reason=barge_in turnID=19
+2026/03/07 12:58:01 [session] interrupt received reason=barge_in turnID=21

@@ -1,0 +1,27 @@
+{
+  "models": [
+    {
+      "name": "doubao",
+      "config": {
+        "chat": {
+          "apiKey": "<ARK_API_KEY>",
+          "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+          "model": "doubao-seed-2-0-pro-260215"
+        },
+        "asr_s": {
+          "appId": "<ASR_APP_ID>",
+          "accessToken": "<ASR_ACCESS_TOKEN>",
+          "resourceId": "<ASR_RESOURCE_ID>",
+          "wsUrl": "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
+        },
+        "tts_s": {
+          "appId": "<TTS_APP_ID>",
+          "accessToken": "<TTS_ACCESS_TOKEN>",
+          "resourceId": "<TTS_RESOURCE_ID>",
+          "wsUrl": "wss://openspeech.bytedance.com/api/v3/tts/bidirection",
+          "voiceType": "zh_female_xiaohe_uranus_bigtts"
+        }
+      }
+    }
+  ]
+}

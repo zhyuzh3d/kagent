@@ -1,4 +1,9 @@
 .DS_Store
 
 # Secrets / private local config (must not be committed)
-configx.json
+config/configx.json
+
+# Local build/runtime artifacts
+bin/
+logs/
+run/

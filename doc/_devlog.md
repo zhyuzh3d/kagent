@@ -22,3 +22,115 @@
   - 初始化 Git 仓库并确认 `configx.json` 未被纳入版本管理（必要时执行取消跟踪）
   - 产出实现阶段的架构/目录规划文档到 `plan/`（例如 Go 引擎、Web UI、资源本地化策略）
   - 定义 `config.json` 的公开配置结构与 `configx.json` 的私密配置边界（提供示例模板）
+
+## [2026-03-04 12:34 CST] T0 MVP 代码落地与结果归档
+- 时间范围：2026-03-03 19:39 CST -> 2026-03-04 12:34 CST
+- 主要变更：
+  - 落地 Go 服务入口与本地 HTTP/WS 运行链路（`main.go`）
+  - 新增核心模块：配置、协议、会话状态机、ASR/LLM/TTS、编排与工具函数（`internal/*.go`）
+  - 落地纯原生前端页面与音频链路（采集、上行、下行播放、打断、调试日志）（`static/index.html`）
+  - 新增基础测试（配置解析、分段编排、能量判定）并完成本地测试验证
+  - 新增计划与结果文档：`T0-2026-03-03-01.md`、`T0-2026-03-03-01-dev-plan.md`、`T0-2026-03-03-01-dev-result.md`
+- 关键文件/模块：
+  - `main.go`
+  - `go.mod`, `go.sum`
+  - `internal/config.go`, `internal/protocol.go`, `internal/session.go`
+  - `internal/asr.go`, `internal/llm.go`, `internal/tts.go`, `internal/pipeline.go`
+  - `internal/config_test.go`, `internal/pipeline_test.go`, `internal/session_test.go`
+  - `static/index.html`
+  - `plan/T0-2026-03-03-01-dev-result.md`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：
+    - ASR 与 LLM 链路可运行，前端可见识别和生成文本
+    - Start/Stop/Interrupt/utterance_end 事件链路与资源回收机制已具备
+    - `go test ./...` 通过；`go build -buildvcs=false ./...` 通过
+  - 失败/问题：
+    - 真实 TTS 仍出现 `403 resource not granted`、`tts server error(type=0xF/code=148)`、`i/o timeout`，导致发声不稳定
+    - 本机默认 `go build ./...` 受 VCS stamping + Xcode License 影响报错（需 `-buildvcs=false` 规避）
+- 经验与结论：
+  - 有效实践：
+    - 将协议差异封装在 Provider 层，保持 `session/pipeline` 状态逻辑稳定
+    - 先打通可观测性（status/error/debug），排障效率显著提升
+  - 失败教训：
+    - TTS 真实接口问题并非单点错误，常由资源授权、协议细节、网络超时叠加导致
+    - 若缺少“资源ID-音色-模型”对照表，排障会被 403/148 类错误反复阻塞
+  - 后续规避：
+    - 以官方示例逐字段回归 `tts.go` 帧编码与事件序列
+    - 固化可用 `resourceId` 与 `voiceType` 组合，提供可复制配置模板
+- 下一步：
+  - 对齐官方 TTS 双向流式示例，补抓包级调试信息并定位 `code=148` 根因
+  - 在 TTS 稳定后完成 10.3 手工清单回归（多轮、连续打断、各状态 Stop）
+  - 将当前未跟踪文件整理为可追溯 Git 提交，补齐版本化证据链
+
+## [2026-03-04 14:02 CST] 流式 TTS 与对话流水线延迟修复
+- 时间范围：2026-03-04 12:34 CST -> 2026-03-04 14:02 CST
+- 主要变更：
+  - 重构 `TTSClient` 接口为 `NewStream`，利用真实的双向 WebSocket (`BidirectionalTTS`) 长连接替代原有的频繁截断短连接
+  - 修改 `TurnPipeline.RunTurn` 逻辑，在回合首字下发前直接建连并持续 `SendText`，彻底改变 TTS 同步推送方式
+  - 将 `TextSegmenter` 的最少字符截断限制从 16 字精简为 2 字，让短开场白（如“你好”）迅速触发语音合成首包
+  - 将 `StateSpeaking` 状态和相关判定前置至流式产生首字时，加快页面响应感
+  - 输出需求计划和成果报告：`plan/T0-26030401-fix.md`，`plan/T0-26030401-fix-dev-plan.md`，`plan/T0-26030401-fix-dev-result.md`
+- 关键文件/模块：
+  - `internal/tts.go`
+  - `internal/pipeline.go`
+  - `internal/pipeline_test.go`
+  - `plan/T0-26030401-fix-dev-result.md`
+- 开发结果：
+  - 成功：完全解决了 TTS 由于频繁反复建连引起的静音、丢字问题。同时，降低截断长度大幅提升了 LLM 返回第一句的朗读首发速度（TTFB 优化）。
+  - 成功：`go build` 和 `go test ./...` 编译与测试均一次性通过。
+- 经验与结论：
+  - 有效实践：遇到流式生成接口频繁卡死、丢包时，优先检查是否滥用了建立长连接资源。改为全程长连 `SendText` 是根本有效的解决方案。
+  - 后续规避：未来如有更多长序列流转化场景，一定要复用 Session 并利用句级分隔事件（如 `ttsEventTTSSentenceHead`），而不是每次请求从头连网。
+- 下一步：
+  - 启动项目并实机前端录音体验，确保没有卡顿和连词顿挫。
+  - 在后续优化中，若网络抖动，必要时可考虑在 webui 层加入音频缓存 (Jitter Buffer)。
+
+## [2026-03-04 14:22 CST] 修复 TTS 卡顿/丢声/LLM重复回复
+- 时间范围：2026-03-04 14:02 CST -> 2026-03-04 14:22 CST
+- 主要变更：
+  - 回退 `TTSClient` 接口为原有的 `Synthesize(ctx, text) ([]byte, format, error)`，彻底废弃违反火山协议的流式 `NewStream/SendText/Finish` 方案
+  - 恢复 `pipeline.go` 中的 channel + Worker goroutine 模式，每段文本独立建连、合成完整音频后再推送前端
+  - 将 `TextSegmenter.minRunes` 调整为 6（前次设为 2 导致过于碎片化，原始 16 又太大），新增顿号 `、` 作为分句符
+  - 在 LLM 首个 delta 到达时立即广播 `StateSpeaking`，减少前端等待感
+  - 将 `session.go` 中 `isDuplicateTurn` 的去重窗口从 1200ms 扩大到 3000ms，防止 ASREndpoint 和 utterance_end 双触发
+- 关键文件/模块：
+  - `internal/tts.go`
+  - `internal/pipeline.go`
+  - `internal/pipeline_test.go`
+  - `internal/session.go`
+- 开发结果：
+  - 成功：`go build` 和 `go test ./...` 均通过
+  - 根因确认：火山 TTS 双向流式协议要求 session 内顺序执行，不支持同 session 并发多个 `task_request`。之前的流式方案在同一 session 连续推送导致服务端丢弃或损坏音频。
+- 经验与结论：
+  - 失败教训：在改造第三方协议交互模式前，必须先确认协议的并发/顺序语义，不能想当然地假设"双向"就等于"并发"
+  - 有效实践：回退到已验证可工作的模式 + 精细调优参数（minRunes、dedup window），比激进重构更安全
+- 下一步：
+  - 重启服务进行实机语音对话验证
+  - 若仍有末尾丢句，可考虑在 pipeline 层对 TTS 失败的 segment 进行有限重试
+
+## [2026-03-06 16:04 CST] 版本号体系、部署脚本与配置目录迁移
+- 时间范围：2026-03-04 14:22 CST -> 2026-03-06 16:04 CST
+- 主要变更：
+  - 前后端独立版本号落地：新增 `version.json`（同一文件记录 `backend/webui` CalVer），后端启动日志输出版本并提供 `/version`，前端页面头部与控制台展示版本
+  - 部署工作流脚本落地：新增 `scripts/gitpush.sh`（按变更路径自动 bump `version.json` 并 commit/push）、新增 `scripts/deploy.sh`（构建后端、停旧启新、健康检查）
+  - 快速重启支撑：新增 `POST /admin/shutdown`（loopback 限制）用于 deploy 触发自停机；脚本按 100ms 轮询 PID，超时 3s 进入终端 Y/N 强杀确认
+  - UI 目录结构调整：将 `static/` 更名为 `webui/`，并在服务端保留 `/static/` 兼容别名
+  - 配置文件迁移：`config*.json` 移入 `config/`，并调整默认 `-config` 与 deploy 默认 `KAGENT_CONFIG`
+  - 工程卫生：`.gitignore` 增加 `bin/ logs/ run/` 忽略，避免构建/运行产物入库
+- 关键文件/模块：
+  - `version.json`
+  - `scripts/gitpush.sh`, `scripts/deploy.sh`
+  - `main.go`, `internal/version.go`, `webui/index.html`
+  - `.gitignore`, `config/configx.json`, `config/configx.json.example`
+  - `doc/_instruction.md`, `AGENTS.md`, `.codex/skills/{plan,dev}/SKILL.md`
+- 开发结果：
+  - 成功：版本号与展示链路形成闭环（后端日志 + `/version` + 前端显示）；deploy 具备快速重启与基本健康检查
+  - 失败/问题：`doc/_devlog.md` 中存在部分历史条目与当前仓库代码/文件命名不完全一致（缺少 Git 证据链），本次仅追加“以当前文件扫描为准”的状态更新，未改写历史
+- 经验与结论：
+  - 有效实践：用“一个文件记录两个组件版本号”保持单一事实源，同时避免前后端不必要联动 bump
+  - 有效实践：提供 `/admin/shutdown` 作为未来“退出前持久化/清理”的挂钩点，部署脚本先走自停机、超时再强杀兼顾速度与可扩展性
+  - 后续规避：对外部生成/手工补写的开发日志，若无 Git 提交或可核验证据，必须显式标注“不可核验/待确认”，避免污染事实链
+- 下一步：
+  - 若要强化安全性：为 `/admin/shutdown` 增加 token 校验（仅在本机 loopback 之外开放时必需）
+  - 将关键变更整理为可追溯 Git 提交（避免“代码存在但无提交证据链”导致日志不可核验）

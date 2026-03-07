@@ -1,0 +1,51 @@
+=== DEPLOY id=c054a1e6-1517-4dc4-a562-e016b9b4d0a0 ts=2026-03-07 12:12:10 CST backend=26030401 pid=? ===
+=== DEPLOY id=c054a1e6-1517-4dc4-a562-e016b9b4d0a0 ts=2026-03-07 12:12:10 CST backend=26030401 pid=19306 started ===
+2026/03/07 12:12:10 kagent version backend=26030401 webui=26030401
+2026/03/07 12:12:10 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:12:30 shutdown requested from 127.0.0.1:56990
+
+=== DEPLOY id=a983bc1b-fbee-49f5-9621-03c3fdc253e4 ts=2026-03-07 12:12:30 CST backend=26030401 pid=? ===
+=== DEPLOY id=a983bc1b-fbee-49f5-9621-03c3fdc253e4 ts=2026-03-07 12:12:30 CST backend=26030401 pid=19431 started ===
+2026/03/07 12:12:31 kagent version backend=26030401 webui=26030401
+2026/03/07 12:12:31 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:12:51 shutdown requested from 127.0.0.1:57097
+
+=== DEPLOY id=b42de40f-c0bb-4a7a-a115-e4fcc79e861d ts=2026-03-07 12:12:51 CST backend=26030401 pid=? ===
+=== DEPLOY id=b42de40f-c0bb-4a7a-a115-e4fcc79e861d ts=2026-03-07 12:12:51 CST backend=26030401 pid=19566 started ===
+2026/03/07 12:12:52 kagent version backend=26030401 webui=26030401
+2026/03/07 12:12:52 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:19:43 shutdown requested from 127.0.0.1:59028
+
+=== DEPLOY id=8884e8b6-ad38-44a9-9b2e-3506cf5ec9ae ts=2026-03-07 12:19:43 CST backend=26030401 pid=? ===
+=== DEPLOY id=8884e8b6-ad38-44a9-9b2e-3506cf5ec9ae ts=2026-03-07 12:19:43 CST backend=26030401 pid=20776 started ===
+2026/03/07 12:19:44 kagent version backend=26030401 webui=26030401
+2026/03/07 12:19:44 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:20:14 shutdown requested from 127.0.0.1:59193
+
+=== DEPLOY id=0c9323d2-cb93-42d5-8e08-774225e3f909 ts=2026-03-07 12:20:14 CST backend=26030401 pid=? ===
+=== DEPLOY id=0c9323d2-cb93-42d5-8e08-774225e3f909 ts=2026-03-07 12:20:14 CST backend=26030401 pid=21210 started ===
+2026/03/07 12:20:14 kagent version backend=26030401 webui=26030401
+2026/03/07 12:20:14 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:22:20 shutdown requested from 127.0.0.1:59803
+
+=== DEPLOY id=68f2f4eb-35bd-41b3-aade-5a1bbd36d391 ts=2026-03-07 12:22:20 CST backend=26030401 pid=? ===
+=== DEPLOY id=68f2f4eb-35bd-41b3-aade-5a1bbd36d391 ts=2026-03-07 12:22:20 CST backend=26030401 pid=22389 started ===
+2026/03/07 12:22:21 kagent version backend=26030401 webui=26030401
+2026/03/07 12:22:21 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:24:36 [session] interrupt received reason=barge_in turnID=2
+2026/03/07 12:24:44 [session] interrupt received reason=barge_in turnID=3
+2026/03/07 12:24:59 [session] interrupt received reason=barge_in turnID=4
+2026/03/07 12:25:11 [session] interrupt received reason=barge_in turnID=5
+2026/03/07 12:25:32 [session] interrupt received reason=barge_in turnID=7
+2026/03/07 12:26:18 [session] interrupt received reason=barge_in turnID=9
+2026/03/07 12:30:17 read ws failed: websocket: close 1005 (no status)
+2026/03/07 12:30:17 send status failed: websocket: close sent
+2026/03/07 12:30:47 [session] interrupt received reason=barge_in turnID=2
+2026/03/07 12:30:48 shutdown requested from 127.0.0.1:62316
+
+=== DEPLOY id=ea586d66-9229-4d89-ba29-b3f8b851d3ad ts=2026-03-07 12:30:48 CST backend=26030401 pid=? ===
+=== DEPLOY id=ea586d66-9229-4d89-ba29-b3f8b851d3ad ts=2026-03-07 12:30:48 CST backend=26030401 pid=23909 started ===
+2026/03/07 12:30:50 kagent version backend=26030401 webui=26030401
+2026/03/07 12:30:50 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:31:39 shutdown requested from 127.0.0.1:62567
+
