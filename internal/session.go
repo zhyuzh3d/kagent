@@ -58,7 +58,7 @@ type Session struct {
 	lastStartedTurnID   uint64
 	lastInterruptTurnID uint64
 
-	// Signaled when ASR delivers final text (complete with punctuation)
+	// Signaled when ASR produces a final transcription for the active turn.
 	asrFinalCh chan struct{}
 
 	// Multi-turn conversation history (max 10 rounds = 20 messages)
@@ -69,15 +69,15 @@ type Session struct {
 func NewSession(conn *websocket.Conn, cfg *ModelConfig) *Session {
 	activeCfg := cfg.ActiveChat()
 	s := &Session{
-		conn:       conn,
-		cfg:        cfg,
-		asr:        NewDoubaoASRClient(cfg.ASR),
-		llm:        NewDoubaoLLMClient(activeCfg),
-		tts:        NewDoubaoTTSClient(cfg.TTS),
-		state:      StateIdle,
-		audioIn:    make(chan []byte, upstreamAudioQueueSize),
-		control:    make(chan ControlMessage, 32),
-		ttsQueue:   make(chan TTSChunk, downstreamTTSQueueSize),
+		conn:     conn,
+		cfg:      cfg,
+		asr:      NewDoubaoASRClient(cfg.ASR),
+		llm:      NewDoubaoLLMClient(activeCfg),
+		tts:      NewDoubaoTTSClient(cfg.TTS),
+		state:    StateIdle,
+		audioIn:  make(chan []byte, upstreamAudioQueueSize),
+		control:  make(chan ControlMessage, 32),
+		ttsQueue: make(chan TTSChunk, downstreamTTSQueueSize),
 		asrFinalCh: make(chan struct{}, 1),
 	}
 	s.pipeline = NewTurnPipeline(s.llm, s.tts, TurnCallbacks{
@@ -225,20 +225,17 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			tid = ctrl.TurnID
 		}
 
-		// Tell ASR server "audio is done" so it processes remaining data and returns final text
 		s.asr.Finish()
-
-		// Wait for ASR final event (complete text + punctuation) or timeout
 		select {
 		case <-s.asrFinalCh:
 			log.Printf("[session] ASR final received for trigger_llm turnID=%d", tid)
-		case <-time.After(800 * time.Millisecond):
-			log.Printf("[session] ASR final timeout for trigger_llm turnID=%d, using partial text", tid)
+		case <-time.After(320 * time.Millisecond):
+			log.Printf("[session] ASR final wait timed out for trigger_llm turnID=%d; falling back", tid)
 		}
 
-		// Consume backend's lastASRText (now likely updated by asr_final with complete text)
+		// Always consume backend ASR text to prevent stale text leaking to next turn.
 		lastSpeech := s.consumeLastASRText()
-		// Prefer backend ASR text (final, with punctuation) over frontend partial text
+		// Prefer backend final/partial text if present; fall back to frontend text snapshot.
 		text := lastSpeech
 		if text == "" {
 			text = ctrl.Text
@@ -249,7 +246,10 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 
 		if text != "" {
 			s.startTurn(text, tid)
+			return
 		}
+		_ = s.sendEvent(EventMessage{Type: "turn_nack", TsMS: nowMS(), TurnID: tid})
+		s.setState(StateListening, "no speech detected")
 	case "start_listen":
 		// Explicit signal from frontend that a new turn is starting voice input
 		tid := s.turnID.Load()
@@ -303,7 +303,6 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 		s.lastASRTextMu.Unlock()
 		// Always send asr_final with the explicitly bound turn ID!
 		_ = s.sendEvent(NewTextEvent("asr_final", explicitTurnID, evt.Text))
-		// Signal that final ASR text is now available
 		select {
 		case s.asrFinalCh <- struct{}{}:
 		default:
@@ -352,8 +351,7 @@ func (s *Session) startASRTurn(turnID uint64) {
 	s.lastASRText = ""
 	s.endpointConsumed = false
 	s.lastASRTextMu.Unlock()
-
-	// Drain stale asrFinalCh signals from previous turns
+	s.flushAudioQueue()
 	select {
 	case <-s.asrFinalCh:
 	default:

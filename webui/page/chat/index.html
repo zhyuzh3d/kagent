@@ -419,6 +419,8 @@
       playbackQueue: [],
       playingBufferSource: null,
       isPlaying: false,
+      playbackEpoch: 0,
+      sessionEpoch: 0,
       currentTurn: 0,
       activeTurnId: 0,
       messages: [],
@@ -531,22 +533,23 @@
       el.stopBtn.disabled = !running;
     }
 
-    function addChatMsg(role, text, turnId, isPartial = false) {
+    function addChatMsg(role, text, turnId, isPartial = false, sessionEpoch = App.sessionEpoch) {
       const div = document.createElement('div');
       div.className = `msg ${role} ${isPartial ? 'partial' : ''}`;
       div.dataset.turnId = turnId;
-      div.innerHTML = isPartial ? `<em>${text}</em>` : text;
+      div.dataset.sessionEpoch = sessionEpoch;
+      div.textContent = text;
       el.chatArea.appendChild(div);
       el.chatArea.scrollTop = el.chatArea.scrollHeight;
-      const msg = { role, text, turnId, element: div, isPartial };
+      const msg = { role, text, turnId, sessionEpoch, element: div, isPartial };
       App.messages.push(msg);
       return msg;
     }
 
-    function findUserMsg(turnId) {
+    function findUserMsg(turnId, sessionEpoch = App.sessionEpoch) {
       for (let i = App.messages.length - 1; i >= 0; i--) {
         const m = App.messages[i];
-        if (m.role === 'user' && m.turnId === turnId) return m;
+        if (m.role === 'user' && m.turnId === turnId && m.sessionEpoch === sessionEpoch) return m;
       }
       return null;
     }
@@ -558,7 +561,7 @@
         msg = addChatMsg('user', text, turnId, true);
       } else {
         msg.text = text;
-        msg.element.innerHTML = `<em>${text}</em>`;
+        msg.element.textContent = text;
         el.chatArea.scrollTop = el.chatArea.scrollHeight;
       }
     }
@@ -569,7 +572,7 @@
         msg.text = text;
         msg.isPartial = false;
         if (text) {
-          msg.element.innerHTML = text;
+          msg.element.textContent = text;
         } else {
           msg.element.remove();
           App.messages = App.messages.filter(m => m !== msg);
@@ -581,7 +584,7 @@
     }
 
     function appendAIDelta(text, turnId) {
-      if (!App.currentAIMsg || App.currentAIMsg.turnId !== turnId) {
+      if (!App.currentAIMsg || App.currentAIMsg.turnId !== turnId || App.currentAIMsg.sessionEpoch !== App.sessionEpoch) {
         App.currentAIMsg = addChatMsg('ai', '', turnId);
       }
       App.currentAIMsg.text += text;
@@ -590,7 +593,7 @@
     }
 
     function finalizeAI(turnId) {
-      if (App.currentAIMsg && App.currentAIMsg.turnId === turnId) {
+      if (App.currentAIMsg && App.currentAIMsg.turnId === turnId && App.currentAIMsg.sessionEpoch === App.sessionEpoch) {
         App.currentAIMsg = null;
       }
     }
@@ -692,7 +695,7 @@
         return;
       }
       const format = (meta.format || 'audio/mpeg').toLowerCase();
-      App.playbackQueue.push({ format, data: buf, turnId: meta.turn_id, seq: meta.seq });
+      App.playbackQueue.push({ format, data: buf, turnId: meta.turn_id, seq: meta.seq, epoch: App.playbackEpoch });
       playNext();
     }
 
@@ -704,7 +707,10 @@
 
     function playNext() {
       if (App.isPlaying) return;
-      const item = App.playbackQueue.shift();
+      let item = App.playbackQueue.shift();
+      while (item && item.epoch !== App.playbackEpoch) {
+        item = App.playbackQueue.shift();
+      }
       if (!item) { App.isPlaying = false; return; }
       App.isPlaying = true;
       const ctx = ensurePlaybackContext();
@@ -720,12 +726,23 @@
     function playBlobItem(item) {
       const ctx = ensurePlaybackContext();
       const dataCopy = item.data.slice(0);
+      const epoch = item.epoch;
       const successCb = (buffer) => {
+        if (epoch !== App.playbackEpoch) {
+          App.isPlaying = false;
+          playNext();
+          return;
+        }
         const src = ctx.createBufferSource();
         src.buffer = buffer;
         src.connect(ctx.destination);
         App.playingBufferSource = src;
-        src.onended = () => { App.playingBufferSource = null; App.isPlaying = false; playNext(); };
+        src.onended = () => {
+          if (epoch !== App.playbackEpoch) return;
+          App.playingBufferSource = null;
+          App.isPlaying = false;
+          playNext();
+        };
         src.start();
       };
       const errorCb = (err) => {
@@ -741,7 +758,13 @@
 
     function playPCMItem(item) {
       const ctx = ensurePlaybackContext();
+      const epoch = item.epoch;
       try {
+        if (epoch !== App.playbackEpoch) {
+          App.isPlaying = false;
+          playNext();
+          return;
+        }
         let data = item.data;
         if (data.byteLength % 2 !== 0) data = data.slice(0, data.byteLength - 1);
         const raw = new Int16Array(data);
@@ -752,7 +775,12 @@
         src.buffer = buffer;
         src.connect(ctx.destination);
         App.playingBufferSource = src;
-        src.onended = () => { App.playingBufferSource = null; App.isPlaying = false; playNext(); };
+        src.onended = () => {
+          if (epoch !== App.playbackEpoch) return;
+          App.playingBufferSource = null;
+          App.isPlaying = false;
+          playNext();
+        };
         src.start();
       } catch (err) {
         appendDebug('PCM format error: ' + err.message);
@@ -762,10 +790,26 @@
     }
 
     function stopPlayback() {
+      App.playbackEpoch++;
       App.playbackQueue = [];
       App.pendingChunkMeta = [];
       App.isPlaying = false;
       if (App.playingBufferSource) { try { App.playingBufferSource.stop(); } catch (_) { } App.playingBufferSource = null; }
+    }
+
+    function flushPreRollIntoQueue() {
+      for (const preFrame of App.preRollBuffer) {
+        for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
+      }
+      App.preRollBuffer = [];
+    }
+
+    function queuePCMFrame(int16) {
+      for (let i = 0; i < int16.length; i++) App.pcmQueue.push(int16[i]);
+      while (App.pcmQueue.length >= App.frameSamples16k) {
+        const frame = new Int16Array(App.pcmQueue.splice(0, App.frameSamples16k));
+        workerSend({ type: 'send_audio', data: frame.buffer }, [frame.buffer]);
+      }
     }
 
     // ── Microphone capture ─────────────────────────────────────────────
@@ -826,17 +870,50 @@
       for (let i = 0; i < floatChunk.length; i++) rms += floatChunk[i] * floatChunk[i];
       rms = Math.sqrt(rms / Math.max(1, floatChunk.length));
 
-      const aiLoud = App.backendState === 'Speaking' || App.isPlaying || App.playbackQueue.length > 0;
+      const int16 = downsampleToPCM16(floatChunk, App.sampleRateIn, 16000);
+      const aiAudible = App.isPlaying || App.playbackQueue.length > 0;
       const dynamicBargeThresh = 0.08;
-      const currentVoiceThresh = aiLoud ? dynamicBargeThresh : App.voiceThreshold;
 
       // Tell Worker about AI playback state so it can suppress VAD
-      workerSend({ type: 'set_ai_loud', value: aiLoud });
+      workerSend({ type: 'set_ai_loud', value: aiAudible });
 
-      if (rms > currentVoiceThresh) {
+      if (aiAudible) {
+        if (rms > dynamicBargeThresh) {
+          App.sustainedHighRmsCount++;
+          App.preRollBuffer.push(int16);
+          if (App.preRollBuffer.length > App.preRollMaxFrames) App.preRollBuffer.shift();
+        } else if (App.sustainedHighRmsCount > 0) {
+          App.sustainedHighRmsCount = Math.max(0, App.sustainedHighRmsCount - 1);
+        }
+
+        const canBargeIn = App.sustainedHighRmsCount >= 5;
+        if (canBargeIn) {
+          const now = Date.now();
+          if (now - App.lastInterruptAt > 500) {
+            App.lastInterruptAt = now;
+            App.currentTurn++;
+            App.activeTurnId = App.currentTurn;
+            stopPlayback();
+            App.backendState = 'Listening';
+            setStatus('Listening', 'listening');
+            App.utteranceActive = true;
+            App.audioSending = true;
+            App.silentFramesSinceVoice = 0;
+            workerSend({ type: 'send_control', control: 'interrupt', reason: 'barge_in', turn_id: App.currentTurn });
+            workerSend({ type: 'voice_detected' });
+            flushPreRollIntoQueue();
+            queuePCMFrame(int16);
+            App.sustainedHighRmsCount = 0;
+            appendDebug(`barge-in committed -> turn ${App.currentTurn}`);
+          }
+        }
+        return; // Drop microphone frame completely
+      }
+
+      const voiceDetected = rms > App.voiceThreshold;
+      if (voiceDetected) {
         App.lastVoiceAt = Date.now();
         if (!App.utteranceActive) {
-          // This is the absolute START of a brand new utterance from complete silence
           App.currentTurn++;
           App.activeTurnId = App.currentTurn;
           workerSend({ type: 'send_control', control: 'start_listen', turn_id: App.currentTurn });
@@ -844,67 +921,11 @@
         }
         App.utteranceActive = true;
         workerSend({ type: 'voice_detected' });
-        if (aiLoud) {
-          App.sustainedHighRmsCount++;
-        }
-      } else {
-        if (aiLoud && App.sustainedHighRmsCount > 0) {
-          App.sustainedHighRmsCount = Math.max(0, App.sustainedHighRmsCount - 1);
-        }
-      }
 
-      // Barge-in logic (sustained high RMS required during AI playback)
-      const sustainFramesNeeded = aiLoud ? 5 : 1;
-      const canBargeIn = aiLoud && rms > dynamicBargeThresh && App.sustainedHighRmsCount >= sustainFramesNeeded;
-
-      if (canBargeIn) {
-        const now = Date.now();
-        if (now - App.lastInterruptAt > 500) {
-          App.lastInterruptAt = now;
-          App.currentTurn++; // Increment turn immediately upon barge-in recognition
-          App.activeTurnId = App.currentTurn;
-          stopPlayback();
-          // Reset backendState immediately so VAD and voice threshold return to normal
-          App.backendState = 'Listening';
-          setStatus('Listening', 'listening');
-
-          workerSend({ type: 'send_control', control: 'interrupt', reason: 'barge_in', turn_id: App.currentTurn });
-          App.sustainedHighRmsCount = 0;
-
-          // Send pre-roll buffer immediately since we just barged in
-          App.audioSending = true;
-          for (const preFrame of App.preRollBuffer) {
-            for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
-          }
-          App.preRollBuffer = [];
-
-          appendDebug(`barge-in interrupt sent (activeTurnId -> ${App.activeTurnId})`);
-        }
-      }
-
-      // Software AEC (Acoustic Echo Cancellation)
-      // If AI is playing back out loud, we aggressively drop frames so ASR doesn't transcribe the AI's own speech.
-      // Exception: If user barged in, aiLoud becomes false immediately (because stopPlayback clears playing state).
-      if (aiLoud) {
-        App.preRollBuffer = []; // Clear pre-roll too to prevent AI echo buffering
-        return; // Drop microphone frame completely
-      }
-
-      // Downsample and forward audio to Worker for WS sending
-      // Silent frame filtering: only send audio when voice is active
-      const int16 = downsampleToPCM16(floatChunk, App.sampleRateIn, 16000);
-
-      // Decide whether to send this frame
-      const voiceDetected = rms > App.voiceThreshold;
-      if (voiceDetected) {
         // Voice detected: flush pre-roll buffer first (if not already sending)
         if (!App.audioSending) {
           App.audioSending = true;
-          // Send buffered pre-roll frames so ASR has onset context
-          for (const preFrame of App.preRollBuffer) {
-            for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
-          }
-          App.preRollBuffer = [];
+          flushPreRollIntoQueue();
         }
         App.silentFramesSinceVoice = 0;
       } else {
@@ -917,12 +938,7 @@
       }
 
       if (App.audioSending || App.utteranceActive) {
-        // Active: send audio to ASR
-        for (let i = 0; i < int16.length; i++) App.pcmQueue.push(int16[i]);
-        while (App.pcmQueue.length >= App.frameSamples16k) {
-          const frame = new Int16Array(App.pcmQueue.splice(0, App.frameSamples16k));
-          workerSend({ type: 'send_audio', data: frame.buffer }, [frame.buffer]);
-        }
+        queuePCMFrame(int16);
       } else {
         // Silent: buffer frames for pre-roll
         App.preRollBuffer.push(int16);
@@ -964,13 +980,20 @@
 
         await startMic();
         App.running = true;
+        App.sessionEpoch++;
         setButtons(true);
         App.currentAIMsg = null;
         App.currentPartialMsg = null;
         App.pendingChunkMeta = [];
         App.playbackQueue = [];
-        App.activeTurnId = 1;
-        App.currentTurn = 1;
+        App.playbackEpoch = 0;
+        App.preRollBuffer = [];
+        App.audioSending = false;
+        App.utteranceActive = false;
+        App.silentFramesSinceVoice = 0;
+        App.sustainedHighRmsCount = 0;
+        App.activeTurnId = 0;
+        App.currentTurn = 0;
         workerSend({ type: 'start', turn_id: App.currentTurn });
         setStatus('Connecting', 'listening');
         addChatMsg('system', '对话已开始，请说话...', 0);

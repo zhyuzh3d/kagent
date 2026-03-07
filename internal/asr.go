@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -125,6 +126,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 	defer conn.Close()
 
 	var writeMu sync.Mutex
+	var finishRequested atomic.Bool
 
 	writeAudio := func(pcm []byte, last bool) error {
 		flag := asrFlagNoSequence
@@ -198,6 +200,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 					return
 				}
 			case <-c.finishCh:
+				finishRequested.Store(true)
 				log.Printf("[asr] Finish signal received, sending ending frame to ASR server")
 				writeStop()
 				// Drain remaining audio and wait for context cancellation.
@@ -225,6 +228,10 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 			mt, msg, err := conn.ReadMessage()
 			if err != nil {
 				if ctx.Err() != nil {
+					errCh <- nil
+					return
+				}
+				if finishRequested.Load() && isExpectedASRFinishClose(err) {
 					errCh <- nil
 					return
 				}
@@ -266,6 +273,14 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 		writeStop()
 		return err
 	}
+}
+
+func isExpectedASRFinishClose(err error) bool {
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "finish last sequence") || strings.Contains(msg, "close 1000") || strings.Contains(msg, "close 1005")
 }
 
 func (c *DoubaoASRClient) prepareDialTargets() []asrDialTarget {

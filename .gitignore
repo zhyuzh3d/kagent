@@ -7,3 +7,5 @@ config/configx.json
 bin/
 logs/
 run/
+log.txt
+log.txt.bak

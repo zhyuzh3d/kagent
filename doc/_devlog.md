@@ -134,3 +134,56 @@
 - 下一步：
   - 若要强化安全性：为 `/admin/shutdown` 增加 token 校验（仅在本机 loopback 之外开放时必需）
   - 将关键变更整理为可追溯 Git 提交（避免“代码存在但无提交证据链”导致日志不可核验）
+
+## [2026-03-08 01:46 CST] 实时对话机制收敛、回滚复盘与句级 TTS 拼组
+- 时间范围：2026-03-06 16:04 CST -> 2026-03-08 01:46 CST
+- 主要变更：
+  - 围绕实时语音对话链路重新梳理前后端职责：前端保留 `start_listen / interrupt / trigger_llm` 主导权，后端负责 ASR Finish 收尾、turn 生命周期与 TTS 编排
+  - 修复前端消息与播放隔离问题：新增 `playbackEpoch` 防旧音频回流，新增 `sessionEpoch` 防止停止后重新开始时新识别结果覆盖旧会话首条气泡
+  - 调整后端 `session.go / asr.go`：`trigger_llm` 时显式 `Finish()` 并短等 ASR final；空文本回发 `turn_nack`；将 `finish last sequence` 等正常 close 视为可接受结束；新 ASR turn 启动前清空旧音频队列
+  - 重写 `pipeline.go` 的 TTS 编排：由先前的短片段试探改为“整句切分 + backlog 动态拼句”，并保留“单段 TTS 失败不中断整轮、整轮无有效音频才报错”的容错策略
+  - 将前端文本渲染改为 `textContent`，消除直接写入 `innerHTML` 的注入风险；同步补齐 `pipeline_test.go` 对句级切分、拼句上限、单段失败继续的覆盖
+- 关键文件/模块：
+  - `internal/session.go`
+  - `internal/asr.go`
+  - `internal/pipeline.go`
+  - `internal/pipeline_test.go`
+  - `webui/index.html`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：
+    - 当前对话机制已收敛为“前端停顿触发 LLM、后端句级 backlog 拼组 TTS”的可运行版本
+    - 停止后重新开始的消息覆盖问题已修复；打断后旧音频 decode 回流问题已修复
+    - `go test ./...`、`go test -race ./...`、`go build -buildvcs=false ./...` 均通过
+  - 失败/问题：
+    - 本轮中途曾尝试更激进的 ASR/打断改法，导致本地 ASR 一度无法工作；随后确认其中夹杂用户麦克风硬件问题，并已按用户要求回滚到 `2026-03-07 18:41 +0800` 的 Git 版本后重新增量实现
+    - TTS 片段策略在“首段弱标点提前切”与“整句起播”之间反复验证，最终根据主观听感回退为整句起播
+- 经验与结论：
+  - 有效实践：
+    - 在实时链路上优先修“过期音频/过期消息污染”这类状态问题，收益高于继续堆更多激进的低延迟技巧
+    - TTS 分组应先稳定在句级单位，再根据播放积压逐步拼句，比分字/短词段试探更容易获得可控听感
+    - 对第三方 TTS 任务采用“单段失败继续、整轮无音频才失败”的策略，能显著降低整句被截断的概率
+  - 失败教训：
+    - 在 ASR 已失稳的情况下继续叠加打断逻辑会放大故障面；正确顺序应是先恢复基线，再逐步加回优化
+    - 只靠 `turn_id` 复用聊天气泡不够，停止后重开会话时必须显式隔离世代
+  - 后续规避：
+    - 以后所有实时链路优化都按“小步实现 -> 单项验证 -> 实机试听”推进，避免一次跨越 ASR/LLM/TTS 多层逻辑
+    - backlog 阈值与字数上限先保守迭代，不再频繁切换首句切分策略
+- 下一步：
+  - 基于真实试听继续微调 `pipeline.go` 的 backlog 阈值与单次拼句上限
+  - 如果后续需要更新说明文档，应以当前 `doc/_instruction.md` 的句级 TTS 与会话隔离机制为准继续追加
+
+## [2026-03-08 01:57 CST] 前端静态资源目录重构
+- 时间范围：2026-03-08 01:46 CST -> 2026-03-08 01:57 CST
+- 主要变更：
+  - 将 `webui/` 目录从 `/webui/` 路径挂载改为根路径 `/` 挂载，使 `/favicon.ico` 等根级资源可直接访问
+  - 将对话页面从 `webui/index.html` 迁移至 `webui/page/chat/index.html`，为后续新增页面预留 `page/` 层级
+  - `main.go` 路由调整：移除旧的 `/webui/` 和 `/static/` 路由，改为统一的根静态文件服务；`/` 重定向到 `/page/chat/`
+  - 更新 `doc/_instruction.md` 中的目录结构、路由说明和访问地址
+- 关键文件/模块：
+  - `main.go`
+  - `webui/page/chat/index.html`（从 `webui/index.html` 迁移）
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：`go build ./...` 通过；`/version`、`/ws`、`/admin/shutdown` 等 API 路由不受影响
+  - `/favicon.ico` 现可正常访问；对话页面通过 `/page/chat/` 访问

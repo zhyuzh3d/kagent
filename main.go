@@ -86,15 +86,15 @@ func main() {
 			os.Exit(0)
 		}()
 	})
-	// Serve the Web UI from /webui/. Keep /static/ as a compatibility alias.
-	mux.Handle("/webui/", http.StripPrefix("/webui/", http.FileServer(http.Dir("webui"))))
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("webui"))))
+	// Serve the webui directory as the root static file server.
+	// Files like /favicon.ico, /chat/index.html, /img/* are served directly.
+	staticFS := http.FileServer(http.Dir("webui"))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/page/chat/", http.StatusFound)
 			return
 		}
-		http.Redirect(w, r, "/webui/index.html", http.StatusFound)
+		staticFS.ServeHTTP(w, r)
 	})
 
 	upgrader := websocket.Upgrader{

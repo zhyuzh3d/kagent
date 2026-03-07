@@ -2,7 +2,12 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
+	"sync"
+	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -33,18 +38,26 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	segmenter := NewTextSegmenter(6) // balanced: not too small (excessive connections) nor too large (delays TTFB)
+	segmenter := NewSentenceSegmenter()
+	backlog := newPlaybackBacklogEstimator()
 	var finalBuilder strings.Builder
 	seq := 0
 	spokenOnce := false
+	pendingSentences := make([]string, 0, 8)
 
-	// Channel for TTS segments — decouples LLM streaming from TTS calls
 	ttsCh := make(chan string, 16)
-	ttsErrCh := make(chan error, 1)
+	type ttsRunResult struct {
+		firstErr error
+		audioOut int
+	}
+	ttsDoneCh := make(chan ttsRunResult, 1)
 
-	// TTS worker goroutine: consumes text segments and synthesizes complete audio per segment
 	go func() {
-		defer close(ttsErrCh)
+		var firstErr error
+		audioOut := 0
+		defer func() {
+			ttsDoneCh <- ttsRunResult{firstErr: firstErr, audioOut: audioOut}
+		}()
 		for seg := range ttsCh {
 			if ctx.Err() != nil {
 				return
@@ -54,10 +67,17 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 				if ctx.Err() != nil {
 					return
 				}
-				ttsErrCh <- err
-				return
+				if firstErr == nil {
+					firstErr = err
+				}
+				log.Printf("[tts] segment synth failed: text=%q err=%v", seg, err)
+				continue
 			}
 			if len(audio) == 0 {
+				if firstErr == nil {
+					firstErr = fmt.Errorf("tts session finished without audio: %s", seg)
+				}
+				log.Printf("[tts] segment synth returned empty audio: text=%q", seg)
 				continue
 			}
 			if !spokenOnce {
@@ -65,16 +85,20 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 				p.cb.OnStatus(StateSpeaking, "ai is speaking")
 			}
 			seq++
+			audioOut++
+			backlog.Add(estimateSpeechDuration(seg))
 			if err := p.cb.OnChunk(TTSChunk{TurnID: turnID, Seq: seq, Format: format, Data: audio}); err != nil {
-				ttsErrCh <- err
+				if firstErr == nil {
+					firstErr = err
+				}
 				return
 			}
 		}
 	}()
 
-	// Enqueue a text segment for TTS (blocking, respects ctx cancellation)
 	enqueueSeg := func(seg string) {
-		if seg == "" || ctx.Err() != nil {
+		seg = strings.TrimSpace(seg)
+		if seg == "" || isPunctuationOnly(seg) || ctx.Err() != nil {
 			return
 		}
 		select {
@@ -83,39 +107,49 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 		}
 	}
 
-	// Emit speaking status immediately on first LLM delta for faster feedback
-	llmDeltaOnce := false
+	drainReady := func(flush bool) {
+		for {
+			group, used := selectSentenceGroup(pendingSentences, backlog.CurrentMS(), flush)
+			if used == 0 {
+				return
+			}
+			enqueueSeg(group)
+			pendingSentences = pendingSentences[used:]
+		}
+	}
 
-	// Stream LLM — deltas are sent to frontend immediately, TTS segments are queued
 	final, err := p.llm.Stream(ctx, userText, history, func(delta string) {
 		d := strings.TrimSpace(delta)
 		if d == "" {
 			return
 		}
 
-		if !llmDeltaOnce {
-			llmDeltaOnce = true
-			// Immediately signal that we're actively generating
-			p.cb.OnStatus(StateSpeaking, "ai is speaking")
-		}
-
 		finalBuilder.WriteString(d)
 		p.cb.OnEvent(NewTextEvent("llm_delta", turnID, d))
 
-		for _, seg := range segmenter.Push(d) {
-			enqueueSeg(seg)
+		for _, sentence := range segmenter.Push(d) {
+			sentence = strings.TrimSpace(sentence)
+			if sentence == "" || isPunctuationOnly(sentence) {
+				continue
+			}
+			pendingSentences = append(pendingSentences, sentence)
 		}
+		drainReady(false)
 	})
 
-	// Flush remaining text to TTS
-	for _, seg := range segmenter.Flush() {
-		enqueueSeg(seg)
+	for _, sentence := range segmenter.Flush() {
+		sentence = strings.TrimSpace(sentence)
+		if sentence == "" || isPunctuationOnly(sentence) {
+			continue
+		}
+		pendingSentences = append(pendingSentences, sentence)
 	}
-	close(ttsCh) // Signal TTS worker to finish
+	drainReady(true)
+	close(ttsCh)
 
-	// Wait for TTS worker to complete
-	if ttsErr := <-ttsErrCh; ttsErr != nil && err == nil {
-		err = ttsErr
+	ttsResult := <-ttsDoneCh
+	if err == nil && ttsResult.audioOut == 0 && ttsResult.firstErr != nil {
+		err = ttsResult.firstErr
 	}
 
 	if err != nil {
@@ -129,61 +163,217 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 	return nil
 }
 
-type TextSegmenter struct {
-	buf      strings.Builder
-	minRunes int
-	endPunc  map[rune]struct{}
+type SentenceSegmenter struct {
+	buf           string
+	sentenceBreak map[rune]struct{}
 }
 
-func NewTextSegmenter(minRunes int) *TextSegmenter {
-	if minRunes <= 0 {
-		minRunes = 6
-	}
-	return &TextSegmenter{
-		minRunes: minRunes,
-		endPunc: map[rune]struct{}{
+func NewSentenceSegmenter() *SentenceSegmenter {
+	return &SentenceSegmenter{
+		sentenceBreak: map[rune]struct{}{
 			'。':  {},
 			'！':  {},
 			'？':  {},
 			'；':  {},
-			'，':  {},
-			'、':  {},
 			'.':  {},
 			'!':  {},
 			'?':  {},
 			';':  {},
-			',':  {},
+			'…':  {},
 			'\n': {},
 		},
 	}
 }
 
-func (s *TextSegmenter) Push(delta string) []string {
+func (s *SentenceSegmenter) Push(delta string) []string {
 	if strings.TrimSpace(delta) == "" {
 		return nil
 	}
-	s.buf.WriteString(delta)
-	content := s.buf.String()
-	if utf8.RuneCountInString(content) < s.minRunes {
-		return nil
-	}
-	last, _ := utf8.DecodeLastRuneInString(content)
-	if _, ok := s.endPunc[last]; !ok {
-		return nil
-	}
-	segment := strings.TrimSpace(content)
-	s.buf.Reset()
-	if segment == "" {
-		return nil
-	}
-	return []string{segment}
+	s.buf += delta
+	return s.extract(false)
 }
 
-func (s *TextSegmenter) Flush() []string {
-	segment := strings.TrimSpace(s.buf.String())
-	s.buf.Reset()
-	if segment == "" {
+func (s *SentenceSegmenter) Flush() []string {
+	out := s.extract(true)
+	s.buf = ""
+	return out
+}
+
+func (s *SentenceSegmenter) extract(flush bool) []string {
+	if strings.TrimSpace(s.buf) == "" {
+		if flush {
+			s.buf = ""
+		}
 		return nil
 	}
-	return []string{segment}
+
+	var out []string
+	start := 0
+	runes := []rune(s.buf)
+	for i, r := range runes {
+		if !s.isSentenceBreak(r) {
+			continue
+		}
+		segment := strings.TrimSpace(string(runes[start : i+1]))
+		if segment != "" {
+			out = append(out, segment)
+		}
+		start = i + 1
+	}
+
+	if flush {
+		if start < len(runes) {
+			segment := strings.TrimSpace(string(runes[start:]))
+			if segment != "" {
+				out = append(out, segment)
+			}
+		}
+		s.buf = ""
+		return out
+	}
+
+	if start == 0 {
+		return nil
+	}
+	s.buf = string(runes[start:])
+	return out
+}
+
+func (s *SentenceSegmenter) isSentenceBreak(r rune) bool {
+	_, ok := s.sentenceBreak[r]
+	return ok
+}
+
+type sentenceGroupPolicy struct {
+	targetSentences int
+	maxRunes        int
+}
+
+func selectSentenceGroup(sentences []string, backlogMS int64, flush bool) (string, int) {
+	if len(sentences) == 0 {
+		return "", 0
+	}
+
+	policy := groupingPolicy(backlogMS)
+	if !flush && policy.targetSentences > 1 && len(sentences) < policy.targetSentences {
+		return "", 0
+	}
+
+	count := policy.targetSentences
+	if count > len(sentences) {
+		count = len(sentences)
+	}
+	if count <= 0 {
+		count = 1
+	}
+	for count > 1 && joinedRuneCount(sentences[:count]) > policy.maxRunes {
+		count--
+	}
+	if count == 1 {
+		return strings.TrimSpace(sentences[0]), 1
+	}
+	return strings.TrimSpace(strings.Join(sentences[:count], "")), count
+}
+
+func groupingPolicy(backlogMS int64) sentenceGroupPolicy {
+	switch {
+	case backlogMS >= 20000:
+		return sentenceGroupPolicy{targetSentences: 10, maxRunes: 500}
+	case backlogMS >= 10000:
+		return sentenceGroupPolicy{targetSentences: 5, maxRunes: 200}
+	case backlogMS >= 5000:
+		return sentenceGroupPolicy{targetSentences: 3, maxRunes: 50}
+	case backlogMS >= 3000:
+		return sentenceGroupPolicy{targetSentences: 2, maxRunes: 24}
+	default:
+		return sentenceGroupPolicy{targetSentences: 1, maxRunes: 80}
+	}
+}
+
+func joinedRuneCount(parts []string) int {
+	total := 0
+	for _, part := range parts {
+		total += utf8.RuneCountInString(strings.TrimSpace(part))
+	}
+	return total
+}
+
+func estimateSpeechDuration(text string) int64 {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return 0
+	}
+	runes := []rune(text)
+	ms := 180 * len(runes)
+	for _, r := range runes {
+		switch r {
+		case '。', '！', '？', '；', '.', '!', '?', ';', '…':
+			ms += 220
+		case '，', '、', ',', ':', '：':
+			ms += 90
+		}
+	}
+	if ms < 400 {
+		ms = 400
+	}
+	return int64(ms)
+}
+
+type playbackBacklogEstimator struct {
+	mu        sync.Mutex
+	pendingMS float64
+	lastAt    time.Time
+}
+
+func newPlaybackBacklogEstimator() *playbackBacklogEstimator {
+	return &playbackBacklogEstimator{lastAt: time.Now()}
+}
+
+func (e *playbackBacklogEstimator) Add(ms int64) {
+	if ms <= 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.decayLocked(time.Now())
+	e.pendingMS += float64(ms)
+	if e.pendingMS > 60000 {
+		e.pendingMS = 60000
+	}
+}
+
+func (e *playbackBacklogEstimator) CurrentMS() int64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.decayLocked(time.Now())
+	return int64(e.pendingMS)
+}
+
+func (e *playbackBacklogEstimator) decayLocked(now time.Time) {
+	if e.lastAt.IsZero() {
+		e.lastAt = now
+		return
+	}
+	elapsed := now.Sub(e.lastAt).Milliseconds()
+	if elapsed > 0 {
+		e.pendingMS -= float64(elapsed)
+		if e.pendingMS < 0 {
+			e.pendingMS = 0
+		}
+	}
+	e.lastAt = now
+}
+
+func isPunctuationOnly(text string) bool {
+	hasRune := false
+	for _, r := range text {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		hasRune = true
+		if !unicode.IsPunct(r) && !unicode.IsSymbol(r) {
+			return false
+		}
+	}
+	return hasRune
 }

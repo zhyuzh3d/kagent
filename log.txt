@@ -1,247 +1,320 @@
-=== DEPLOY id=be935ca7-fb9d-4a67-8183-81d6b29dd373 ts=2026-03-07 18:37:53 CST backend=26030701 pid=? ===
-=== DEPLOY id=be935ca7-fb9d-4a67-8183-81d6b29dd373 ts=2026-03-07 18:37:53 CST backend=26030701 pid=38360 started ===
-2026/03/07 18:37:54 kagent version backend=26030701 webui=26030701
-2026/03/07 18:37:54 kagent T0 server listening on http://127.0.0.1:18080
-2026/03/07 18:37:58 [asr] Connecting dedicated ASR WebSocket for turnID=1
-2026/03/07 18:37:59 [session] -> start_listen from client: turnID=2
-2026/03/07 18:37:59 [asr] Connecting dedicated ASR WebSocket for turnID=2
-2026/03/07 18:37:59 [asr] Dedicated connection for turnID=1 closed
-2026/03/07 18:38:00 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:01 [session] ASR final received for trigger_llm turnID=2
-2026/03/07 18:38:01 [session] -> trigger_llm: text="我准备去吃饭了呀。" turnID=2
-2026/03/07 18:38:01 [asr] turnID=2 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:38:01 [asr] Dedicated connection for turnID=2 closed
-2026/03/07 18:38:08 [session] -> start_listen from client: turnID=3
-2026/03/07 18:38:08 [asr] Connecting dedicated ASR WebSocket for turnID=3
-2026/03/07 18:38:10 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:10 [asr] turnID=3 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:38:10 [asr] Dedicated connection for turnID=3 closed
-2026/03/07 18:38:10 [session] ASR final received for trigger_llm turnID=3
-2026/03/07 18:38:10 [session] -> trigger_llm: text="你不准备吃点什么呀？" turnID=3
-2026/03/07 18:38:20 [session] -> start_listen from client: turnID=4
-2026/03/07 18:38:20 [asr] Connecting dedicated ASR WebSocket for turnID=4
-2026/03/07 18:38:23 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:23 [asr] turnID=4 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:38:23 [asr] Dedicated connection for turnID=4 closed
-2026/03/07 18:38:23 [session] ASR final received for trigger_llm turnID=4
-2026/03/07 18:38:23 [session] -> trigger_llm: text="吃点吧，别客气，我请你。" turnID=4
-2026/03/07 18:38:24 [session] -> start_listen from client: turnID=5
-2026/03/07 18:38:24 [asr] Connecting dedicated ASR WebSocket for turnID=5
-2026/03/07 18:38:25 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:25 [asr] turnID=5 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:38:25 [asr] Dedicated connection for turnID=5 closed
-2026/03/07 18:38:26 [session] ASR final timeout for trigger_llm turnID=5, using partial text
-2026/03/07 18:38:26 [session] -> trigger_llm: text="" turnID=5
-2026/03/07 18:38:38 [session] -> start_listen from client: turnID=6
-2026/03/07 18:38:38 [asr] Connecting dedicated ASR WebSocket for turnID=6
-2026/03/07 18:38:39 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:39 [session] ASR final received for trigger_llm turnID=6
-2026/03/07 18:38:39 [session] -> trigger_llm: text="怎么不说话了？" turnID=6
-2026/03/07 18:38:39 [asr] Dedicated connection for turnID=6 closed
-2026/03/07 18:38:50 [session] -> start_listen from client: turnID=7
-2026/03/07 18:38:50 [asr] Connecting dedicated ASR WebSocket for turnID=7
-2026/03/07 18:38:51 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:38:52 [asr] turnID=7 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:38:52 [asr] Dedicated connection for turnID=7 closed
-2026/03/07 18:38:52 [session] ASR final received for trigger_llm turnID=7
-2026/03/07 18:38:52 [session] -> trigger_llm: text="我请你吃。" turnID=7
-2026/03/07 18:39:01 [session] -> start_listen from client: turnID=8
-2026/03/07 18:39:01 [asr] Connecting dedicated ASR WebSocket for turnID=8
-2026/03/07 18:39:01 [session] -> interrupt from client: reason=barge_in turnID=9
-2026/03/07 18:39:01 [asr] Connecting dedicated ASR WebSocket for turnID=9
-2026/03/07 18:39:01 [asr] Dedicated connection for turnID=8 closed
-2026/03/07 18:39:03 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:39:03 [session] ASR final received for trigger_llm turnID=9
-2026/03/07 18:39:03 [session] -> trigger_llm: text="必须得吃，不吃我就打你。" turnID=9
-2026/03/07 18:39:03 [asr] Dedicated connection for turnID=9 closed
-2026/03/07 18:39:17 [session] -> start_listen from client: turnID=10
-2026/03/07 18:39:17 [asr] Connecting dedicated ASR WebSocket for turnID=10
-2026/03/07 18:39:19 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:39:19 [session] ASR final received for trigger_llm turnID=10
-2026/03/07 18:39:19 [session] -> trigger_llm: text="那我先去吃饭了啊。" turnID=10
-2026/03/07 18:39:19 [asr] turnID=10 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:39:19 [asr] Dedicated connection for turnID=10 closed
-2026/03/07 18:39:27 [session] -> start_listen from client: turnID=11
-2026/03/07 18:39:27 [asr] Connecting dedicated ASR WebSocket for turnID=11
-2026/03/07 18:39:29 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:39:29 [session] ASR final received for trigger_llm turnID=11
-2026/03/07 18:39:29 [session] -> trigger_llm: text="我还要去拿快递了。" turnID=11
-2026/03/07 18:39:29 [asr] Dedicated connection for turnID=11 closed
-2026/03/07 18:39:38 [session] -> start_listen from client: turnID=12
-2026/03/07 18:39:38 [asr] Connecting dedicated ASR WebSocket for turnID=12
-2026/03/07 18:39:42 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:39:42 [session] ASR final received for trigger_llm turnID=12
-2026/03/07 18:39:42 [asr] turnID=12 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:39:42 [asr] Dedicated connection for turnID=12 closed
-2026/03/07 18:39:42 [session] -> trigger_llm: text="你能不能先给我讲个200字的小故事？" turnID=12
-2026/03/07 18:40:24 [session] -> start_listen from client: turnID=13
-2026/03/07 18:40:24 [asr] Connecting dedicated ASR WebSocket for turnID=13
-2026/03/07 18:40:33 [asr] turnID=13 run error: asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
-2026/03/07 18:40:33 [asr] Dedicated connection for turnID=13 closed
-2026/03/07 18:40:44 [session] ASR final timeout for trigger_llm turnID=13, using partial text
-2026/03/07 18:40:44 [session] -> trigger_llm: text="" turnID=13
-2026/03/07 18:40:44 [session] -> start_listen from client: turnID=14
-2026/03/07 18:40:44 [asr] Connecting dedicated ASR WebSocket for turnID=14
-2026/03/07 18:40:45 [session] ASR final timeout for trigger_llm turnID=14, using partial text
-2026/03/07 18:40:45 [session] -> trigger_llm: text="" turnID=14
-2026/03/07 18:40:45 [asr] Dedicated connection for turnID=14 closed
-2026/03/07 18:40:46 [session] -> start_listen from client: turnID=15
-2026/03/07 18:40:46 [asr] Connecting dedicated ASR WebSocket for turnID=15
-2026/03/07 18:40:49 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:40:49 [session] ASR final received for trigger_llm turnID=15
-2026/03/07 18:40:49 [session] -> trigger_llm: text="你这讲的是什么东西啊？你这是。" turnID=15
-2026/03/07 18:40:49 [asr] turnID=15 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:40:49 [asr] Dedicated connection for turnID=15 closed
-2026/03/07 18:41:03 [session] -> start_listen from client: turnID=16
-2026/03/07 18:41:03 [asr] Connecting dedicated ASR WebSocket for turnID=16
-2026/03/07 18:41:05 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:05 [asr] turnID=16 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:05 [asr] Dedicated connection for turnID=16 closed
-2026/03/07 18:41:06 [session] ASR final timeout for trigger_llm turnID=16, using partial text
-2026/03/07 18:41:06 [session] -> trigger_llm: text="" turnID=16
-2026/03/07 18:41:06 [session] -> start_listen from client: turnID=17
-2026/03/07 18:41:06 [asr] Connecting dedicated ASR WebSocket for turnID=17
-2026/03/07 18:41:07 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:07 [asr] turnID=17 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:07 [asr] Dedicated connection for turnID=17 closed
-2026/03/07 18:41:07 [session] ASR final timeout for trigger_llm turnID=17, using partial text
-2026/03/07 18:41:07 [session] -> trigger_llm: text="" turnID=17
-2026/03/07 18:41:07 [session] -> start_listen from client: turnID=18
-2026/03/07 18:41:07 [asr] Connecting dedicated ASR WebSocket for turnID=18
-2026/03/07 18:41:08 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:08 [asr] turnID=18 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:08 [asr] Dedicated connection for turnID=18 closed
-2026/03/07 18:41:08 [session] ASR final timeout for trigger_llm turnID=18, using partial text
-2026/03/07 18:41:08 [session] -> trigger_llm: text="" turnID=18
-2026/03/07 18:41:08 [session] -> start_listen from client: turnID=19
-2026/03/07 18:41:08 [asr] Connecting dedicated ASR WebSocket for turnID=19
-2026/03/07 18:41:10 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:11 [asr] turnID=19 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:11 [asr] Dedicated connection for turnID=19 closed
-2026/03/07 18:41:11 [session] ASR final timeout for trigger_llm turnID=19, using partial text
-2026/03/07 18:41:11 [session] -> trigger_llm: text="" turnID=19
-2026/03/07 18:41:11 [session] -> start_listen from client: turnID=20
-2026/03/07 18:41:11 [asr] Connecting dedicated ASR WebSocket for turnID=20
-2026/03/07 18:41:12 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:12 [asr] turnID=20 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:12 [asr] Dedicated connection for turnID=20 closed
-2026/03/07 18:41:13 [session] ASR final timeout for trigger_llm turnID=20, using partial text
-2026/03/07 18:41:13 [session] -> trigger_llm: text="" turnID=20
-2026/03/07 18:41:13 [session] -> start_listen from client: turnID=21
-2026/03/07 18:41:13 [asr] Connecting dedicated ASR WebSocket for turnID=21
-2026/03/07 18:41:14 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:14 [asr] turnID=21 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:14 [asr] Dedicated connection for turnID=21 closed
-2026/03/07 18:41:15 [session] ASR final timeout for trigger_llm turnID=21, using partial text
-2026/03/07 18:41:15 [session] -> trigger_llm: text="" turnID=21
-2026/03/07 18:41:15 [session] -> start_listen from client: turnID=22
-2026/03/07 18:41:15 [asr] Connecting dedicated ASR WebSocket for turnID=22
-2026/03/07 18:41:15 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:16 [asr] turnID=22 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:16 [asr] Dedicated connection for turnID=22 closed
-2026/03/07 18:41:16 [session] ASR final timeout for trigger_llm turnID=22, using partial text
-2026/03/07 18:41:16 [session] -> trigger_llm: text="" turnID=22
-2026/03/07 18:41:18 [session] -> start_listen from client: turnID=23
-2026/03/07 18:41:18 [asr] Connecting dedicated ASR WebSocket for turnID=23
-2026/03/07 18:41:18 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:18 [asr] turnID=23 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:18 [asr] Dedicated connection for turnID=23 closed
-2026/03/07 18:41:19 [session] ASR final timeout for trigger_llm turnID=23, using partial text
-2026/03/07 18:41:19 [session] -> trigger_llm: text="" turnID=23
-2026/03/07 18:41:19 [session] -> start_listen from client: turnID=24
-2026/03/07 18:41:19 [asr] Connecting dedicated ASR WebSocket for turnID=24
-2026/03/07 18:41:20 [session] ASR final timeout for trigger_llm turnID=24, using partial text
-2026/03/07 18:41:20 [session] -> trigger_llm: text="" turnID=24
-2026/03/07 18:41:20 [session] -> start_listen from client: turnID=25
-2026/03/07 18:41:20 [asr] Connecting dedicated ASR WebSocket for turnID=25
-2026/03/07 18:41:20 [asr] Dedicated connection for turnID=24 closed
-2026/03/07 18:41:21 [session] ASR final timeout for trigger_llm turnID=25, using partial text
-2026/03/07 18:41:21 [session] -> trigger_llm: text="" turnID=25
-2026/03/07 18:41:21 [session] -> start_listen from client: turnID=26
-2026/03/07 18:41:21 [asr] Connecting dedicated ASR WebSocket for turnID=26
-2026/03/07 18:41:21 [asr] Dedicated connection for turnID=25 closed
-2026/03/07 18:41:22 [session] ASR final timeout for trigger_llm turnID=26, using partial text
-2026/03/07 18:41:22 [session] -> trigger_llm: text="" turnID=26
-2026/03/07 18:41:22 [asr] Dedicated connection for turnID=26 closed
-2026/03/07 18:41:24 [session] -> start_listen from client: turnID=27
-2026/03/07 18:41:24 [asr] Connecting dedicated ASR WebSocket for turnID=27
-2026/03/07 18:41:24 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:24 [asr] turnID=27 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:24 [asr] Dedicated connection for turnID=27 closed
-2026/03/07 18:41:25 [session] ASR final timeout for trigger_llm turnID=27, using partial text
-2026/03/07 18:41:25 [session] -> trigger_llm: text="" turnID=27
-2026/03/07 18:41:25 [session] -> start_listen from client: turnID=28
-2026/03/07 18:41:25 [asr] Connecting dedicated ASR WebSocket for turnID=28
-2026/03/07 18:41:26 [session] ASR final timeout for trigger_llm turnID=28, using partial text
-2026/03/07 18:41:26 [session] -> trigger_llm: text="" turnID=28
-2026/03/07 18:41:26 [asr] Dedicated connection for turnID=28 closed
-2026/03/07 18:41:29 [session] -> start_listen from client: turnID=29
-2026/03/07 18:41:29 [asr] Connecting dedicated ASR WebSocket for turnID=29
-2026/03/07 18:41:30 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:30 [asr] turnID=29 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:30 [asr] Dedicated connection for turnID=29 closed
-2026/03/07 18:41:31 [session] ASR final timeout for trigger_llm turnID=29, using partial text
-2026/03/07 18:41:31 [session] -> trigger_llm: text="" turnID=29
-2026/03/07 18:41:31 [session] -> start_listen from client: turnID=30
-2026/03/07 18:41:31 [asr] Connecting dedicated ASR WebSocket for turnID=30
-2026/03/07 18:41:31 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:31 [asr] turnID=30 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:31 [asr] Dedicated connection for turnID=30 closed
-2026/03/07 18:41:32 [session] ASR final timeout for trigger_llm turnID=30, using partial text
-2026/03/07 18:41:32 [session] -> trigger_llm: text="" turnID=30
-2026/03/07 18:41:32 [session] -> start_listen from client: turnID=31
-2026/03/07 18:41:32 [asr] Connecting dedicated ASR WebSocket for turnID=31
-2026/03/07 18:41:33 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:33 [asr] turnID=31 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:33 [asr] Dedicated connection for turnID=31 closed
-2026/03/07 18:41:33 [session] ASR final timeout for trigger_llm turnID=31, using partial text
-2026/03/07 18:41:33 [session] -> trigger_llm: text="" turnID=31
-2026/03/07 18:41:34 [session] -> start_listen from client: turnID=32
-2026/03/07 18:41:34 [asr] Connecting dedicated ASR WebSocket for turnID=32
-2026/03/07 18:41:36 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:36 [asr] turnID=32 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:36 [asr] Dedicated connection for turnID=32 closed
-2026/03/07 18:41:37 [session] ASR final timeout for trigger_llm turnID=32, using partial text
-2026/03/07 18:41:37 [session] -> trigger_llm: text="" turnID=32
-2026/03/07 18:41:38 [session] -> start_listen from client: turnID=33
-2026/03/07 18:41:38 [asr] Connecting dedicated ASR WebSocket for turnID=33
-2026/03/07 18:41:39 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:39 [asr] turnID=33 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:39 [asr] Dedicated connection for turnID=33 closed
-2026/03/07 18:41:40 [session] ASR final timeout for trigger_llm turnID=33, using partial text
-2026/03/07 18:41:40 [session] -> trigger_llm: text="" turnID=33
-2026/03/07 18:41:40 [session] -> start_listen from client: turnID=34
-2026/03/07 18:41:40 [asr] Connecting dedicated ASR WebSocket for turnID=34
-2026/03/07 18:41:40 [session] ASR final timeout for trigger_llm turnID=34, using partial text
-2026/03/07 18:41:40 [session] -> trigger_llm: text="" turnID=34
-2026/03/07 18:41:40 [session] -> start_listen from client: turnID=35
-2026/03/07 18:41:40 [asr] Connecting dedicated ASR WebSocket for turnID=35
-2026/03/07 18:41:40 [asr] Dedicated connection for turnID=34 closed
-2026/03/07 18:41:42 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:42 [asr] turnID=35 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:42 [asr] Dedicated connection for turnID=35 closed
-2026/03/07 18:41:42 [session] ASR final timeout for trigger_llm turnID=35, using partial text
-2026/03/07 18:41:42 [session] -> trigger_llm: text="" turnID=35
-2026/03/07 18:41:42 [session] -> start_listen from client: turnID=36
-2026/03/07 18:41:42 [asr] Connecting dedicated ASR WebSocket for turnID=36
-2026/03/07 18:41:44 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:44 [asr] turnID=36 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:44 [asr] Dedicated connection for turnID=36 closed
-2026/03/07 18:41:44 [session] ASR final timeout for trigger_llm turnID=36, using partial text
-2026/03/07 18:41:44 [session] -> trigger_llm: text="" turnID=36
-2026/03/07 18:41:44 [session] -> start_listen from client: turnID=37
-2026/03/07 18:41:44 [asr] Connecting dedicated ASR WebSocket for turnID=37
-2026/03/07 18:41:47 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:47 [asr] turnID=37 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:47 [asr] Dedicated connection for turnID=37 closed
-2026/03/07 18:41:48 [session] ASR final timeout for trigger_llm turnID=37, using partial text
-2026/03/07 18:41:48 [session] -> trigger_llm: text="" turnID=37
-2026/03/07 18:41:48 [session] -> start_listen from client: turnID=38
-2026/03/07 18:41:48 [asr] Connecting dedicated ASR WebSocket for turnID=38
-2026/03/07 18:41:48 [asr] Finish signal received, sending ending frame to ASR server
-2026/03/07 18:41:49 [asr] turnID=38 run error: read asr message: websocket: close 1000 (normal): finish last sequence
-2026/03/07 18:41:49 [asr] Dedicated connection for turnID=38 closed
-2026/03/07 18:41:49 [session] ASR final timeout for trigger_llm turnID=38, using partial text
-2026/03/07 18:41:49 [session] -> trigger_llm: text="" turnID=38
-2026/03/07 18:41:51 [session] -> start_listen from client: turnID=39
-2026/03/07 18:41:51 [asr] Connecting dedicated ASR WebSocket for turnID=39
+=== DEPLOY id=e52a49cd-9075-44bf-aab9-7c14c85131d3 ts=2026-03-08 01:55:44 CST backend=26030702 pid=? ===
+=== DEPLOY id=e52a49cd-9075-44bf-aab9-7c14c85131d3 ts=2026-03-08 01:55:44 CST backend=26030702 pid=69466 started ===
+2026/03/08 01:55:45 kagent version backend=26030702 webui=26030702
+2026/03/08 01:55:45 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/08 01:55:54 [asr] Connecting dedicated ASR WebSocket for turnID=0
+2026/03/08 01:55:56 [session] -> start_listen from client: turnID=1
+2026/03/08 01:55:56 [asr] Connecting dedicated ASR WebSocket for turnID=1
+2026/03/08 01:55:56 [asr] Dedicated connection for turnID=0 closed
+2026/03/08 01:55:57 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:55:58 [asr] Dedicated connection for turnID=1 closed
+2026/03/08 01:55:58 [session] ASR final wait timed out for trigger_llm turnID=1; falling back
+2026/03/08 01:55:58 [session] -> trigger_llm: text="" turnID=1
+2026/03/08 01:55:58 [session] -> start_listen from client: turnID=2
+2026/03/08 01:55:58 [asr] Connecting dedicated ASR WebSocket for turnID=2
+2026/03/08 01:55:59 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:55:59 [asr] Dedicated connection for turnID=2 closed
+2026/03/08 01:55:59 [session] ASR final wait timed out for trigger_llm turnID=2; falling back
+2026/03/08 01:55:59 [session] -> trigger_llm: text="" turnID=2
+2026/03/08 01:55:59 [session] -> start_listen from client: turnID=3
+2026/03/08 01:55:59 [asr] Connecting dedicated ASR WebSocket for turnID=3
+2026/03/08 01:56:00 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:00 [asr] Dedicated connection for turnID=3 closed
+2026/03/08 01:56:00 [session] ASR final wait timed out for trigger_llm turnID=3; falling back
+2026/03/08 01:56:00 [session] -> trigger_llm: text="" turnID=3
+2026/03/08 01:56:01 [session] -> start_listen from client: turnID=4
+2026/03/08 01:56:01 [asr] Connecting dedicated ASR WebSocket for turnID=4
+2026/03/08 01:56:01 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:01 [asr] Dedicated connection for turnID=4 closed
+2026/03/08 01:56:02 [session] ASR final wait timed out for trigger_llm turnID=4; falling back
+2026/03/08 01:56:02 [session] -> trigger_llm: text="" turnID=4
+2026/03/08 01:56:04 [session] -> start_listen from client: turnID=5
+2026/03/08 01:56:04 [asr] Connecting dedicated ASR WebSocket for turnID=5
+2026/03/08 01:56:04 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:04 [asr] Dedicated connection for turnID=5 closed
+2026/03/08 01:56:04 [session] ASR final wait timed out for trigger_llm turnID=5; falling back
+2026/03/08 01:56:04 [session] -> trigger_llm: text="" turnID=5
+2026/03/08 01:56:07 [session] -> start_listen from client: turnID=6
+2026/03/08 01:56:07 [asr] Connecting dedicated ASR WebSocket for turnID=6
+2026/03/08 01:56:08 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:08 [asr] Dedicated connection for turnID=6 closed
+2026/03/08 01:56:08 [session] ASR final wait timed out for trigger_llm turnID=6; falling back
+2026/03/08 01:56:08 [session] -> trigger_llm: text="" turnID=6
+2026/03/08 01:56:09 [session] -> start_listen from client: turnID=7
+2026/03/08 01:56:09 [asr] Connecting dedicated ASR WebSocket for turnID=7
+2026/03/08 01:56:10 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:10 [asr] Dedicated connection for turnID=7 closed
+2026/03/08 01:56:10 [session] ASR final wait timed out for trigger_llm turnID=7; falling back
+2026/03/08 01:56:10 [session] -> trigger_llm: text="" turnID=7
+2026/03/08 01:56:10 [session] -> start_listen from client: turnID=8
+2026/03/08 01:56:10 [asr] Connecting dedicated ASR WebSocket for turnID=8
+2026/03/08 01:56:12 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:12 [asr] Dedicated connection for turnID=8 closed
+2026/03/08 01:56:12 [session] ASR final wait timed out for trigger_llm turnID=8; falling back
+2026/03/08 01:56:12 [session] -> trigger_llm: text="" turnID=8
+2026/03/08 01:56:12 [session] -> start_listen from client: turnID=9
+2026/03/08 01:56:12 [asr] Connecting dedicated ASR WebSocket for turnID=9
+2026/03/08 01:56:14 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:14 [asr] Dedicated connection for turnID=9 closed
+2026/03/08 01:56:14 [session] ASR final wait timed out for trigger_llm turnID=9; falling back
+2026/03/08 01:56:14 [session] -> trigger_llm: text="" turnID=9
+2026/03/08 01:56:14 [session] -> start_listen from client: turnID=10
+2026/03/08 01:56:14 [asr] Connecting dedicated ASR WebSocket for turnID=10
+2026/03/08 01:56:16 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:17 [asr] Dedicated connection for turnID=10 closed
+2026/03/08 01:56:17 [session] ASR final wait timed out for trigger_llm turnID=10; falling back
+2026/03/08 01:56:17 [session] -> trigger_llm: text="" turnID=10
+2026/03/08 01:56:20 [session] -> start_listen from client: turnID=11
+2026/03/08 01:56:20 [asr] Connecting dedicated ASR WebSocket for turnID=11
+2026/03/08 01:56:21 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:21 [asr] Dedicated connection for turnID=11 closed
+2026/03/08 01:56:21 [session] ASR final wait timed out for trigger_llm turnID=11; falling back
+2026/03/08 01:56:21 [session] -> trigger_llm: text="" turnID=11
+2026/03/08 01:56:22 [session] -> start_listen from client: turnID=12
+2026/03/08 01:56:22 [asr] Connecting dedicated ASR WebSocket for turnID=12
+2026/03/08 01:56:23 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:23 [asr] Dedicated connection for turnID=12 closed
+2026/03/08 01:56:23 [session] ASR final wait timed out for trigger_llm turnID=12; falling back
+2026/03/08 01:56:23 [session] -> trigger_llm: text="" turnID=12
+2026/03/08 01:56:23 [session] -> start_listen from client: turnID=13
+2026/03/08 01:56:23 [asr] Connecting dedicated ASR WebSocket for turnID=13
+2026/03/08 01:56:24 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:24 [asr] Dedicated connection for turnID=13 closed
+2026/03/08 01:56:24 [session] ASR final wait timed out for trigger_llm turnID=13; falling back
+2026/03/08 01:56:24 [session] -> trigger_llm: text="" turnID=13
+2026/03/08 01:56:24 [session] -> start_listen from client: turnID=14
+2026/03/08 01:56:24 [asr] Connecting dedicated ASR WebSocket for turnID=14
+2026/03/08 01:56:25 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:25 [asr] Dedicated connection for turnID=14 closed
+2026/03/08 01:56:25 [session] ASR final wait timed out for trigger_llm turnID=14; falling back
+2026/03/08 01:56:25 [session] -> trigger_llm: text="" turnID=14
+2026/03/08 01:56:25 [session] -> start_listen from client: turnID=15
+2026/03/08 01:56:25 [asr] Connecting dedicated ASR WebSocket for turnID=15
+2026/03/08 01:56:26 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:27 [asr] Dedicated connection for turnID=15 closed
+2026/03/08 01:56:27 [session] ASR final wait timed out for trigger_llm turnID=15; falling back
+2026/03/08 01:56:27 [session] -> trigger_llm: text="" turnID=15
+2026/03/08 01:56:28 [session] -> start_listen from client: turnID=16
+2026/03/08 01:56:28 [asr] Connecting dedicated ASR WebSocket for turnID=16
+2026/03/08 01:56:36 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:36 [asr] Dedicated connection for turnID=16 closed
+2026/03/08 01:56:36 [session] ASR final wait timed out for trigger_llm turnID=16; falling back
+2026/03/08 01:56:36 [session] -> trigger_llm: text="" turnID=16
+2026/03/08 01:56:36 [session] -> start_listen from client: turnID=17
+2026/03/08 01:56:36 [asr] Connecting dedicated ASR WebSocket for turnID=17
+2026/03/08 01:56:36 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:37 [asr] Dedicated connection for turnID=17 closed
+2026/03/08 01:56:37 [session] ASR final wait timed out for trigger_llm turnID=17; falling back
+2026/03/08 01:56:37 [session] -> trigger_llm: text="" turnID=17
+2026/03/08 01:56:37 [session] -> start_listen from client: turnID=18
+2026/03/08 01:56:37 [asr] Connecting dedicated ASR WebSocket for turnID=18
+2026/03/08 01:56:38 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:38 [asr] Dedicated connection for turnID=18 closed
+2026/03/08 01:56:39 [session] ASR final wait timed out for trigger_llm turnID=18; falling back
+2026/03/08 01:56:39 [session] -> trigger_llm: text="" turnID=18
+2026/03/08 01:56:39 [session] -> start_listen from client: turnID=19
+2026/03/08 01:56:39 [asr] Connecting dedicated ASR WebSocket for turnID=19
+2026/03/08 01:56:39 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:39 [asr] Dedicated connection for turnID=19 closed
+2026/03/08 01:56:40 [session] ASR final wait timed out for trigger_llm turnID=19; falling back
+2026/03/08 01:56:40 [session] -> trigger_llm: text="" turnID=19
+2026/03/08 01:56:42 [session] -> start_listen from client: turnID=20
+2026/03/08 01:56:42 [asr] Connecting dedicated ASR WebSocket for turnID=20
+2026/03/08 01:56:50 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:50 [asr] Dedicated connection for turnID=20 closed
+2026/03/08 01:56:50 [session] ASR final wait timed out for trigger_llm turnID=20; falling back
+2026/03/08 01:56:50 [session] -> trigger_llm: text="" turnID=20
+2026/03/08 01:56:51 [session] -> start_listen from client: turnID=21
+2026/03/08 01:56:51 [asr] Connecting dedicated ASR WebSocket for turnID=21
+2026/03/08 01:56:55 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:55 [asr] Dedicated connection for turnID=21 closed
+2026/03/08 01:56:55 [session] ASR final wait timed out for trigger_llm turnID=21; falling back
+2026/03/08 01:56:55 [session] -> trigger_llm: text="" turnID=21
+2026/03/08 01:56:55 [session] -> start_listen from client: turnID=22
+2026/03/08 01:56:55 [asr] Connecting dedicated ASR WebSocket for turnID=22
+2026/03/08 01:56:58 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:56:58 [asr] Dedicated connection for turnID=22 closed
+2026/03/08 01:56:59 [session] ASR final wait timed out for trigger_llm turnID=22; falling back
+2026/03/08 01:56:59 [session] -> trigger_llm: text="" turnID=22
+2026/03/08 01:56:59 [session] -> start_listen from client: turnID=23
+2026/03/08 01:56:59 [asr] Connecting dedicated ASR WebSocket for turnID=23
+2026/03/08 01:57:01 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:01 [asr] Dedicated connection for turnID=23 closed
+2026/03/08 01:57:02 [session] ASR final wait timed out for trigger_llm turnID=23; falling back
+2026/03/08 01:57:02 [session] -> trigger_llm: text="" turnID=23
+2026/03/08 01:57:02 [session] -> start_listen from client: turnID=24
+2026/03/08 01:57:02 [asr] Connecting dedicated ASR WebSocket for turnID=24
+2026/03/08 01:57:03 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:03 [asr] Dedicated connection for turnID=24 closed
+2026/03/08 01:57:03 [session] ASR final wait timed out for trigger_llm turnID=24; falling back
+2026/03/08 01:57:03 [session] -> trigger_llm: text="" turnID=24
+2026/03/08 01:57:03 [session] -> start_listen from client: turnID=25
+2026/03/08 01:57:03 [asr] Connecting dedicated ASR WebSocket for turnID=25
+2026/03/08 01:57:04 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:04 [asr] Dedicated connection for turnID=25 closed
+2026/03/08 01:57:04 [session] ASR final wait timed out for trigger_llm turnID=25; falling back
+2026/03/08 01:57:04 [session] -> trigger_llm: text="" turnID=25
+2026/03/08 01:57:05 [session] -> start_listen from client: turnID=26
+2026/03/08 01:57:05 [asr] Connecting dedicated ASR WebSocket for turnID=26
+2026/03/08 01:57:05 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:05 [asr] Dedicated connection for turnID=26 closed
+2026/03/08 01:57:06 [session] ASR final wait timed out for trigger_llm turnID=26; falling back
+2026/03/08 01:57:06 [session] -> trigger_llm: text="" turnID=26
+2026/03/08 01:57:07 [session] -> start_listen from client: turnID=27
+2026/03/08 01:57:07 [asr] Connecting dedicated ASR WebSocket for turnID=27
+2026/03/08 01:57:08 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:08 [asr] Dedicated connection for turnID=27 closed
+2026/03/08 01:57:09 [session] ASR final wait timed out for trigger_llm turnID=27; falling back
+2026/03/08 01:57:09 [session] -> trigger_llm: text="" turnID=27
+2026/03/08 01:57:17 [session] -> start_listen from client: turnID=28
+2026/03/08 01:57:17 [asr] Connecting dedicated ASR WebSocket for turnID=28
+2026/03/08 01:57:18 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:18 [asr] Dedicated connection for turnID=28 closed
+2026/03/08 01:57:18 [session] ASR final wait timed out for trigger_llm turnID=28; falling back
+2026/03/08 01:57:18 [session] -> trigger_llm: text="" turnID=28
+2026/03/08 01:57:19 [session] -> start_listen from client: turnID=29
+2026/03/08 01:57:19 [asr] Connecting dedicated ASR WebSocket for turnID=29
+2026/03/08 01:57:21 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:21 [asr] Dedicated connection for turnID=29 closed
+2026/03/08 01:57:21 [session] ASR final wait timed out for trigger_llm turnID=29; falling back
+2026/03/08 01:57:21 [session] -> trigger_llm: text="" turnID=29
+2026/03/08 01:57:22 [session] -> start_listen from client: turnID=30
+2026/03/08 01:57:22 [asr] Connecting dedicated ASR WebSocket for turnID=30
+2026/03/08 01:57:24 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:24 [session] ASR final received for trigger_llm turnID=30
+2026/03/08 01:57:24 [session] -> trigger_llm: text="你怎么不说话了？" turnID=30
+2026/03/08 01:57:24 [asr] Dedicated connection for turnID=30 closed
+2026/03/08 01:57:34 [session] -> start_listen from client: turnID=31
+2026/03/08 01:57:34 [asr] Connecting dedicated ASR WebSocket for turnID=31
+2026/03/08 01:57:37 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:37 [session] ASR final received for trigger_llm turnID=31
+2026/03/08 01:57:37 [session] -> trigger_llm: text="你个笨蛋，我想逗你一顿。" turnID=31
+2026/03/08 01:57:37 [asr] Dedicated connection for turnID=31 closed
+2026/03/08 01:57:47 [session] -> start_listen from client: turnID=32
+2026/03/08 01:57:47 [asr] Connecting dedicated ASR WebSocket for turnID=32
+2026/03/08 01:57:49 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:57:49 [asr] Dedicated connection for turnID=32 closed
+2026/03/08 01:57:49 [session] ASR final received for trigger_llm turnID=32
+2026/03/08 01:57:49 [session] -> trigger_llm: text="我是说揍你一顿。" turnID=32
+2026/03/08 01:58:06 [session] -> start_listen from client: turnID=33
+2026/03/08 01:58:06 [asr] Connecting dedicated ASR WebSocket for turnID=33
+2026/03/08 01:58:07 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:07 [session] ASR final received for trigger_llm turnID=33
+2026/03/08 01:58:07 [session] -> trigger_llm: text="那你来跳支舞吧。" turnID=33
+2026/03/08 01:58:07 [asr] Dedicated connection for turnID=33 closed
+2026/03/08 01:58:27 [session] -> start_listen from client: turnID=34
+2026/03/08 01:58:27 [asr] Connecting dedicated ASR WebSocket for turnID=34
+2026/03/08 01:58:27 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:27 [asr] Dedicated connection for turnID=34 closed
+2026/03/08 01:58:28 [session] ASR final wait timed out for trigger_llm turnID=34; falling back
+2026/03/08 01:58:28 [session] -> trigger_llm: text="" turnID=34
+2026/03/08 01:58:28 [session] -> start_listen from client: turnID=35
+2026/03/08 01:58:28 [asr] Connecting dedicated ASR WebSocket for turnID=35
+2026/03/08 01:58:28 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:29 [asr] Dedicated connection for turnID=35 closed
+2026/03/08 01:58:29 [session] ASR final wait timed out for trigger_llm turnID=35; falling back
+2026/03/08 01:58:29 [session] -> trigger_llm: text="" turnID=35
+2026/03/08 01:58:29 [session] -> start_listen from client: turnID=36
+2026/03/08 01:58:29 [asr] Connecting dedicated ASR WebSocket for turnID=36
+2026/03/08 01:58:29 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:29 [asr] Dedicated connection for turnID=36 closed
+2026/03/08 01:58:30 [session] ASR final wait timed out for trigger_llm turnID=36; falling back
+2026/03/08 01:58:30 [session] -> trigger_llm: text="" turnID=36
+2026/03/08 01:58:30 [session] -> start_listen from client: turnID=37
+2026/03/08 01:58:30 [asr] Connecting dedicated ASR WebSocket for turnID=37
+2026/03/08 01:58:30 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:30 [asr] Dedicated connection for turnID=37 closed
+2026/03/08 01:58:31 [session] ASR final wait timed out for trigger_llm turnID=37; falling back
+2026/03/08 01:58:31 [session] -> trigger_llm: text="" turnID=37
+2026/03/08 01:58:31 [session] -> start_listen from client: turnID=38
+2026/03/08 01:58:31 [asr] Connecting dedicated ASR WebSocket for turnID=38
+2026/03/08 01:58:32 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:32 [asr] Dedicated connection for turnID=38 closed
+2026/03/08 01:58:32 [session] ASR final wait timed out for trigger_llm turnID=38; falling back
+2026/03/08 01:58:32 [session] -> trigger_llm: text="" turnID=38
+2026/03/08 01:58:33 [session] -> start_listen from client: turnID=39
+2026/03/08 01:58:33 [asr] Connecting dedicated ASR WebSocket for turnID=39
+2026/03/08 01:58:33 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:33 [asr] Dedicated connection for turnID=39 closed
+2026/03/08 01:58:34 [session] ASR final wait timed out for trigger_llm turnID=39; falling back
+2026/03/08 01:58:34 [session] -> trigger_llm: text="" turnID=39
+2026/03/08 01:58:34 [session] -> start_listen from client: turnID=40
+2026/03/08 01:58:34 [asr] Connecting dedicated ASR WebSocket for turnID=40
+2026/03/08 01:58:35 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:35 [asr] Dedicated connection for turnID=40 closed
+2026/03/08 01:58:35 [session] ASR final wait timed out for trigger_llm turnID=40; falling back
+2026/03/08 01:58:35 [session] -> trigger_llm: text="" turnID=40
+2026/03/08 01:58:35 [session] -> start_listen from client: turnID=41
+2026/03/08 01:58:35 [asr] Connecting dedicated ASR WebSocket for turnID=41
+2026/03/08 01:58:36 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:36 [asr] Dedicated connection for turnID=41 closed
+2026/03/08 01:58:36 [session] ASR final wait timed out for trigger_llm turnID=41; falling back
+2026/03/08 01:58:36 [session] -> trigger_llm: text="" turnID=41
+2026/03/08 01:58:37 [session] -> start_listen from client: turnID=42
+2026/03/08 01:58:37 [asr] Connecting dedicated ASR WebSocket for turnID=42
+2026/03/08 01:58:38 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:38 [asr] Dedicated connection for turnID=42 closed
+2026/03/08 01:58:38 [session] ASR final wait timed out for trigger_llm turnID=42; falling back
+2026/03/08 01:58:38 [session] -> trigger_llm: text="" turnID=42
+2026/03/08 01:58:38 [session] -> start_listen from client: turnID=43
+2026/03/08 01:58:38 [asr] Connecting dedicated ASR WebSocket for turnID=43
+2026/03/08 01:58:39 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:39 [asr] Dedicated connection for turnID=43 closed
+2026/03/08 01:58:40 [session] ASR final wait timed out for trigger_llm turnID=43; falling back
+2026/03/08 01:58:40 [session] -> trigger_llm: text="" turnID=43
+2026/03/08 01:58:41 [session] -> start_listen from client: turnID=44
+2026/03/08 01:58:41 [asr] Connecting dedicated ASR WebSocket for turnID=44
+2026/03/08 01:58:42 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:42 [asr] Dedicated connection for turnID=44 closed
+2026/03/08 01:58:42 [session] ASR final wait timed out for trigger_llm turnID=44; falling back
+2026/03/08 01:58:42 [session] -> trigger_llm: text="" turnID=44
+2026/03/08 01:58:42 [session] -> start_listen from client: turnID=45
+2026/03/08 01:58:42 [asr] Connecting dedicated ASR WebSocket for turnID=45
+2026/03/08 01:58:43 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:43 [asr] Dedicated connection for turnID=45 closed
+2026/03/08 01:58:44 [session] ASR final wait timed out for trigger_llm turnID=45; falling back
+2026/03/08 01:58:44 [session] -> trigger_llm: text="" turnID=45
+2026/03/08 01:58:44 [session] -> start_listen from client: turnID=46
+2026/03/08 01:58:44 [asr] Connecting dedicated ASR WebSocket for turnID=46
+2026/03/08 01:58:45 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:45 [asr] Dedicated connection for turnID=46 closed
+2026/03/08 01:58:45 [session] ASR final wait timed out for trigger_llm turnID=46; falling back
+2026/03/08 01:58:45 [session] -> trigger_llm: text="" turnID=46
+2026/03/08 01:58:46 [session] -> start_listen from client: turnID=47
+2026/03/08 01:58:46 [asr] Connecting dedicated ASR WebSocket for turnID=47
+2026/03/08 01:58:47 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:47 [asr] Dedicated connection for turnID=47 closed
+2026/03/08 01:58:47 [session] ASR final wait timed out for trigger_llm turnID=47; falling back
+2026/03/08 01:58:47 [session] -> trigger_llm: text="" turnID=47
+2026/03/08 01:58:47 [session] -> start_listen from client: turnID=48
+2026/03/08 01:58:47 [asr] Connecting dedicated ASR WebSocket for turnID=48
+2026/03/08 01:58:47 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:47 [asr] Dedicated connection for turnID=48 closed
+2026/03/08 01:58:48 [session] ASR final wait timed out for trigger_llm turnID=48; falling back
+2026/03/08 01:58:48 [session] -> trigger_llm: text="" turnID=48
+2026/03/08 01:58:48 [session] -> start_listen from client: turnID=49
+2026/03/08 01:58:48 [asr] Connecting dedicated ASR WebSocket for turnID=49
+2026/03/08 01:58:48 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:49 [asr] Dedicated connection for turnID=49 closed
+2026/03/08 01:58:49 [session] ASR final wait timed out for trigger_llm turnID=49; falling back
+2026/03/08 01:58:49 [session] -> trigger_llm: text="" turnID=49
+2026/03/08 01:58:49 [session] -> start_listen from client: turnID=50
+2026/03/08 01:58:49 [asr] Connecting dedicated ASR WebSocket for turnID=50
+2026/03/08 01:58:51 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:51 [asr] Dedicated connection for turnID=50 closed
+2026/03/08 01:58:51 [session] ASR final wait timed out for trigger_llm turnID=50; falling back
+2026/03/08 01:58:51 [session] -> trigger_llm: text="" turnID=50
+2026/03/08 01:58:54 [session] -> start_listen from client: turnID=51
+2026/03/08 01:58:54 [asr] Connecting dedicated ASR WebSocket for turnID=51
+2026/03/08 01:58:54 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:54 [asr] Dedicated connection for turnID=51 closed
+2026/03/08 01:58:55 [session] ASR final wait timed out for trigger_llm turnID=51; falling back
+2026/03/08 01:58:55 [session] -> trigger_llm: text="" turnID=51
+2026/03/08 01:58:55 [session] -> start_listen from client: turnID=52
+2026/03/08 01:58:55 [asr] Connecting dedicated ASR WebSocket for turnID=52
+2026/03/08 01:58:55 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/08 01:58:55 [asr] Dedicated connection for turnID=52 closed
+2026/03/08 01:58:55 [session] ASR final wait timed out for trigger_llm turnID=52; falling back
+2026/03/08 01:58:55 [session] -> trigger_llm: text="" turnID=52
+2026/03/08 01:58:56 read ws failed: websocket: close 1005 (no status)
+2026/03/08 01:58:56 send status failed: websocket: close sent
