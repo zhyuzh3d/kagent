@@ -17,9 +17,19 @@ type ModelEntry struct {
 }
 
 type ModelConfig struct {
-	Chat ChatConfig `json:"chat"`
-	ASR  ASRConfig  `json:"asr_s"`
-	TTS  TTSConfig  `json:"tts_s"`
+	Flash ChatConfig `json:"flash"`
+	Chat  ChatConfig `json:"chat"`
+	ASR   ASRConfig  `json:"asr_s"`
+	TTS   TTSConfig  `json:"tts_s"`
+}
+
+// ActiveChat returns the Flash config if it is fully specified,
+// otherwise falls back to the Chat config.
+func (m *ModelConfig) ActiveChat() ChatConfig {
+	if m.Flash.APIKey != "" && m.Flash.BaseURL != "" && m.Flash.Model != "" {
+		return m.Flash
+	}
+	return m.Chat
 }
 
 type ChatConfig struct {
@@ -67,8 +77,9 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 }
 
 func validateModelConfig(cfg *ModelConfig) error {
-	if cfg.Chat.APIKey == "" || cfg.Chat.BaseURL == "" || cfg.Chat.Model == "" {
-		return errors.New("chat config is incomplete")
+	active := cfg.ActiveChat()
+	if active.APIKey == "" || active.BaseURL == "" || active.Model == "" {
+		return errors.New("chat/flash config is incomplete")
 	}
 	if cfg.ASR.WSURL == "" || cfg.ASR.AppID == "" || cfg.ASR.AccessToken == "" {
 		return errors.New("asr_s config is incomplete")

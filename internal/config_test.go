@@ -14,6 +14,7 @@ func TestLoadModelConfig(t *testing.T) {
     {
       "name": "doubao",
       "config": {
+        "flash": {"apiKey":"fk", "baseUrl":"https://flash", "model":"fm"},
         "chat": {"apiKey":"k", "baseUrl":"https://x", "model":"m"},
         "asr_s": {"appId":"a", "accessToken":"b", "resourceId":"c", "wsUrl":"wss://a"},
         "tts_s": {"appId":"a", "accessToken":"b", "resourceId":"c", "wsUrl":"wss://b", "voiceType":"v"}
@@ -28,7 +29,12 @@ func TestLoadModelConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadModelConfig failed: %v", err)
 	}
-	if cfg.Chat.Model != "m" {
-		t.Fatalf("unexpected model: %s", cfg.Chat.Model)
+	// ActiveChat should return flash config when present
+	active := cfg.ActiveChat()
+	if active.Model != "fm" {
+		t.Fatalf("expected flash model 'fm', got: %s", active.Model)
+	}
+	if active.BaseURL != "https://flash" {
+		t.Fatalf("expected flash baseURL, got: %s", active.BaseURL)
 	}
 }

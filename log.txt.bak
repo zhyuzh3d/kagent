@@ -49,3 +49,1117 @@
 2026/03/07 12:30:50 kagent T0 server listening on http://127.0.0.1:18080
 2026/03/07 12:31:39 shutdown requested from 127.0.0.1:62567
 
+=== DEPLOY id=ca87a05f-9584-42e0-a55f-58b557e314e5 ts=2026-03-07 12:31:39 CST backend=26030401 pid=? ===
+=== DEPLOY id=ca87a05f-9584-42e0-a55f-58b557e314e5 ts=2026-03-07 12:31:39 CST backend=26030401 pid=24204 started ===
+2026/03/07 12:31:40 kagent version backend=26030401 webui=26030401
+2026/03/07 12:31:40 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 12:36:20 [session] interrupt received reason=barge_in turnID=6
+2026/03/07 12:37:37 [session] interrupt received reason=barge_in turnID=8
+2026/03/07 12:38:01 [session] interrupt received reason=barge_in turnID=10
+2026/03/07 12:38:34 [session] interrupt received reason=barge_in turnID=12
+2026/03/07 12:39:05 [session] interrupt received reason=barge_in turnID=13
+2026/03/07 12:39:12 [session] interrupt received reason=barge_in turnID=14
+2026/03/07 12:39:23 [session] interrupt received reason=barge_in turnID=16
+2026/03/07 12:42:14 [session] interrupt received reason=barge_in turnID=19
+2026/03/07 12:58:01 [session] interrupt received reason=barge_in turnID=21
+2026/03/07 13:29:55 [session] interrupt received reason=barge_in turnID=43
+2026/03/07 13:33:44 read ws failed: websocket: close 1005 (no status)
+2026/03/07 13:33:44 send status failed: websocket: close sent
+2026/03/07 16:20:46 shutdown requested from 127.0.0.1:62270
+
+=== DEPLOY id=bb78d206-61b5-4b97-87c0-d05197c96c00 ts=2026-03-07 16:20:47 CST backend=26030701 pid=? ===
+=== DEPLOY id=bb78d206-61b5-4b97-87c0-d05197c96c00 ts=2026-03-07 16:20:47 CST backend=26030701 pid=27642 started ===
+2026/03/07 16:20:47 kagent version backend=26030701 webui=26030701
+2026/03/07 16:20:47 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:21:27 read ws failed: websocket: close 1005 (no status)
+2026/03/07 16:21:27 send status failed: websocket: close sent
+2026/03/07 16:22:08 shutdown requested from 127.0.0.1:62670
+
+=== DEPLOY id=b4171b8a-f571-4075-942a-75f5bfa8582b ts=2026-03-07 16:22:08 CST backend=26030701 pid=? ===
+=== DEPLOY id=b4171b8a-f571-4075-942a-75f5bfa8582b ts=2026-03-07 16:22:08 CST backend=26030701 pid=27806 started ===
+2026/03/07 16:22:09 kagent version backend=26030701 webui=26030701
+2026/03/07 16:22:09 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:27:09 shutdown requested from 127.0.0.1:64056
+
+=== DEPLOY id=4bd10e09-2bab-4dbd-9e61-d84e11e05223 ts=2026-03-07 16:27:09 CST backend=26030701 pid=? ===
+=== DEPLOY id=4bd10e09-2bab-4dbd-9e61-d84e11e05223 ts=2026-03-07 16:27:09 CST backend=26030701 pid=28573 started ===
+2026/03/07 16:27:10 kagent version backend=26030701 webui=26030701
+2026/03/07 16:27:10 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:28:27 shutdown requested from 127.0.0.1:64422
+
+=== DEPLOY id=04df9fb9-c064-436d-a059-8efce47b7327 ts=2026-03-07 16:28:27 CST backend=26030701 pid=? ===
+=== DEPLOY id=04df9fb9-c064-436d-a059-8efce47b7327 ts=2026-03-07 16:28:27 CST backend=26030701 pid=28728 started ===
+2026/03/07 16:28:28 kagent version backend=26030701 webui=26030701
+2026/03/07 16:28:28 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:30:04 [session] interrupt received reason=barge_in turnID=9
+2026/03/07 16:30:30 [session] interrupt received reason=barge_in turnID=12
+2026/03/07 16:33:25 [session] interrupt received reason=barge_in turnID=18
+2026/03/07 16:33:57 [session] interrupt received reason=barge_in turnID=19
+2026/03/07 16:42:09 shutdown requested from 127.0.0.1:51943
+
+=== DEPLOY id=7926599d-0939-4508-ad36-1d006f5b2234 ts=2026-03-07 16:42:09 CST backend=26030701 pid=? ===
+=== DEPLOY id=7926599d-0939-4508-ad36-1d006f5b2234 ts=2026-03-07 16:42:09 CST backend=26030701 pid=29194 started ===
+2026/03/07 16:42:10 kagent version backend=26030701 webui=26030701
+2026/03/07 16:42:10 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:44:33 shutdown requested from 127.0.0.1:52627
+
+=== DEPLOY id=ba79b285-9852-449a-b871-6876a908a43e ts=2026-03-07 16:44:33 CST backend=26030701 pid=? ===
+=== DEPLOY id=ba79b285-9852-449a-b871-6876a908a43e ts=2026-03-07 16:44:33 CST backend=26030701 pid=29383 started ===
+2026/03/07 16:44:33 kagent version backend=26030701 webui=26030701
+2026/03/07 16:44:33 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 16:45:07 read ws failed: websocket: close 1005 (no status)
+2026/03/07 16:45:07 send status failed: websocket: close sent
+2026/03/07 16:45:59 read ws failed: websocket: close 1005 (no status)
+2026/03/07 16:45:59 send status failed: websocket: close sent
+2026/03/07 17:07:52 shutdown requested from 127.0.0.1:59279
+
+=== DEPLOY id=d2c0eedc-f1dd-42bb-8c88-467de626cae6 ts=2026-03-07 17:07:53 CST backend=26030701 pid=? ===
+=== DEPLOY id=d2c0eedc-f1dd-42bb-8c88-467de626cae6 ts=2026-03-07 17:07:53 CST backend=26030701 pid=31427 started ===
+2026/03/07 17:07:54 kagent version backend=26030701 webui=26030701
+2026/03/07 17:07:54 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:08:32 shutdown requested from 127.0.0.1:59483
+
+=== DEPLOY id=2b75907a-eab0-4bb0-92b3-19a29212f452 ts=2026-03-07 17:08:32 CST backend=26030701 pid=? ===
+=== DEPLOY id=2b75907a-eab0-4bb0-92b3-19a29212f452 ts=2026-03-07 17:08:32 CST backend=26030701 pid=31808 started ===
+2026/03/07 17:08:32 kagent version backend=26030701 webui=26030701
+2026/03/07 17:08:32 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:08:38 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text="吃饭了没"
+2026/03/07 17:08:51 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:08:52 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:08:54 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:08:57 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:00 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:01 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:02 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:04 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:08 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:13 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:17 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:18 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:20 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:24 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:29 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:31 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:33 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:34 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:35 [session] utterance_end received from frontend, but LLM trigger delegated to ASR endpoint. text=""
+2026/03/07 17:09:35 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:09:35 send status failed: websocket: close sent
+2026/03/07 17:11:02 shutdown requested from 127.0.0.1:60180
+
+=== DEPLOY id=72c97c60-f064-4dbf-a72c-9c9278e90240 ts=2026-03-07 17:11:02 CST backend=26030701 pid=? ===
+=== DEPLOY id=72c97c60-f064-4dbf-a72c-9c9278e90240 ts=2026-03-07 17:11:02 CST backend=26030701 pid=32501 started ===
+2026/03/07 17:11:03 kagent version backend=26030701 webui=26030701
+2026/03/07 17:11:03 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:11:17 [session] utterance_end received, flushing ASR... text="吃饭了吗"
+2026/03/07 17:11:26 [session] utterance_end received, flushing ASR... text="吃饭了吗？你在不在呀"
+2026/03/07 17:11:30 [session] utterance_end received, flushing ASR... text="吃饭了吗？你在不在呀？"
+2026/03/07 17:11:35 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:11:38 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:11:39 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:11:39 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:11:40 shutdown requested from 127.0.0.1:60363
+
+=== DEPLOY id=233c22c7-29ef-40a2-bed3-6a9d54aca59c ts=2026-03-07 17:11:41 CST backend=26030701 pid=? ===
+=== DEPLOY id=233c22c7-29ef-40a2-bed3-6a9d54aca59c ts=2026-03-07 17:11:41 CST backend=26030701 pid=32655 started ===
+2026/03/07 17:11:42 kagent version backend=26030701 webui=26030701
+2026/03/07 17:11:42 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:11:47 [session] utterance_end received, flushing ASR... text="吃饭了吗"
+2026/03/07 17:11:48 [session] utterance_end received, flushing ASR... text="吃饭了吗？"
+2026/03/07 17:12:01 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:05 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:07 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:08 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:09 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:10 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:12:10 send status failed: websocket: close sent
+2026/03/07 17:12:13 shutdown requested from 127.0.0.1:60526
+
+=== DEPLOY id=d7573269-f171-44a2-98d0-f9cfb6432cca ts=2026-03-07 17:12:13 CST backend=26030701 pid=? ===
+=== DEPLOY id=d7573269-f171-44a2-98d0-f9cfb6432cca ts=2026-03-07 17:12:13 CST backend=26030701 pid=32819 started ===
+2026/03/07 17:12:14 kagent version backend=26030701 webui=26030701
+2026/03/07 17:12:14 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:12:19 [session] utterance_end received, flushing ASR... text="吃饭了没有啊"
+2026/03/07 17:12:30 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:31 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:33 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:37 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:40 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:42 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:47 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:48 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:50 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:12:54 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:00 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:01 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:04 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:07 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:11 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:14 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:17 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:19 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:21 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:24 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:26 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:29 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:30 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:31 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:33 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:13:37 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:13:37 send status failed: websocket: close sent
+2026/03/07 17:14:49 shutdown requested from 127.0.0.1:61280
+
+=== DEPLOY id=3b7e4792-79df-495c-9f8f-c90a0e147155 ts=2026-03-07 17:14:50 CST backend=26030701 pid=? ===
+=== DEPLOY id=3b7e4792-79df-495c-9f8f-c90a0e147155 ts=2026-03-07 17:14:50 CST backend=26030701 pid=33420 started ===
+2026/03/07 17:14:50 kagent version backend=26030701 webui=26030701
+2026/03/07 17:14:50 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:15:16 shutdown requested from 127.0.0.1:61409
+
+=== DEPLOY id=b57adf4b-86cb-46a9-8e42-c4f42f54aded ts=2026-03-07 17:15:16 CST backend=26030701 pid=? ===
+=== DEPLOY id=b57adf4b-86cb-46a9-8e42-c4f42f54aded ts=2026-03-07 17:15:16 CST backend=26030701 pid=33621 started ===
+2026/03/07 17:15:16 kagent version backend=26030701 webui=26030701
+2026/03/07 17:15:16 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:15:23 [session] utterance_end received, flushing ASR... text="吃饭了吗"
+2026/03/07 17:15:23 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:15:34 [session] utterance_end received, flushing ASR... text="吃饭了吗？"
+2026/03/07 17:15:43 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:15:43 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:15:54 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:15:54 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:03 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:03 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:08 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:12 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:12 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:17 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:18 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:20 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:20 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:20 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:25 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:26 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:29 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:29 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:31 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:32 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:36 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:39 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:39 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:40 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:41 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:42 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:48 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:48 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:16:50 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:51 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:56 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:59 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:16:59 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:17:00 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:05 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:06 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:09 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:09 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:17:11 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:15 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:16 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:20 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:20 [asr] Finish signal received, sending ending frame to ASR server
+2026/03/07 17:17:21 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:23 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:25 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:26 [session] utterance_end received, flushing ASR... text=""
+2026/03/07 17:17:26 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:17:26 send status failed: websocket: close sent
+2026/03/07 17:18:55 shutdown requested from 127.0.0.1:62469
+
+=== DEPLOY id=c3ff2d2f-0fe0-46e7-911c-840fa493efcd ts=2026-03-07 17:18:56 CST backend=26030701 pid=? ===
+=== DEPLOY id=c3ff2d2f-0fe0-46e7-911c-840fa493efcd ts=2026-03-07 17:18:56 CST backend=26030701 pid=34498 started ===
+2026/03/07 17:18:56 kagent version backend=26030701 webui=26030701
+2026/03/07 17:18:56 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:20:43 [session] utterance_end triggering startTurn text="吃饭了吗" turnID=0
+2026/03/07 17:20:43 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:20:49 [session] utterance_end triggering startTurn text="吃饭了吗？" turnID=0
+2026/03/07 17:20:49 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:20:58 [session] utterance_end triggering startTurn text="吃饭了没有" turnID=0
+2026/03/07 17:20:58 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:21:17 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:21:17 send status failed: websocket: close sent
+2026/03/07 17:21:20 shutdown requested from 127.0.0.1:63139
+
+=== DEPLOY id=bc0f3a70-9770-4b25-8f5c-14830ac2da9e ts=2026-03-07 17:21:21 CST backend=26030701 pid=? ===
+=== DEPLOY id=bc0f3a70-9770-4b25-8f5c-14830ac2da9e ts=2026-03-07 17:21:21 CST backend=26030701 pid=34662 started ===
+2026/03/07 17:21:23 kagent version backend=26030701 webui=26030701
+2026/03/07 17:21:23 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 17:21:29 [session] utterance_end triggering startTurn text="你吃饭了吗" turnID=0
+2026/03/07 17:21:29 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:28:22 [session] utterance_end triggering startTurn text="Diamond?" turnID=0
+2026/03/07 17:28:22 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:28:24 [session] utterance_end triggering startTurn text="Diamond Data implementation." turnID=0
+2026/03/07 17:28:24 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:28:28 [session] utterance_end triggering startTurn text="Diamond Data implementation." turnID=0
+2026/03/07 17:28:28 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:29:20 [session] utterance_end triggering startTurn text="哇哇哇" turnID=0
+2026/03/07 17:29:20 [session] startTurn ignored: turnID 0 already launched
+2026/03/07 17:54:36 read ws failed: websocket: close 1005 (no status)
+2026/03/07 17:54:36 send status failed: websocket: close sent
+2026/03/07 18:05:51 shutdown requested from 127.0.0.1:59043
+2026/03/07 18:05:51 read ws failed: read tcp 127.0.0.1:18080->127.0.0.1:58974: use of closed network connection
+
+=== DEPLOY id=8a80e99c-fa75-462d-81d0-c8002f515faf ts=2026-03-07 18:05:51 CST backend=26030701 pid=? ===
+=== DEPLOY id=8a80e99c-fa75-462d-81d0-c8002f515faf ts=2026-03-07 18:05:51 CST backend=26030701 pid=35771 started ===
+2026/03/07 18:05:53 kagent version backend=26030701 webui=26030701
+2026/03/07 18:05:53 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 18:06:39 shutdown requested from 127.0.0.1:59294
+
+=== DEPLOY id=9e3babdc-0223-4369-aedd-ae6ae4c95eba ts=2026-03-07 18:06:39 CST backend=26030701 pid=? ===
+=== DEPLOY id=9e3babdc-0223-4369-aedd-ae6ae4c95eba ts=2026-03-07 18:06:39 CST backend=26030701 pid=35961 started ===
+2026/03/07 18:06:39 kagent version backend=26030701 webui=26030701
+2026/03/07 18:06:39 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 18:06:44 [asr] Connecting dedicated ASR WebSocket for turnID=1
+2026/03/07 18:06:45 [session] -> start_listen from client: turnID=2
+2026/03/07 18:06:45 [asr] Connecting dedicated ASR WebSocket for turnID=2
+2026/03/07 18:06:45 [asr] Dedicated connection for turnID=1 closed
+2026/03/07 18:06:54 [session] -> start_listen from client: turnID=3
+2026/03/07 18:06:54 [asr] Connecting dedicated ASR WebSocket for turnID=3
+2026/03/07 18:06:54 [asr] Dedicated connection for turnID=2 closed
+2026/03/07 18:06:56 [session] -> start_listen from client: turnID=4
+2026/03/07 18:06:56 [asr] Connecting dedicated ASR WebSocket for turnID=4
+2026/03/07 18:06:56 [asr] Dedicated connection for turnID=3 closed
+2026/03/07 18:07:02 [session] -> start_listen from client: turnID=5
+2026/03/07 18:07:02 [asr] Connecting dedicated ASR WebSocket for turnID=5
+2026/03/07 18:07:02 [asr] Dedicated connection for turnID=4 closed
+2026/03/07 18:07:10 [session] -> start_listen from client: turnID=6
+2026/03/07 18:07:10 [asr] Connecting dedicated ASR WebSocket for turnID=6
+2026/03/07 18:07:10 [asr] Dedicated connection for turnID=5 closed
+2026/03/07 18:07:10 [session] -> start_listen from client: turnID=7
+2026/03/07 18:07:10 [asr] Connecting dedicated ASR WebSocket for turnID=7
+2026/03/07 18:07:10 [asr] Dedicated connection for turnID=6 closed
+2026/03/07 18:07:16 [session] -> start_listen from client: turnID=8
+2026/03/07 18:07:16 [asr] Dedicated connection for turnID=7 closed
+2026/03/07 18:07:16 [asr] Connecting dedicated ASR WebSocket for turnID=8
+2026/03/07 18:07:19 [session] -> start_listen from client: turnID=9
+2026/03/07 18:07:19 [asr] Connecting dedicated ASR WebSocket for turnID=9
+2026/03/07 18:07:19 [asr] Dedicated connection for turnID=8 closed
+2026/03/07 18:07:21 [session] -> start_listen from client: turnID=10
+2026/03/07 18:07:21 [asr] Connecting dedicated ASR WebSocket for turnID=10
+2026/03/07 18:07:21 [asr] Dedicated connection for turnID=9 closed
+2026/03/07 18:07:22 [session] -> start_listen from client: turnID=11
+2026/03/07 18:07:22 [asr] Connecting dedicated ASR WebSocket for turnID=11
+2026/03/07 18:07:22 [asr] Dedicated connection for turnID=10 closed
+2026/03/07 18:07:22 [session] -> start_listen from client: turnID=12
+2026/03/07 18:07:22 [asr] Connecting dedicated ASR WebSocket for turnID=12
+2026/03/07 18:07:22 [asr] Dedicated connection for turnID=11 closed
+2026/03/07 18:07:22 [session] -> start_listen from client: turnID=13
+2026/03/07 18:07:22 [asr] Connecting dedicated ASR WebSocket for turnID=13
+2026/03/07 18:07:22 [asr] Dedicated connection for turnID=12 closed
+2026/03/07 18:07:23 [session] -> start_listen from client: turnID=14
+2026/03/07 18:07:23 [asr] Connecting dedicated ASR WebSocket for turnID=14
+2026/03/07 18:07:23 [asr] Dedicated connection for turnID=13 closed
+2026/03/07 18:07:23 [session] -> start_listen from client: turnID=15
+2026/03/07 18:07:23 [asr] Connecting dedicated ASR WebSocket for turnID=15
+2026/03/07 18:07:23 [asr] Dedicated connection for turnID=14 closed
+2026/03/07 18:07:24 [session] -> start_listen from client: turnID=16
+2026/03/07 18:07:24 [asr] Connecting dedicated ASR WebSocket for turnID=16
+2026/03/07 18:07:24 [asr] Dedicated connection for turnID=15 closed
+2026/03/07 18:07:25 [session] -> start_listen from client: turnID=17
+2026/03/07 18:07:25 [asr] Connecting dedicated ASR WebSocket for turnID=17
+2026/03/07 18:07:25 [asr] Dedicated connection for turnID=16 closed
+2026/03/07 18:07:25 [session] -> start_listen from client: turnID=18
+2026/03/07 18:07:25 [asr] Connecting dedicated ASR WebSocket for turnID=18
+2026/03/07 18:07:25 [asr] Dedicated connection for turnID=17 closed
+2026/03/07 18:07:26 [session] -> start_listen from client: turnID=19
+2026/03/07 18:07:26 [asr] Connecting dedicated ASR WebSocket for turnID=19
+2026/03/07 18:07:26 [asr] Dedicated connection for turnID=18 closed
+2026/03/07 18:07:26 [session] -> start_listen from client: turnID=20
+2026/03/07 18:07:26 [asr] Connecting dedicated ASR WebSocket for turnID=20
+2026/03/07 18:07:26 [asr] Dedicated connection for turnID=19 closed
+2026/03/07 18:07:26 [session] -> start_listen from client: turnID=21
+2026/03/07 18:07:26 [asr] Connecting dedicated ASR WebSocket for turnID=21
+2026/03/07 18:07:26 [asr] Dedicated connection for turnID=20 closed
+2026/03/07 18:07:27 [session] -> start_listen from client: turnID=22
+2026/03/07 18:07:27 [asr] Connecting dedicated ASR WebSocket for turnID=22
+2026/03/07 18:07:27 [asr] Dedicated connection for turnID=21 closed
+2026/03/07 18:07:38 [session] -> start_listen from client: turnID=23
+2026/03/07 18:07:38 [asr] Connecting dedicated ASR WebSocket for turnID=23
+2026/03/07 18:07:38 [asr] Dedicated connection for turnID=22 closed
+2026/03/07 18:07:39 [session] -> start_listen from client: turnID=24
+2026/03/07 18:07:39 [asr] Connecting dedicated ASR WebSocket for turnID=24
+2026/03/07 18:07:39 [asr] Dedicated connection for turnID=23 closed
+2026/03/07 18:07:39 [session] -> start_listen from client: turnID=25
+2026/03/07 18:07:39 [asr] Connecting dedicated ASR WebSocket for turnID=25
+2026/03/07 18:07:39 [asr] Dedicated connection for turnID=24 closed
+2026/03/07 18:07:39 [session] -> start_listen from client: turnID=26
+2026/03/07 18:07:39 [asr] Connecting dedicated ASR WebSocket for turnID=26
+2026/03/07 18:07:39 [asr] Dedicated connection for turnID=25 closed
+2026/03/07 18:07:40 [session] -> start_listen from client: turnID=27
+2026/03/07 18:07:40 [asr] Connecting dedicated ASR WebSocket for turnID=27
+2026/03/07 18:07:40 [asr] Dedicated connection for turnID=26 closed
+2026/03/07 18:07:40 [session] -> start_listen from client: turnID=28
+2026/03/07 18:07:40 [asr] Connecting dedicated ASR WebSocket for turnID=28
+2026/03/07 18:07:40 [asr] Dedicated connection for turnID=27 closed
+2026/03/07 18:07:40 [session] -> start_listen from client: turnID=29
+2026/03/07 18:07:40 [asr] Connecting dedicated ASR WebSocket for turnID=29
+2026/03/07 18:07:40 [asr] Dedicated connection for turnID=28 closed
+2026/03/07 18:07:41 [session] -> start_listen from client: turnID=30
+2026/03/07 18:07:41 [asr] Connecting dedicated ASR WebSocket for turnID=30
+2026/03/07 18:07:41 [asr] Dedicated connection for turnID=29 closed
+2026/03/07 18:07:41 [session] -> start_listen from client: turnID=31
+2026/03/07 18:07:41 [asr] Connecting dedicated ASR WebSocket for turnID=31
+2026/03/07 18:07:41 [asr] Dedicated connection for turnID=30 closed
+2026/03/07 18:07:41 [session] -> start_listen from client: turnID=32
+2026/03/07 18:07:41 [asr] Connecting dedicated ASR WebSocket for turnID=32
+2026/03/07 18:07:41 [asr] Dedicated connection for turnID=31 closed
+2026/03/07 18:07:42 [session] -> start_listen from client: turnID=33
+2026/03/07 18:07:42 [asr] Connecting dedicated ASR WebSocket for turnID=33
+2026/03/07 18:07:42 [asr] Dedicated connection for turnID=32 closed
+2026/03/07 18:07:42 [session] -> start_listen from client: turnID=34
+2026/03/07 18:07:42 [asr] Connecting dedicated ASR WebSocket for turnID=34
+2026/03/07 18:07:42 [asr] Dedicated connection for turnID=33 closed
+2026/03/07 18:07:42 [session] -> start_listen from client: turnID=35
+2026/03/07 18:07:42 [asr] Connecting dedicated ASR WebSocket for turnID=35
+2026/03/07 18:07:42 [asr] Dedicated connection for turnID=34 closed
+2026/03/07 18:07:42 [session] -> start_listen from client: turnID=36
+2026/03/07 18:07:42 [asr] Connecting dedicated ASR WebSocket for turnID=36
+2026/03/07 18:07:42 [asr] Dedicated connection for turnID=35 closed
+2026/03/07 18:07:43 [session] -> start_listen from client: turnID=37
+2026/03/07 18:07:43 [asr] Connecting dedicated ASR WebSocket for turnID=37
+2026/03/07 18:07:43 [asr] Dedicated connection for turnID=36 closed
+2026/03/07 18:07:44 [session] -> start_listen from client: turnID=38
+2026/03/07 18:07:44 [asr] Dedicated connection for turnID=37 closed
+2026/03/07 18:07:44 [asr] Connecting dedicated ASR WebSocket for turnID=38
+2026/03/07 18:07:45 [session] -> start_listen from client: turnID=39
+2026/03/07 18:07:45 [asr] Connecting dedicated ASR WebSocket for turnID=39
+2026/03/07 18:07:45 [asr] Dedicated connection for turnID=38 closed
+2026/03/07 18:07:46 [session] -> start_listen from client: turnID=40
+2026/03/07 18:07:46 [asr] Connecting dedicated ASR WebSocket for turnID=40
+2026/03/07 18:07:46 [asr] Dedicated connection for turnID=39 closed
+2026/03/07 18:07:47 [session] -> start_listen from client: turnID=41
+2026/03/07 18:07:47 [asr] Connecting dedicated ASR WebSocket for turnID=41
+2026/03/07 18:07:47 [asr] Dedicated connection for turnID=40 closed
+2026/03/07 18:07:48 [session] -> start_listen from client: turnID=42
+2026/03/07 18:07:48 [asr] Connecting dedicated ASR WebSocket for turnID=42
+2026/03/07 18:07:48 [asr] Dedicated connection for turnID=41 closed
+2026/03/07 18:07:49 [session] -> start_listen from client: turnID=43
+2026/03/07 18:07:49 [asr] Connecting dedicated ASR WebSocket for turnID=43
+2026/03/07 18:07:49 [asr] Dedicated connection for turnID=42 closed
+2026/03/07 18:07:49 [session] -> start_listen from client: turnID=44
+2026/03/07 18:07:49 [asr] Connecting dedicated ASR WebSocket for turnID=44
+2026/03/07 18:07:49 [asr] Dedicated connection for turnID=43 closed
+2026/03/07 18:07:50 [session] -> start_listen from client: turnID=45
+2026/03/07 18:07:50 [asr] Connecting dedicated ASR WebSocket for turnID=45
+2026/03/07 18:07:50 [asr] Dedicated connection for turnID=44 closed
+2026/03/07 18:07:50 [session] -> start_listen from client: turnID=46
+2026/03/07 18:07:50 [asr] Connecting dedicated ASR WebSocket for turnID=46
+2026/03/07 18:07:50 [asr] Dedicated connection for turnID=45 closed
+2026/03/07 18:07:50 [session] -> start_listen from client: turnID=47
+2026/03/07 18:07:50 [asr] Connecting dedicated ASR WebSocket for turnID=47
+2026/03/07 18:07:50 [asr] Dedicated connection for turnID=46 closed
+2026/03/07 18:07:52 [session] -> start_listen from client: turnID=48
+2026/03/07 18:07:52 [asr] Connecting dedicated ASR WebSocket for turnID=48
+2026/03/07 18:07:52 [asr] Dedicated connection for turnID=47 closed
+2026/03/07 18:07:52 [session] -> start_listen from client: turnID=49
+2026/03/07 18:07:52 [asr] Connecting dedicated ASR WebSocket for turnID=49
+2026/03/07 18:07:52 [asr] Dedicated connection for turnID=48 closed
+2026/03/07 18:07:53 [session] -> start_listen from client: turnID=50
+2026/03/07 18:07:53 [asr] Connecting dedicated ASR WebSocket for turnID=50
+2026/03/07 18:07:53 [asr] Dedicated connection for turnID=49 closed
+2026/03/07 18:07:53 [session] -> start_listen from client: turnID=51
+2026/03/07 18:07:53 [asr] Connecting dedicated ASR WebSocket for turnID=51
+2026/03/07 18:07:53 [asr] Dedicated connection for turnID=50 closed
+2026/03/07 18:07:53 [session] -> start_listen from client: turnID=52
+2026/03/07 18:07:53 [asr] Connecting dedicated ASR WebSocket for turnID=52
+2026/03/07 18:07:53 [asr] Dedicated connection for turnID=51 closed
+2026/03/07 18:07:54 [session] -> start_listen from client: turnID=53
+2026/03/07 18:07:54 [asr] Connecting dedicated ASR WebSocket for turnID=53
+2026/03/07 18:07:54 [asr] Dedicated connection for turnID=52 closed
+2026/03/07 18:07:54 [session] -> start_listen from client: turnID=54
+2026/03/07 18:07:54 [asr] Connecting dedicated ASR WebSocket for turnID=54
+2026/03/07 18:07:54 [asr] Dedicated connection for turnID=53 closed
+2026/03/07 18:07:55 [session] -> start_listen from client: turnID=55
+2026/03/07 18:07:55 [asr] Connecting dedicated ASR WebSocket for turnID=55
+2026/03/07 18:07:55 [asr] Dedicated connection for turnID=54 closed
+2026/03/07 18:07:55 [session] -> start_listen from client: turnID=56
+2026/03/07 18:07:55 [asr] Connecting dedicated ASR WebSocket for turnID=56
+2026/03/07 18:07:55 [asr] Dedicated connection for turnID=55 closed
+2026/03/07 18:07:56 [session] -> start_listen from client: turnID=57
+2026/03/07 18:07:56 [asr] Connecting dedicated ASR WebSocket for turnID=57
+2026/03/07 18:07:56 [asr] Dedicated connection for turnID=56 closed
+2026/03/07 18:07:56 [session] -> start_listen from client: turnID=58
+2026/03/07 18:07:56 [asr] Connecting dedicated ASR WebSocket for turnID=58
+2026/03/07 18:07:56 [asr] Dedicated connection for turnID=57 closed
+2026/03/07 18:07:57 [session] -> start_listen from client: turnID=59
+2026/03/07 18:07:57 [asr] Connecting dedicated ASR WebSocket for turnID=59
+2026/03/07 18:07:57 [asr] Dedicated connection for turnID=58 closed
+2026/03/07 18:07:57 [session] -> start_listen from client: turnID=60
+2026/03/07 18:07:57 [asr] Connecting dedicated ASR WebSocket for turnID=60
+2026/03/07 18:07:57 [asr] Dedicated connection for turnID=59 closed
+2026/03/07 18:07:57 [session] -> start_listen from client: turnID=61
+2026/03/07 18:07:57 [asr] Connecting dedicated ASR WebSocket for turnID=61
+2026/03/07 18:07:57 [asr] Dedicated connection for turnID=60 closed
+2026/03/07 18:07:58 [session] -> start_listen from client: turnID=62
+2026/03/07 18:07:58 [asr] Connecting dedicated ASR WebSocket for turnID=62
+2026/03/07 18:07:58 [asr] Dedicated connection for turnID=61 closed
+2026/03/07 18:07:58 [session] -> start_listen from client: turnID=63
+2026/03/07 18:07:58 [asr] Connecting dedicated ASR WebSocket for turnID=63
+2026/03/07 18:07:58 [asr] Dedicated connection for turnID=62 closed
+2026/03/07 18:07:59 [session] -> start_listen from client: turnID=64
+2026/03/07 18:07:59 [asr] Connecting dedicated ASR WebSocket for turnID=64
+2026/03/07 18:07:59 [asr] Dedicated connection for turnID=63 closed
+2026/03/07 18:07:59 [session] -> start_listen from client: turnID=65
+2026/03/07 18:07:59 [asr] Connecting dedicated ASR WebSocket for turnID=65
+2026/03/07 18:07:59 [asr] Dedicated connection for turnID=64 closed
+2026/03/07 18:07:59 [session] -> start_listen from client: turnID=66
+2026/03/07 18:07:59 [asr] Connecting dedicated ASR WebSocket for turnID=66
+2026/03/07 18:07:59 [asr] Dedicated connection for turnID=65 closed
+2026/03/07 18:07:59 [session] -> start_listen from client: turnID=67
+2026/03/07 18:07:59 [asr] Connecting dedicated ASR WebSocket for turnID=67
+2026/03/07 18:07:59 [asr] Dedicated connection for turnID=66 closed
+2026/03/07 18:08:00 [session] -> start_listen from client: turnID=68
+2026/03/07 18:08:00 [asr] Connecting dedicated ASR WebSocket for turnID=68
+2026/03/07 18:08:00 [asr] Dedicated connection for turnID=67 closed
+2026/03/07 18:08:00 [session] -> start_listen from client: turnID=69
+2026/03/07 18:08:00 [asr] Connecting dedicated ASR WebSocket for turnID=69
+2026/03/07 18:08:00 [asr] Dedicated connection for turnID=68 closed
+2026/03/07 18:08:03 [session] -> start_listen from client: turnID=70
+2026/03/07 18:08:03 [asr] Connecting dedicated ASR WebSocket for turnID=70
+2026/03/07 18:08:03 [asr] Dedicated connection for turnID=69 closed
+2026/03/07 18:08:04 [session] -> start_listen from client: turnID=71
+2026/03/07 18:08:04 [asr] Connecting dedicated ASR WebSocket for turnID=71
+2026/03/07 18:08:04 [asr] Dedicated connection for turnID=70 closed
+2026/03/07 18:08:05 [session] -> start_listen from client: turnID=72
+2026/03/07 18:08:05 [asr] Connecting dedicated ASR WebSocket for turnID=72
+2026/03/07 18:08:05 [asr] Dedicated connection for turnID=71 closed
+2026/03/07 18:08:07 [session] -> start_listen from client: turnID=73
+2026/03/07 18:08:07 [asr] Connecting dedicated ASR WebSocket for turnID=73
+2026/03/07 18:08:07 [asr] Dedicated connection for turnID=72 closed
+2026/03/07 18:08:08 [session] -> start_listen from client: turnID=74
+2026/03/07 18:08:08 [asr] Connecting dedicated ASR WebSocket for turnID=74
+2026/03/07 18:08:08 [asr] Dedicated connection for turnID=73 closed
+2026/03/07 18:08:08 [session] -> start_listen from client: turnID=75
+2026/03/07 18:08:08 [asr] Connecting dedicated ASR WebSocket for turnID=75
+2026/03/07 18:08:08 [asr] Dedicated connection for turnID=74 closed
+2026/03/07 18:08:08 [session] -> start_listen from client: turnID=76
+2026/03/07 18:08:08 [asr] Connecting dedicated ASR WebSocket for turnID=76
+2026/03/07 18:08:08 [asr] Dedicated connection for turnID=75 closed
+2026/03/07 18:08:09 [session] -> start_listen from client: turnID=77
+2026/03/07 18:08:09 [asr] Connecting dedicated ASR WebSocket for turnID=77
+2026/03/07 18:08:09 [asr] Dedicated connection for turnID=76 closed
+2026/03/07 18:08:10 [session] -> start_listen from client: turnID=78
+2026/03/07 18:08:10 [asr] Connecting dedicated ASR WebSocket for turnID=78
+2026/03/07 18:08:10 [asr] Dedicated connection for turnID=77 closed
+2026/03/07 18:08:10 [session] -> start_listen from client: turnID=79
+2026/03/07 18:08:10 [asr] Connecting dedicated ASR WebSocket for turnID=79
+2026/03/07 18:08:10 [asr] Dedicated connection for turnID=78 closed
+2026/03/07 18:08:11 [session] -> start_listen from client: turnID=80
+2026/03/07 18:08:11 [asr] Connecting dedicated ASR WebSocket for turnID=80
+2026/03/07 18:08:11 [asr] Dedicated connection for turnID=79 closed
+2026/03/07 18:08:11 [session] -> start_listen from client: turnID=81
+2026/03/07 18:08:11 [asr] Connecting dedicated ASR WebSocket for turnID=81
+2026/03/07 18:08:11 [asr] Dedicated connection for turnID=80 closed
+2026/03/07 18:08:11 [session] -> start_listen from client: turnID=82
+2026/03/07 18:08:11 [asr] Dedicated connection for turnID=81 closed
+2026/03/07 18:08:11 [asr] Connecting dedicated ASR WebSocket for turnID=82
+2026/03/07 18:08:12 [session] -> start_listen from client: turnID=83
+2026/03/07 18:08:12 [asr] Connecting dedicated ASR WebSocket for turnID=83
+2026/03/07 18:08:12 [asr] Dedicated connection for turnID=82 closed
+2026/03/07 18:08:13 [session] -> start_listen from client: turnID=84
+2026/03/07 18:08:13 [asr] Connecting dedicated ASR WebSocket for turnID=84
+2026/03/07 18:08:13 [asr] Dedicated connection for turnID=83 closed
+2026/03/07 18:08:14 [session] -> start_listen from client: turnID=85
+2026/03/07 18:08:14 [asr] Connecting dedicated ASR WebSocket for turnID=85
+2026/03/07 18:08:14 [asr] Dedicated connection for turnID=84 closed
+2026/03/07 18:08:17 [session] -> start_listen from client: turnID=86
+2026/03/07 18:08:17 [asr] Connecting dedicated ASR WebSocket for turnID=86
+2026/03/07 18:08:17 [asr] Dedicated connection for turnID=85 closed
+2026/03/07 18:08:34 [session] -> start_listen from client: turnID=87
+2026/03/07 18:08:34 [asr] Connecting dedicated ASR WebSocket for turnID=87
+2026/03/07 18:08:34 [asr] Dedicated connection for turnID=86 closed
+2026/03/07 18:09:16 [session] -> start_listen from client: turnID=88
+2026/03/07 18:09:16 [asr] Connecting dedicated ASR WebSocket for turnID=88
+2026/03/07 18:09:16 [asr] Dedicated connection for turnID=87 closed
+2026/03/07 18:09:28 [session] -> start_listen from client: turnID=89
+2026/03/07 18:09:28 [asr] Connecting dedicated ASR WebSocket for turnID=89
+2026/03/07 18:09:28 [asr] Dedicated connection for turnID=88 closed
+2026/03/07 18:09:29 [session] -> start_listen from client: turnID=90
+2026/03/07 18:09:29 [asr] Connecting dedicated ASR WebSocket for turnID=90
+2026/03/07 18:09:29 [asr] Dedicated connection for turnID=89 closed
+2026/03/07 18:09:29 [session] -> start_listen from client: turnID=91
+2026/03/07 18:09:29 [asr] Connecting dedicated ASR WebSocket for turnID=91
+2026/03/07 18:09:29 [asr] Dedicated connection for turnID=90 closed
+2026/03/07 18:09:30 [asr] Dedicated connection for turnID=91 closed
+2026/03/07 18:10:01 shutdown requested from 127.0.0.1:60384
+
+=== DEPLOY id=084b9c6a-7da8-43e7-873e-68f84dc5072d ts=2026-03-07 18:10:01 CST backend=26030701 pid=? ===
+=== DEPLOY id=084b9c6a-7da8-43e7-873e-68f84dc5072d ts=2026-03-07 18:10:01 CST backend=26030701 pid=36366 started ===
+2026/03/07 18:10:02 kagent version backend=26030701 webui=26030701
+2026/03/07 18:10:02 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 18:10:06 [asr] Connecting dedicated ASR WebSocket for turnID=1
+2026/03/07 18:10:07 [session] -> start_listen from client: turnID=2
+2026/03/07 18:10:07 [asr] Connecting dedicated ASR WebSocket for turnID=2
+2026/03/07 18:10:07 [asr] Dedicated connection for turnID=1 closed
+2026/03/07 18:10:08 [session] -> trigger_llm from client: text="你吃饭了吗" turnID=2
+2026/03/07 18:10:08 [asr] Dedicated connection for turnID=2 closed
+2026/03/07 18:10:16 [session] -> start_listen from client: turnID=3
+2026/03/07 18:10:16 [asr] Connecting dedicated ASR WebSocket for turnID=3
+2026/03/07 18:10:17 [session] -> trigger_llm from client: text="你在干什么" turnID=3
+2026/03/07 18:10:17 [asr] Dedicated connection for turnID=3 closed
+2026/03/07 18:10:29 [session] -> start_listen from client: turnID=4
+2026/03/07 18:10:29 [asr] Connecting dedicated ASR WebSocket for turnID=4
+2026/03/07 18:10:30 [session] -> trigger_llm from client: text="你讲个故事听听" turnID=4
+2026/03/07 18:10:30 [asr] Dedicated connection for turnID=4 closed
+2026/03/07 18:10:37 [session] -> start_listen from client: turnID=5
+2026/03/07 18:10:37 [asr] Connecting dedicated ASR WebSocket for turnID=5
+2026/03/07 18:10:37 [session] -> trigger_llm from client: text="" turnID=5
+2026/03/07 18:10:37 [asr] Dedicated connection for turnID=5 closed
+2026/03/07 18:10:39 [session] -> start_listen from client: turnID=6
+2026/03/07 18:10:39 [asr] Connecting dedicated ASR WebSocket for turnID=6
+2026/03/07 18:10:40 [session] -> trigger_llm from client: text="" turnID=6
+2026/03/07 18:10:40 [asr] Dedicated connection for turnID=6 closed
+2026/03/07 18:10:41 [session] -> start_listen from client: turnID=7
+2026/03/07 18:10:41 [asr] Connecting dedicated ASR WebSocket for turnID=7
+2026/03/07 18:10:42 [session] -> start_listen from client: turnID=8
+2026/03/07 18:10:42 [asr] Connecting dedicated ASR WebSocket for turnID=8
+2026/03/07 18:10:42 [asr] Dedicated connection for turnID=7 closed
+2026/03/07 18:10:42 [session] -> trigger_llm from client: text="" turnID=8
+2026/03/07 18:10:42 [asr] Dedicated connection for turnID=8 closed
+2026/03/07 18:10:43 [session] -> start_listen from client: turnID=9
+2026/03/07 18:10:43 [asr] Connecting dedicated ASR WebSocket for turnID=9
+2026/03/07 18:10:43 [session] -> trigger_llm from client: text="" turnID=9
+2026/03/07 18:10:43 [asr] Dedicated connection for turnID=9 closed
+2026/03/07 18:10:53 [session] -> start_listen from client: turnID=10
+2026/03/07 18:10:53 [asr] Connecting dedicated ASR WebSocket for turnID=10
+2026/03/07 18:10:54 [session] -> start_listen from client: turnID=11
+2026/03/07 18:10:54 [asr] Connecting dedicated ASR WebSocket for turnID=11
+2026/03/07 18:10:54 [asr] Dedicated connection for turnID=10 closed
+2026/03/07 18:10:55 [session] -> start_listen from client: turnID=12
+2026/03/07 18:10:55 [asr] Connecting dedicated ASR WebSocket for turnID=12
+2026/03/07 18:10:55 [asr] Dedicated connection for turnID=11 closed
+2026/03/07 18:10:55 [session] -> start_listen from client: turnID=13
+2026/03/07 18:10:55 [asr] Connecting dedicated ASR WebSocket for turnID=13
+2026/03/07 18:10:55 [asr] Dedicated connection for turnID=12 closed
+2026/03/07 18:10:55 [session] -> start_listen from client: turnID=14
+2026/03/07 18:10:55 [asr] Connecting dedicated ASR WebSocket for turnID=14
+2026/03/07 18:10:55 [asr] Dedicated connection for turnID=13 closed
+2026/03/07 18:10:56 [session] -> start_listen from client: turnID=15
+2026/03/07 18:10:56 [asr] Connecting dedicated ASR WebSocket for turnID=15
+2026/03/07 18:10:56 [asr] Dedicated connection for turnID=14 closed
+2026/03/07 18:10:56 [session] -> start_listen from client: turnID=16
+2026/03/07 18:10:56 [asr] Connecting dedicated ASR WebSocket for turnID=16
+2026/03/07 18:10:56 [asr] Dedicated connection for turnID=15 closed
+2026/03/07 18:10:57 [session] -> start_listen from client: turnID=17
+2026/03/07 18:10:57 [asr] Connecting dedicated ASR WebSocket for turnID=17
+2026/03/07 18:10:57 [asr] Dedicated connection for turnID=16 closed
+2026/03/07 18:10:58 [session] -> start_listen from client: turnID=18
+2026/03/07 18:10:58 [asr] Connecting dedicated ASR WebSocket for turnID=18
+2026/03/07 18:10:58 [asr] Dedicated connection for turnID=17 closed
+2026/03/07 18:10:59 [session] -> trigger_llm from client: text="" turnID=18
+2026/03/07 18:10:59 [asr] Dedicated connection for turnID=18 closed
+2026/03/07 18:10:59 [session] -> start_listen from client: turnID=19
+2026/03/07 18:10:59 [asr] Connecting dedicated ASR WebSocket for turnID=19
+2026/03/07 18:11:00 [session] -> trigger_llm from client: text="" turnID=19
+2026/03/07 18:11:00 [asr] Dedicated connection for turnID=19 closed
+2026/03/07 18:11:01 [session] -> start_listen from client: turnID=20
+2026/03/07 18:11:01 [asr] Connecting dedicated ASR WebSocket for turnID=20
+2026/03/07 18:11:02 [session] -> start_listen from client: turnID=21
+2026/03/07 18:11:02 [asr] Connecting dedicated ASR WebSocket for turnID=21
+2026/03/07 18:11:02 [asr] Dedicated connection for turnID=20 closed
+2026/03/07 18:11:02 [session] -> start_listen from client: turnID=22
+2026/03/07 18:11:02 [asr] Connecting dedicated ASR WebSocket for turnID=22
+2026/03/07 18:11:02 [asr] Dedicated connection for turnID=21 closed
+2026/03/07 18:11:03 [session] -> trigger_llm from client: text="" turnID=22
+2026/03/07 18:11:03 [asr] Dedicated connection for turnID=22 closed
+2026/03/07 18:11:03 [session] -> start_listen from client: turnID=23
+2026/03/07 18:11:03 [asr] Connecting dedicated ASR WebSocket for turnID=23
+2026/03/07 18:11:04 [session] -> trigger_llm from client: text="" turnID=23
+2026/03/07 18:11:04 [asr] Dedicated connection for turnID=23 closed
+2026/03/07 18:11:04 [session] -> start_listen from client: turnID=24
+2026/03/07 18:11:04 [asr] Connecting dedicated ASR WebSocket for turnID=24
+2026/03/07 18:11:04 [session] -> start_listen from client: turnID=25
+2026/03/07 18:11:04 [asr] Dedicated connection for turnID=24 closed
+2026/03/07 18:11:04 [asr] Connecting dedicated ASR WebSocket for turnID=25
+2026/03/07 18:11:05 [session] -> trigger_llm from client: text="" turnID=25
+2026/03/07 18:11:05 [asr] Dedicated connection for turnID=25 closed
+2026/03/07 18:11:06 [session] -> start_listen from client: turnID=26
+2026/03/07 18:11:06 [asr] Connecting dedicated ASR WebSocket for turnID=26
+2026/03/07 18:11:07 [session] -> start_listen from client: turnID=27
+2026/03/07 18:11:07 [asr] Connecting dedicated ASR WebSocket for turnID=27
+2026/03/07 18:11:07 [asr] Dedicated connection for turnID=26 closed
+2026/03/07 18:11:07 [session] -> start_listen from client: turnID=28
+2026/03/07 18:11:07 [asr] Connecting dedicated ASR WebSocket for turnID=28
+2026/03/07 18:11:07 [asr] Dedicated connection for turnID=27 closed
+2026/03/07 18:11:07 [session] -> start_listen from client: turnID=29
+2026/03/07 18:11:07 [asr] Connecting dedicated ASR WebSocket for turnID=29
+2026/03/07 18:11:07 [asr] Dedicated connection for turnID=28 closed
+2026/03/07 18:11:08 [session] -> trigger_llm from client: text="" turnID=29
+2026/03/07 18:11:08 [asr] Dedicated connection for turnID=29 closed
+2026/03/07 18:11:09 [session] -> start_listen from client: turnID=30
+2026/03/07 18:11:09 [asr] Connecting dedicated ASR WebSocket for turnID=30
+2026/03/07 18:11:10 [session] -> trigger_llm from client: text="" turnID=30
+2026/03/07 18:11:10 [asr] Dedicated connection for turnID=30 closed
+2026/03/07 18:11:10 [session] -> start_listen from client: turnID=31
+2026/03/07 18:11:10 [asr] Connecting dedicated ASR WebSocket for turnID=31
+2026/03/07 18:11:10 [session] -> trigger_llm from client: text="" turnID=31
+2026/03/07 18:11:10 [asr] Dedicated connection for turnID=31 closed
+2026/03/07 18:11:11 [session] -> start_listen from client: turnID=32
+2026/03/07 18:11:11 [asr] Connecting dedicated ASR WebSocket for turnID=32
+2026/03/07 18:11:11 [session] -> start_listen from client: turnID=33
+2026/03/07 18:11:11 [asr] Connecting dedicated ASR WebSocket for turnID=33
+2026/03/07 18:11:11 [asr] Dedicated connection for turnID=32 closed
+2026/03/07 18:11:12 [session] -> trigger_llm from client: text="" turnID=33
+2026/03/07 18:11:12 [asr] Dedicated connection for turnID=33 closed
+2026/03/07 18:11:12 [session] -> start_listen from client: turnID=34
+2026/03/07 18:11:12 [asr] Connecting dedicated ASR WebSocket for turnID=34
+2026/03/07 18:11:12 [session] -> start_listen from client: turnID=35
+2026/03/07 18:11:12 [asr] Connecting dedicated ASR WebSocket for turnID=35
+2026/03/07 18:11:12 [asr] Dedicated connection for turnID=34 closed
+2026/03/07 18:11:13 [session] -> start_listen from client: turnID=36
+2026/03/07 18:11:13 [asr] Connecting dedicated ASR WebSocket for turnID=36
+2026/03/07 18:11:13 [asr] Dedicated connection for turnID=35 closed
+2026/03/07 18:11:13 [session] -> start_listen from client: turnID=37
+2026/03/07 18:11:13 [asr] Connecting dedicated ASR WebSocket for turnID=37
+2026/03/07 18:11:13 [asr] Dedicated connection for turnID=36 closed
+2026/03/07 18:11:14 [session] -> start_listen from client: turnID=38
+2026/03/07 18:11:14 [asr] Dedicated connection for turnID=37 closed
+2026/03/07 18:11:14 [asr] Connecting dedicated ASR WebSocket for turnID=38
+2026/03/07 18:11:14 [session] -> start_listen from client: turnID=39
+2026/03/07 18:11:14 [asr] Connecting dedicated ASR WebSocket for turnID=39
+2026/03/07 18:11:14 [asr] Dedicated connection for turnID=38 closed
+2026/03/07 18:11:15 [session] -> start_listen from client: turnID=40
+2026/03/07 18:11:15 [asr] Connecting dedicated ASR WebSocket for turnID=40
+2026/03/07 18:11:15 [asr] Dedicated connection for turnID=39 closed
+2026/03/07 18:11:16 [session] -> trigger_llm from client: text="" turnID=40
+2026/03/07 18:11:16 [asr] Dedicated connection for turnID=40 closed
+2026/03/07 18:11:18 [session] -> start_listen from client: turnID=41
+2026/03/07 18:11:18 [asr] Connecting dedicated ASR WebSocket for turnID=41
+2026/03/07 18:11:19 [session] -> trigger_llm from client: text="" turnID=41
+2026/03/07 18:11:19 [asr] Dedicated connection for turnID=41 closed
+2026/03/07 18:11:24 [session] -> start_listen from client: turnID=42
+2026/03/07 18:11:24 [asr] Connecting dedicated ASR WebSocket for turnID=42
+2026/03/07 18:11:24 [session] -> start_listen from client: turnID=43
+2026/03/07 18:11:24 [asr] Connecting dedicated ASR WebSocket for turnID=43
+2026/03/07 18:11:24 [asr] Dedicated connection for turnID=42 closed
+2026/03/07 18:11:25 [session] -> trigger_llm from client: text="" turnID=43
+2026/03/07 18:11:25 [asr] Dedicated connection for turnID=43 closed
+2026/03/07 18:11:26 [session] -> start_listen from client: turnID=44
+2026/03/07 18:11:26 [asr] Connecting dedicated ASR WebSocket for turnID=44
+2026/03/07 18:11:26 [session] -> trigger_llm from client: text="" turnID=44
+2026/03/07 18:11:26 [asr] Dedicated connection for turnID=44 closed
+2026/03/07 18:11:28 [session] -> start_listen from client: turnID=45
+2026/03/07 18:11:28 [asr] Connecting dedicated ASR WebSocket for turnID=45
+2026/03/07 18:11:28 [session] -> start_listen from client: turnID=46
+2026/03/07 18:11:28 [asr] Connecting dedicated ASR WebSocket for turnID=46
+2026/03/07 18:11:28 [asr] Dedicated connection for turnID=45 closed
+2026/03/07 18:11:28 [session] -> trigger_llm from client: text="" turnID=46
+2026/03/07 18:11:28 [asr] Dedicated connection for turnID=46 closed
+2026/03/07 18:11:29 [session] -> start_listen from client: turnID=47
+2026/03/07 18:11:29 [asr] Connecting dedicated ASR WebSocket for turnID=47
+2026/03/07 18:11:29 [session] -> start_listen from client: turnID=48
+2026/03/07 18:11:29 [asr] Connecting dedicated ASR WebSocket for turnID=48
+2026/03/07 18:11:29 [asr] Dedicated connection for turnID=47 closed
+2026/03/07 18:11:29 [session] -> start_listen from client: turnID=49
+2026/03/07 18:11:29 [asr] Connecting dedicated ASR WebSocket for turnID=49
+2026/03/07 18:11:29 [asr] Dedicated connection for turnID=48 closed
+2026/03/07 18:11:31 [session] -> trigger_llm from client: text="" turnID=49
+2026/03/07 18:11:31 [asr] Dedicated connection for turnID=49 closed
+2026/03/07 18:11:31 [session] -> start_listen from client: turnID=50
+2026/03/07 18:11:31 [asr] Connecting dedicated ASR WebSocket for turnID=50
+2026/03/07 18:11:32 [session] -> trigger_llm from client: text="" turnID=50
+2026/03/07 18:11:32 [asr] Dedicated connection for turnID=50 closed
+2026/03/07 18:11:33 [session] -> start_listen from client: turnID=51
+2026/03/07 18:11:33 [asr] Connecting dedicated ASR WebSocket for turnID=51
+2026/03/07 18:11:33 [session] -> start_listen from client: turnID=52
+2026/03/07 18:11:33 [asr] Connecting dedicated ASR WebSocket for turnID=52
+2026/03/07 18:11:33 [asr] Dedicated connection for turnID=51 closed
+2026/03/07 18:11:34 [session] -> start_listen from client: turnID=53
+2026/03/07 18:11:34 [asr] Connecting dedicated ASR WebSocket for turnID=53
+2026/03/07 18:11:34 [asr] Dedicated connection for turnID=52 closed
+2026/03/07 18:11:34 [session] -> start_listen from client: turnID=54
+2026/03/07 18:11:34 [asr] Dedicated connection for turnID=53 closed
+2026/03/07 18:11:34 [asr] Connecting dedicated ASR WebSocket for turnID=54
+2026/03/07 18:11:35 [session] -> trigger_llm from client: text="" turnID=54
+2026/03/07 18:11:35 [asr] Dedicated connection for turnID=54 closed
+2026/03/07 18:11:35 [session] -> start_listen from client: turnID=55
+2026/03/07 18:11:35 [asr] Connecting dedicated ASR WebSocket for turnID=55
+2026/03/07 18:11:35 [session] -> start_listen from client: turnID=56
+2026/03/07 18:11:35 [asr] Connecting dedicated ASR WebSocket for turnID=56
+2026/03/07 18:11:35 [asr] Dedicated connection for turnID=55 closed
+2026/03/07 18:11:36 [session] -> start_listen from client: turnID=57
+2026/03/07 18:11:36 [asr] Connecting dedicated ASR WebSocket for turnID=57
+2026/03/07 18:11:36 [asr] Dedicated connection for turnID=56 closed
+2026/03/07 18:11:37 [session] -> start_listen from client: turnID=58
+2026/03/07 18:11:37 [asr] Connecting dedicated ASR WebSocket for turnID=58
+2026/03/07 18:11:37 [asr] Dedicated connection for turnID=57 closed
+2026/03/07 18:11:38 [session] -> trigger_llm from client: text="" turnID=58
+2026/03/07 18:11:38 [asr] Dedicated connection for turnID=58 closed
+2026/03/07 18:11:38 [session] -> start_listen from client: turnID=59
+2026/03/07 18:11:38 [asr] Connecting dedicated ASR WebSocket for turnID=59
+2026/03/07 18:11:39 [session] -> trigger_llm from client: text="" turnID=59
+2026/03/07 18:11:39 [asr] Dedicated connection for turnID=59 closed
+2026/03/07 18:11:39 [session] -> start_listen from client: turnID=60
+2026/03/07 18:11:39 [asr] Connecting dedicated ASR WebSocket for turnID=60
+2026/03/07 18:11:40 [session] -> start_listen from client: turnID=61
+2026/03/07 18:11:40 [asr] Connecting dedicated ASR WebSocket for turnID=61
+2026/03/07 18:11:40 [asr] Dedicated connection for turnID=60 closed
+2026/03/07 18:11:41 [session] -> trigger_llm from client: text="" turnID=61
+2026/03/07 18:11:41 [asr] Dedicated connection for turnID=61 closed
+2026/03/07 18:11:41 [session] -> start_listen from client: turnID=62
+2026/03/07 18:11:41 [asr] Connecting dedicated ASR WebSocket for turnID=62
+2026/03/07 18:11:42 [session] -> trigger_llm from client: text="" turnID=62
+2026/03/07 18:11:42 [asr] Dedicated connection for turnID=62 closed
+2026/03/07 18:11:42 [session] -> start_listen from client: turnID=63
+2026/03/07 18:11:42 [asr] Connecting dedicated ASR WebSocket for turnID=63
+2026/03/07 18:11:43 [session] -> start_listen from client: turnID=64
+2026/03/07 18:11:43 [asr] Connecting dedicated ASR WebSocket for turnID=64
+2026/03/07 18:11:43 [asr] Dedicated connection for turnID=63 closed
+2026/03/07 18:11:43 [session] -> start_listen from client: turnID=65
+2026/03/07 18:11:43 [asr] Connecting dedicated ASR WebSocket for turnID=65
+2026/03/07 18:11:43 [asr] Dedicated connection for turnID=64 closed
+2026/03/07 18:11:44 [session] -> trigger_llm from client: text="" turnID=65
+2026/03/07 18:11:44 [asr] Dedicated connection for turnID=65 closed
+2026/03/07 18:11:44 [session] -> start_listen from client: turnID=66
+2026/03/07 18:11:44 [asr] Connecting dedicated ASR WebSocket for turnID=66
+2026/03/07 18:11:44 [session] -> start_listen from client: turnID=67
+2026/03/07 18:11:44 [asr] Connecting dedicated ASR WebSocket for turnID=67
+2026/03/07 18:11:44 [asr] Dedicated connection for turnID=66 closed
+2026/03/07 18:11:45 [session] -> start_listen from client: turnID=68
+2026/03/07 18:11:45 [asr] Connecting dedicated ASR WebSocket for turnID=68
+2026/03/07 18:11:45 [asr] Dedicated connection for turnID=67 closed
+2026/03/07 18:11:45 [session] -> start_listen from client: turnID=69
+2026/03/07 18:11:45 [asr] Connecting dedicated ASR WebSocket for turnID=69
+2026/03/07 18:11:45 [asr] Dedicated connection for turnID=68 closed
+2026/03/07 18:11:46 [session] -> trigger_llm from client: text="" turnID=69
+2026/03/07 18:11:46 [asr] Dedicated connection for turnID=69 closed
+2026/03/07 18:11:47 [session] -> start_listen from client: turnID=70
+2026/03/07 18:11:47 [asr] Connecting dedicated ASR WebSocket for turnID=70
+2026/03/07 18:11:48 [session] -> start_listen from client: turnID=71
+2026/03/07 18:11:48 [asr] Connecting dedicated ASR WebSocket for turnID=71
+2026/03/07 18:11:48 [asr] Dedicated connection for turnID=70 closed
+2026/03/07 18:11:48 [session] -> start_listen from client: turnID=72
+2026/03/07 18:11:48 [asr] Connecting dedicated ASR WebSocket for turnID=72
+2026/03/07 18:11:48 [asr] Dedicated connection for turnID=71 closed
+2026/03/07 18:11:49 [session] -> trigger_llm from client: text="" turnID=72
+2026/03/07 18:11:49 [asr] Dedicated connection for turnID=72 closed
+2026/03/07 18:11:50 [session] -> start_listen from client: turnID=73
+2026/03/07 18:11:50 [asr] Connecting dedicated ASR WebSocket for turnID=73
+2026/03/07 18:11:51 [session] -> trigger_llm from client: text="" turnID=73
+2026/03/07 18:11:51 [asr] Dedicated connection for turnID=73 closed
+2026/03/07 18:11:52 [session] -> start_listen from client: turnID=74
+2026/03/07 18:11:52 [asr] Connecting dedicated ASR WebSocket for turnID=74
+2026/03/07 18:11:52 [session] -> start_listen from client: turnID=75
+2026/03/07 18:11:52 [asr] Connecting dedicated ASR WebSocket for turnID=75
+2026/03/07 18:11:52 [asr] Dedicated connection for turnID=74 closed
+2026/03/07 18:11:53 [session] -> start_listen from client: turnID=76
+2026/03/07 18:11:53 [asr] Connecting dedicated ASR WebSocket for turnID=76
+2026/03/07 18:11:53 [asr] Dedicated connection for turnID=75 closed
+2026/03/07 18:11:54 [session] -> start_listen from client: turnID=77
+2026/03/07 18:11:54 [asr] Connecting dedicated ASR WebSocket for turnID=77
+2026/03/07 18:11:54 [asr] Dedicated connection for turnID=76 closed
+2026/03/07 18:11:55 [session] -> start_listen from client: turnID=78
+2026/03/07 18:11:55 [asr] Connecting dedicated ASR WebSocket for turnID=78
+2026/03/07 18:11:55 [asr] Dedicated connection for turnID=77 closed
+2026/03/07 18:11:55 [session] -> start_listen from client: turnID=79
+2026/03/07 18:11:55 [asr] Connecting dedicated ASR WebSocket for turnID=79
+2026/03/07 18:11:55 [asr] Dedicated connection for turnID=78 closed
+2026/03/07 18:11:56 [session] -> trigger_llm from client: text="" turnID=79
+2026/03/07 18:11:56 [asr] Dedicated connection for turnID=79 closed
+2026/03/07 18:11:58 [session] -> start_listen from client: turnID=80
+2026/03/07 18:11:58 [asr] Connecting dedicated ASR WebSocket for turnID=80
+2026/03/07 18:11:58 [session] -> start_listen from client: turnID=81
+2026/03/07 18:11:58 [asr] Connecting dedicated ASR WebSocket for turnID=81
+2026/03/07 18:11:58 [asr] Dedicated connection for turnID=80 closed
+2026/03/07 18:11:59 [session] -> start_listen from client: turnID=82
+2026/03/07 18:11:59 [asr] Connecting dedicated ASR WebSocket for turnID=82
+2026/03/07 18:11:59 [asr] Dedicated connection for turnID=81 closed
+2026/03/07 18:11:59 [session] -> start_listen from client: turnID=83
+2026/03/07 18:11:59 [asr] Connecting dedicated ASR WebSocket for turnID=83
+2026/03/07 18:11:59 [asr] Dedicated connection for turnID=82 closed
+2026/03/07 18:12:00 [session] -> trigger_llm from client: text="" turnID=83
+2026/03/07 18:12:00 [asr] Dedicated connection for turnID=83 closed
+2026/03/07 18:12:02 [session] -> start_listen from client: turnID=84
+2026/03/07 18:12:02 [asr] Connecting dedicated ASR WebSocket for turnID=84
+2026/03/07 18:12:02 [session] -> start_listen from client: turnID=85
+2026/03/07 18:12:02 [asr] Connecting dedicated ASR WebSocket for turnID=85
+2026/03/07 18:12:02 [asr] Dedicated connection for turnID=84 closed
+2026/03/07 18:12:02 [session] -> start_listen from client: turnID=86
+2026/03/07 18:12:02 [asr] Connecting dedicated ASR WebSocket for turnID=86
+2026/03/07 18:12:02 [asr] Dedicated connection for turnID=85 closed
+2026/03/07 18:12:03 [session] -> start_listen from client: turnID=87
+2026/03/07 18:12:03 [asr] Connecting dedicated ASR WebSocket for turnID=87
+2026/03/07 18:12:03 [asr] Dedicated connection for turnID=86 closed
+2026/03/07 18:12:03 [session] -> trigger_llm from client: text="" turnID=87
+2026/03/07 18:12:03 [asr] Dedicated connection for turnID=87 closed
+2026/03/07 18:12:03 [session] -> start_listen from client: turnID=88
+2026/03/07 18:12:03 [asr] Connecting dedicated ASR WebSocket for turnID=88
+2026/03/07 18:12:04 [session] -> start_listen from client: turnID=89
+2026/03/07 18:12:04 [asr] Connecting dedicated ASR WebSocket for turnID=89
+2026/03/07 18:12:04 [asr] Dedicated connection for turnID=88 closed
+2026/03/07 18:12:05 [session] -> trigger_llm from client: text="" turnID=89
+2026/03/07 18:12:05 [asr] Dedicated connection for turnID=89 closed
+2026/03/07 18:12:07 [session] -> start_listen from client: turnID=90
+2026/03/07 18:12:07 [asr] Connecting dedicated ASR WebSocket for turnID=90
+2026/03/07 18:12:07 [session] -> start_listen from client: turnID=91
+2026/03/07 18:12:07 [asr] Connecting dedicated ASR WebSocket for turnID=91
+2026/03/07 18:12:07 [asr] Dedicated connection for turnID=90 closed
+2026/03/07 18:12:07 [session] -> start_listen from client: turnID=92
+2026/03/07 18:12:07 [asr] Connecting dedicated ASR WebSocket for turnID=92
+2026/03/07 18:12:07 [asr] Dedicated connection for turnID=91 closed
+2026/03/07 18:12:08 [session] -> start_listen from client: turnID=93
+2026/03/07 18:12:08 [asr] Connecting dedicated ASR WebSocket for turnID=93
+2026/03/07 18:12:08 [asr] Dedicated connection for turnID=92 closed
+2026/03/07 18:12:08 [session] -> start_listen from client: turnID=94
+2026/03/07 18:12:08 [asr] Connecting dedicated ASR WebSocket for turnID=94
+2026/03/07 18:12:08 [asr] Dedicated connection for turnID=93 closed
+2026/03/07 18:12:08 [session] -> trigger_llm from client: text="" turnID=94
+2026/03/07 18:12:08 [asr] Dedicated connection for turnID=94 closed
+2026/03/07 18:12:09 [session] -> start_listen from client: turnID=95
+2026/03/07 18:12:09 [asr] Connecting dedicated ASR WebSocket for turnID=95
+2026/03/07 18:12:10 [session] -> trigger_llm from client: text="" turnID=95
+2026/03/07 18:12:10 [asr] Dedicated connection for turnID=95 closed
+2026/03/07 18:12:10 [session] -> start_listen from client: turnID=96
+2026/03/07 18:12:10 [asr] Connecting dedicated ASR WebSocket for turnID=96
+2026/03/07 18:12:11 [session] -> trigger_llm from client: text="" turnID=96
+2026/03/07 18:12:11 [asr] Dedicated connection for turnID=96 closed
+2026/03/07 18:12:12 [session] -> start_listen from client: turnID=97
+2026/03/07 18:12:12 [asr] Connecting dedicated ASR WebSocket for turnID=97
+2026/03/07 18:12:12 [session] -> start_listen from client: turnID=98
+2026/03/07 18:12:12 [asr] Connecting dedicated ASR WebSocket for turnID=98
+2026/03/07 18:12:12 [asr] Dedicated connection for turnID=97 closed
+2026/03/07 18:12:13 [session] -> start_listen from client: turnID=99
+2026/03/07 18:12:13 [asr] Connecting dedicated ASR WebSocket for turnID=99
+2026/03/07 18:12:13 [asr] Dedicated connection for turnID=98 closed
+2026/03/07 18:12:13 [session] -> trigger_llm from client: text="" turnID=99
+2026/03/07 18:12:13 [asr] Dedicated connection for turnID=99 closed
+2026/03/07 18:12:14 [session] -> start_listen from client: turnID=100
+2026/03/07 18:12:14 [asr] Connecting dedicated ASR WebSocket for turnID=100
+2026/03/07 18:12:14 [session] -> start_listen from client: turnID=101
+2026/03/07 18:12:14 [asr] Connecting dedicated ASR WebSocket for turnID=101
+2026/03/07 18:12:14 [asr] Dedicated connection for turnID=100 closed
+2026/03/07 18:12:17 [session] -> start_listen from client: turnID=102
+2026/03/07 18:12:17 [asr] Connecting dedicated ASR WebSocket for turnID=102
+2026/03/07 18:12:17 [asr] Dedicated connection for turnID=101 closed
+2026/03/07 18:12:17 [session] -> start_listen from client: turnID=103
+2026/03/07 18:12:17 [asr] Connecting dedicated ASR WebSocket for turnID=103
+2026/03/07 18:12:17 [asr] Dedicated connection for turnID=102 closed
+2026/03/07 18:12:18 [session] -> trigger_llm from client: text="" turnID=103
+2026/03/07 18:12:18 [asr] Dedicated connection for turnID=103 closed
+2026/03/07 18:12:20 [session] -> start_listen from client: turnID=104
+2026/03/07 18:12:20 [asr] Connecting dedicated ASR WebSocket for turnID=104
+2026/03/07 18:12:21 [session] -> trigger_llm from client: text="" turnID=104
+2026/03/07 18:12:21 [asr] Dedicated connection for turnID=104 closed
+2026/03/07 18:12:23 [session] -> start_listen from client: turnID=105
+2026/03/07 18:12:23 [asr] Connecting dedicated ASR WebSocket for turnID=105
+2026/03/07 18:12:24 [session] -> trigger_llm from client: text="" turnID=105
+2026/03/07 18:12:24 [asr] Dedicated connection for turnID=105 closed
+2026/03/07 18:12:26 [session] -> start_listen from client: turnID=106
+2026/03/07 18:12:26 [asr] Connecting dedicated ASR WebSocket for turnID=106
+2026/03/07 18:12:27 [session] -> trigger_llm from client: text="" turnID=106
+2026/03/07 18:12:27 [asr] Dedicated connection for turnID=106 closed
+2026/03/07 18:12:49 [session] -> start_listen from client: turnID=107
+2026/03/07 18:12:49 [asr] Connecting dedicated ASR WebSocket for turnID=107
+2026/03/07 18:12:49 [session] -> trigger_llm from client: text="" turnID=107
+2026/03/07 18:12:49 [asr] Dedicated connection for turnID=107 closed
+2026/03/07 18:12:50 [session] -> start_listen from client: turnID=108
+2026/03/07 18:12:50 [asr] Connecting dedicated ASR WebSocket for turnID=108
+2026/03/07 18:12:53 [session] -> trigger_llm from client: text="我要吃饭了" turnID=108
+2026/03/07 18:12:53 [asr] Dedicated connection for turnID=108 closed
+2026/03/07 18:13:26 [session] -> start_listen from client: turnID=109
+2026/03/07 18:13:26 [asr] Connecting dedicated ASR WebSocket for turnID=109
+2026/03/07 18:13:28 [session] -> trigger_llm from client: text="那真是" turnID=109
+2026/03/07 18:13:28 [asr] Dedicated connection for turnID=109 closed
+2026/03/07 18:13:44 [session] -> start_listen from client: turnID=110
+2026/03/07 18:13:44 [asr] Connecting dedicated ASR WebSocket for turnID=110
+2026/03/07 18:13:44 [session] -> trigger_llm from client: text="" turnID=110
+2026/03/07 18:13:44 [asr] Dedicated connection for turnID=110 closed
+2026/03/07 18:13:45 [session] -> start_listen from client: turnID=111
+2026/03/07 18:13:45 [asr] Connecting dedicated ASR WebSocket for turnID=111
+2026/03/07 18:13:46 [session] -> trigger_llm from client: text="" turnID=111
+2026/03/07 18:13:46 [asr] Dedicated connection for turnID=111 closed
+2026/03/07 18:13:46 [session] -> start_listen from client: turnID=112
+2026/03/07 18:13:46 [asr] Connecting dedicated ASR WebSocket for turnID=112
+2026/03/07 18:13:46 [session] -> trigger_llm from client: text="" turnID=112
+2026/03/07 18:13:46 [asr] Dedicated connection for turnID=112 closed
+2026/03/07 18:13:54 [session] -> start_listen from client: turnID=113
+2026/03/07 18:13:54 [asr] Connecting dedicated ASR WebSocket for turnID=113
+2026/03/07 18:13:55 [session] -> trigger_llm from client: text="" turnID=113
+2026/03/07 18:13:55 [asr] Dedicated connection for turnID=113 closed
+2026/03/07 18:13:56 [session] -> start_listen from client: turnID=114
+2026/03/07 18:13:56 [asr] Connecting dedicated ASR WebSocket for turnID=114
+2026/03/07 18:13:57 [session] -> trigger_llm from client: text="" turnID=114
+2026/03/07 18:13:57 [asr] Dedicated connection for turnID=114 closed
+2026/03/07 18:13:58 [session] -> start_listen from client: turnID=115
+2026/03/07 18:13:58 [asr] Connecting dedicated ASR WebSocket for turnID=115
+2026/03/07 18:13:58 [session] -> trigger_llm from client: text="" turnID=115
+2026/03/07 18:13:58 [asr] Dedicated connection for turnID=115 closed
+2026/03/07 18:13:59 [session] -> start_listen from client: turnID=116
+2026/03/07 18:13:59 [asr] Connecting dedicated ASR WebSocket for turnID=116
+2026/03/07 18:13:59 [session] -> trigger_llm from client: text="" turnID=116
+2026/03/07 18:13:59 [asr] Dedicated connection for turnID=116 closed
+2026/03/07 18:13:59 [session] -> start_listen from client: turnID=117
+2026/03/07 18:13:59 [asr] Connecting dedicated ASR WebSocket for turnID=117
+2026/03/07 18:14:00 [session] -> start_listen from client: turnID=118
+2026/03/07 18:14:00 [asr] Connecting dedicated ASR WebSocket for turnID=118
+2026/03/07 18:14:00 [asr] Dedicated connection for turnID=117 closed
+2026/03/07 18:14:00 [session] -> start_listen from client: turnID=119
+2026/03/07 18:14:00 [asr] Connecting dedicated ASR WebSocket for turnID=119
+2026/03/07 18:14:00 [asr] Dedicated connection for turnID=118 closed
+2026/03/07 18:14:00 [session] -> start_listen from client: turnID=120
+2026/03/07 18:14:00 [asr] Connecting dedicated ASR WebSocket for turnID=120
+2026/03/07 18:14:00 [asr] Dedicated connection for turnID=119 closed
+2026/03/07 18:14:00 [session] -> start_listen from client: turnID=121
+2026/03/07 18:14:00 [asr] Connecting dedicated ASR WebSocket for turnID=121
+2026/03/07 18:14:00 [asr] Dedicated connection for turnID=120 closed
+2026/03/07 18:14:01 [session] -> trigger_llm from client: text="" turnID=121
+2026/03/07 18:14:01 [asr] Dedicated connection for turnID=121 closed
+2026/03/07 18:14:03 [session] -> start_listen from client: turnID=122
+2026/03/07 18:14:03 [asr] Connecting dedicated ASR WebSocket for turnID=122
+2026/03/07 18:14:04 [session] -> trigger_llm from client: text="" turnID=122
+2026/03/07 18:14:04 [asr] Dedicated connection for turnID=122 closed
+2026/03/07 18:14:10 [session] -> start_listen from client: turnID=123
+2026/03/07 18:14:10 [asr] Connecting dedicated ASR WebSocket for turnID=123
+2026/03/07 18:14:11 [session] -> trigger_llm from client: text="汪汪" turnID=123
+2026/03/07 18:14:11 [asr] Dedicated connection for turnID=123 closed
+2026/03/07 18:14:20 [session] -> start_listen from client: turnID=124
+2026/03/07 18:14:20 [asr] Connecting dedicated ASR WebSocket for turnID=124
+2026/03/07 18:14:21 [session] -> trigger_llm from client: text="是我" turnID=124
+2026/03/07 18:14:21 [asr] Dedicated connection for turnID=124 closed
+2026/03/07 18:14:26 [session] -> start_listen from client: turnID=125
+2026/03/07 18:14:26 [asr] Connecting dedicated ASR WebSocket for turnID=125
+2026/03/07 18:14:27 [session] -> start_listen from client: turnID=126
+2026/03/07 18:14:27 [asr] Connecting dedicated ASR WebSocket for turnID=126
+2026/03/07 18:14:27 [asr] Dedicated connection for turnID=125 closed
+2026/03/07 18:14:29 [session] -> trigger_llm from client: text="是我在" turnID=126
+2026/03/07 18:14:29 [asr] Dedicated connection for turnID=126 closed
+2026/03/07 18:14:35 [session] -> start_listen from client: turnID=127
+2026/03/07 18:14:35 [asr] Connecting dedicated ASR WebSocket for turnID=127
+2026/03/07 18:14:36 [session] -> trigger_llm from client: text="" turnID=127
+2026/03/07 18:14:36 [asr] Dedicated connection for turnID=127 closed
+2026/03/07 18:14:37 [session] -> start_listen from client: turnID=128
+2026/03/07 18:14:37 [asr] Connecting dedicated ASR WebSocket for turnID=128
+2026/03/07 18:14:37 [session] -> start_listen from client: turnID=129
+2026/03/07 18:14:37 [asr] Connecting dedicated ASR WebSocket for turnID=129
+2026/03/07 18:14:37 [asr] Dedicated connection for turnID=128 closed
+2026/03/07 18:14:38 [session] -> start_listen from client: turnID=130
+2026/03/07 18:14:38 [asr] Connecting dedicated ASR WebSocket for turnID=130
+2026/03/07 18:14:38 [asr] Dedicated connection for turnID=129 closed
+2026/03/07 18:14:38 [session] -> trigger_llm from client: text="" turnID=130
+2026/03/07 18:14:38 [asr] Dedicated connection for turnID=130 closed
+2026/03/07 18:14:39 [session] -> start_listen from client: turnID=131
+2026/03/07 18:14:39 [asr] Connecting dedicated ASR WebSocket for turnID=131
+2026/03/07 18:14:39 [session] -> start_listen from client: turnID=132
+2026/03/07 18:14:39 [asr] Connecting dedicated ASR WebSocket for turnID=132
+2026/03/07 18:14:39 [asr] Dedicated connection for turnID=131 closed
+2026/03/07 18:14:40 [session] -> start_listen from client: turnID=133
+2026/03/07 18:14:40 [asr] Connecting dedicated ASR WebSocket for turnID=133
+2026/03/07 18:14:40 [asr] Dedicated connection for turnID=132 closed
+2026/03/07 18:14:40 [session] -> start_listen from client: turnID=134
+2026/03/07 18:14:40 [asr] Connecting dedicated ASR WebSocket for turnID=134
+2026/03/07 18:14:40 [asr] Dedicated connection for turnID=133 closed
+2026/03/07 18:14:41 shutdown requested from 127.0.0.1:61950
+
+=== DEPLOY id=d235ba59-7941-47f7-8bfa-299c194f439f ts=2026-03-07 18:14:41 CST backend=26030701 pid=? ===
+=== DEPLOY id=d235ba59-7941-47f7-8bfa-299c194f439f ts=2026-03-07 18:14:41 CST backend=26030701 pid=36622 started ===
+2026/03/07 18:14:42 kagent version backend=26030701 webui=26030701
+2026/03/07 18:14:42 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 18:14:46 [asr] Connecting dedicated ASR WebSocket for turnID=1
+2026/03/07 18:14:47 [session] -> start_listen from client: turnID=2
+2026/03/07 18:14:47 [asr] Connecting dedicated ASR WebSocket for turnID=2
+2026/03/07 18:14:47 [asr] Dedicated connection for turnID=1 closed
+2026/03/07 18:14:48 [session] -> trigger_llm from client: text="你早晨吃饭了吗" turnID=2
+2026/03/07 18:14:48 [asr] Dedicated connection for turnID=2 closed
+2026/03/07 18:14:59 [session] -> start_listen from client: turnID=3
+2026/03/07 18:14:59 [asr] Connecting dedicated ASR WebSocket for turnID=3
+2026/03/07 18:15:01 [session] -> trigger_llm from client: text="我吃早饭了，吃的好饱啊" turnID=3
+2026/03/07 18:15:01 [asr] Dedicated connection for turnID=3 closed
+2026/03/07 18:15:08 [session] -> start_listen from client: turnID=4
+2026/03/07 18:15:08 [asr] Connecting dedicated ASR WebSocket for turnID=4
+2026/03/07 18:15:10 [session] -> trigger_llm from client: text="没活力，吃饱了就想睡" turnID=4
+2026/03/07 18:15:10 [asr] Dedicated connection for turnID=4 closed
+2026/03/07 18:15:22 [session] -> start_listen from client: turnID=5
+2026/03/07 18:15:22 [asr] Connecting dedicated ASR WebSocket for turnID=5
+2026/03/07 18:15:24 [session] -> trigger_llm from client: text="汪汪" turnID=5
+2026/03/07 18:15:24 [asr] Dedicated connection for turnID=5 closed
+2026/03/07 18:15:32 [session] -> start_listen from client: turnID=6
+2026/03/07 18:15:32 [asr] Connecting dedicated ASR WebSocket for turnID=6
+2026/03/07 18:15:33 [session] -> trigger_llm from client: text="汪汪" turnID=6
+2026/03/07 18:15:33 [asr] Dedicated connection for turnID=6 closed
+2026/03/07 18:15:33 [session] -> start_listen from client: turnID=7
+2026/03/07 18:15:33 [asr] Connecting dedicated ASR WebSocket for turnID=7
+2026/03/07 18:15:34 [session] -> trigger_llm from client: text="喵喵喵" turnID=7
+2026/03/07 18:15:34 [asr] Dedicated connection for turnID=7 closed
+2026/03/07 18:15:43 [session] -> start_listen from client: turnID=8
+2026/03/07 18:15:43 [asr] Connecting dedicated ASR WebSocket for turnID=8
+2026/03/07 18:15:44 [session] -> trigger_llm from client: text="汪" turnID=8
+2026/03/07 18:15:44 [asr] Dedicated connection for turnID=8 closed
+2026/03/07 18:15:53 [session] -> start_listen from client: turnID=9
+2026/03/07 18:15:53 [asr] Connecting dedicated ASR WebSocket for turnID=9
+2026/03/07 18:15:55 [session] -> trigger_llm from client: text="你是小狗，我就带你出去溜" turnID=9
+2026/03/07 18:15:55 [asr] Dedicated connection for turnID=9 closed
+2026/03/07 18:16:03 [session] -> start_listen from client: turnID=10
+2026/03/07 18:16:03 [asr] Connecting dedicated ASR WebSocket for turnID=10
+2026/03/07 18:16:05 [session] -> trigger_llm from client: text="把小狗和你过来" turnID=10
+2026/03/07 18:16:05 [asr] Dedicated connection for turnID=10 closed
+2026/03/07 18:16:14 [session] -> start_listen from client: turnID=11
+2026/03/07 18:16:14 [asr] Connecting dedicated ASR WebSocket for turnID=11
+2026/03/07 18:16:16 [session] -> trigger_llm from client: text="我是说你是小狗" turnID=11
+2026/03/07 18:16:16 [asr] Dedicated connection for turnID=11 closed
+2026/03/07 18:16:27 [session] -> start_listen from client: turnID=12
+2026/03/07 18:16:27 [asr] Connecting dedicated ASR WebSocket for turnID=12
+2026/03/07 18:16:29 [session] -> trigger_llm from client: text="那你是什么品种的小狗呢" turnID=12
+2026/03/07 18:16:29 [asr] Dedicated connection for turnID=12 closed
+2026/03/07 18:16:39 [session] -> start_listen from client: turnID=13
+2026/03/07 18:16:39 [asr] Connecting dedicated ASR WebSocket for turnID=13
+2026/03/07 18:16:42 [session] -> trigger_llm from client: text="我不喜欢科技狗，我喜欢泰迪狗" turnID=13
+2026/03/07 18:16:42 [asr] Dedicated connection for turnID=13 closed
+2026/03/07 18:16:52 [session] -> start_listen from client: turnID=14
+2026/03/07 18:16:52 [asr] Connecting dedicated ASR WebSocket for turnID=14
+2026/03/07 18:16:54 [session] -> trigger_llm from client: text="那你有耳朵吗" turnID=14
+2026/03/07 18:16:54 [asr] Dedicated connection for turnID=14 closed
+2026/03/07 18:17:04 [session] -> start_listen from client: turnID=15
+2026/03/07 18:17:04 [asr] Connecting dedicated ASR WebSocket for turnID=15
+2026/03/07 18:17:05 [session] -> trigger_llm from client: text="那你有耳朵吗" turnID=15
+2026/03/07 18:17:05 [asr] Dedicated connection for turnID=15 closed
+2026/03/07 18:17:15 [session] -> start_listen from client: turnID=16
+2026/03/07 18:17:15 [asr] Connecting dedicated ASR WebSocket for turnID=16
+2026/03/07 18:17:15 [session] -> trigger_llm from client: text="" turnID=16
+2026/03/07 18:17:15 [asr] Dedicated connection for turnID=16 closed
+2026/03/07 18:17:18 [session] -> start_listen from client: turnID=17
+2026/03/07 18:17:18 [asr] Connecting dedicated ASR WebSocket for turnID=17
+2026/03/07 18:17:18 read ws failed: websocket: close 1005 (no status)
+2026/03/07 18:17:18 send status failed: websocket: close sent
+2026/03/07 18:17:18 [asr] Dedicated connection for turnID=17 closed
+2026/03/07 18:25:16 shutdown requested from 127.0.0.1:64951
+
+=== DEPLOY id=83b51389-e1e9-4719-bd06-9c68bdb5c206 ts=2026-03-07 18:25:16 CST backend=26030701 pid=? ===
+=== DEPLOY id=83b51389-e1e9-4719-bd06-9c68bdb5c206 ts=2026-03-07 18:25:16 CST backend=26030701 pid=37457 started ===
+2026/03/07 18:25:17 kagent version backend=26030701 webui=26030701
+2026/03/07 18:25:17 kagent T0 server listening on http://127.0.0.1:18080
+2026/03/07 18:25:21 [asr] Connecting dedicated ASR WebSocket for turnID=1
+2026/03/07 18:25:23 [session] -> start_listen from client: turnID=2
+2026/03/07 18:25:23 [asr] Connecting dedicated ASR WebSocket for turnID=2
+2026/03/07 18:25:23 [asr] Dedicated connection for turnID=1 closed
+2026/03/07 18:25:25 [session] -> trigger_llm from client: text="我准备出去拿快递了" turnID=2
+2026/03/07 18:25:25 [asr] Dedicated connection for turnID=2 closed
+2026/03/07 18:25:31 [session] -> start_listen from client: turnID=3
+2026/03/07 18:25:31 [asr] Connecting dedicated ASR WebSocket for turnID=3
+2026/03/07 18:25:34 [session] -> trigger_llm from client: text="早点回来干嘛？你还等我了" turnID=3
+2026/03/07 18:25:34 [asr] Dedicated connection for turnID=3 closed
+2026/03/07 18:25:46 [session] -> start_listen from client: turnID=4
+2026/03/07 18:25:46 [asr] Connecting dedicated ASR WebSocket for turnID=4
+2026/03/07 18:25:50 [session] -> trigger_llm from client: text="有也不会是给你买的呀？我给你买" turnID=4
+2026/03/07 18:25:50 [asr] Dedicated connection for turnID=4 closed
+2026/03/07 18:25:59 [session] -> start_listen from client: turnID=5
+2026/03/07 18:25:59 [asr] Connecting dedicated ASR WebSocket for turnID=5
+2026/03/07 18:26:02 [session] -> trigger_llm from client: text="我是说不会给你买了" turnID=5
+2026/03/07 18:26:02 [asr] Dedicated connection for turnID=5 closed
+2026/03/07 18:26:11 [session] -> start_listen from client: turnID=6
+2026/03/07 18:26:11 [asr] Connecting dedicated ASR WebSocket for turnID=6
+2026/03/07 18:26:13 [session] -> trigger_llm from client: text="" turnID=6
+2026/03/07 18:26:13 [asr] Dedicated connection for turnID=6 closed
+2026/03/07 18:26:13 [session] -> start_listen from client: turnID=7
+2026/03/07 18:26:13 [asr] Connecting dedicated ASR WebSocket for turnID=7
+2026/03/07 18:26:13 read ws failed: websocket: close 1005 (no status)
+2026/03/07 18:26:13 send status failed: websocket: close sent
+2026/03/07 18:26:13 [asr] Dedicated connection for turnID=7 closed
+2026/03/07 18:37:53 shutdown requested from 127.0.0.1:52093
+

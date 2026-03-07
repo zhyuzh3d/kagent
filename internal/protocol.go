@@ -20,6 +20,8 @@ const (
 type ControlMessage struct {
 	Type   string `json:"type"`
 	Reason string `json:"reason,omitempty"`
+	TurnID uint64 `json:"turn_id"`
+	Text   string `json:"text,omitempty"`
 }
 
 type EventMessage struct {

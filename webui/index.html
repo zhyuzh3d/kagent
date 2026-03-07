@@ -290,16 +290,18 @@
       let utteranceActive = false;
       let lastVoiceAt = 0;
       let lastUtteranceEndAt = 0;
-      const UTTERANCE_SILENCE_MS = 800;
+      const UTTERANCE_SILENCE_MS = 500;
       const VOICE_THRESHOLD = 0.018;
       let vadTimer = null;
 
       function wsReady() { return ws && ws.readyState === 1; }
 
-      function sendControl(type, reason) {
+      function sendControl(type, reason, turn_id, text) {
         if (!wsReady()) return;
         const p = { type };
         if (reason) p.reason = reason;
+        if (turn_id) p.turn_id = turn_id;
+        if (text) p.text = text;
         ws.send(JSON.stringify(p));
       }
 
@@ -313,7 +315,6 @@
             utteranceActive = false;
             if (Date.now() - lastUtteranceEndAt < 2000) return;
             lastUtteranceEndAt = Date.now();
-            sendControl('utterance_end');
             self.postMessage({ type: 'vad_utterance_end' });
           }
         }, 100);
@@ -352,7 +353,7 @@
             break;
           }
           case 'send_control':
-            sendControl(msg.control, msg.reason);
+            sendControl(msg.control, msg.reason, msg.turn_id, msg.text);
             break;
           case 'send_audio':
             // Binary audio frame from AudioWorklet -> forward to WS
@@ -370,12 +371,12 @@
           case 'start':
             running = true;
             startVAD();
-            sendControl('start');
+            sendControl('start', null, msg.turn_id);
             break;
           case 'stop':
             running = false;
             stopVAD();
-            sendControl('stop');
+            sendControl('stop', null, msg.turn_id);
             if (ws) { ws.close(); ws = null; }
             break;
           case 'interrupt':
@@ -409,7 +410,7 @@
       pcmQueue: [],
       frameSamples16k: 320,
       voiceThreshold: 0.018,
-      utteranceSilenceMs: 800,
+      utteranceSilenceMs: 500,
       lastVoiceAt: 0,
       utteranceActive: false,
       lastInterruptAt: 0,
@@ -423,6 +424,14 @@
       messages: [],
       currentAIMsg: null,
       currentPartialMsg: null,
+      // Pre-roll ring buffer: keeps last N frames so ASR doesn't miss speech onset
+      preRollBuffer: [],
+      preRollMaxFrames: 5, // ~100ms at 16kHz/320 samples
+      // Whether we're actively sending audio to ASR
+      audioSending: false,
+      // Frames since last voice activity (for tail audio)
+      silentFramesSinceVoice: 0,
+      silentTailFrames: 50, // ~1000ms of trailing audio to ensure ASR triggers end_window_size
     };
 
     const el = {
@@ -522,34 +531,53 @@
       el.stopBtn.disabled = !running;
     }
 
-    function addChatMsg(role, text, turnId) {
+    function addChatMsg(role, text, turnId, isPartial = false) {
       const div = document.createElement('div');
-      div.className = `msg ${role}`;
-      div.textContent = text;
+      div.className = `msg ${role} ${isPartial ? 'partial' : ''}`;
+      div.dataset.turnId = turnId;
+      div.innerHTML = isPartial ? `<em>${text}</em>` : text;
       el.chatArea.appendChild(div);
       el.chatArea.scrollTop = el.chatArea.scrollHeight;
-      const msg = { role, text, turnId, element: div };
+      const msg = { role, text, turnId, element: div, isPartial };
       App.messages.push(msg);
       return msg;
     }
 
-    function updatePartialASR(text) {
-      if (!App.currentPartialMsg) {
-        App.currentPartialMsg = addChatMsg('user partial', text, App.currentTurn);
+    function findUserMsg(turnId) {
+      for (let i = App.messages.length - 1; i >= 0; i--) {
+        const m = App.messages[i];
+        if (m.role === 'user' && m.turnId === turnId) return m;
+      }
+      return null;
+    }
+
+    function updatePartialASR(text, turnId) {
+      if (!text) return;
+      let msg = findUserMsg(turnId);
+      if (!msg) {
+        msg = addChatMsg('user', text, turnId, true);
       } else {
-        App.currentPartialMsg.text = text;
-        App.currentPartialMsg.element.textContent = text;
+        msg.text = text;
+        msg.element.innerHTML = `<em>${text}</em>`;
         el.chatArea.scrollTop = el.chatArea.scrollHeight;
       }
     }
 
-    function finalizeASR(text) {
-      if (App.currentPartialMsg) {
-        App.currentPartialMsg.element.remove();
-        App.messages = App.messages.filter(m => m !== App.currentPartialMsg);
-        App.currentPartialMsg = null;
+    function finalizeASR(text, turnId) {
+      let msg = findUserMsg(turnId);
+      if (msg) {
+        msg.text = text;
+        msg.isPartial = false;
+        if (text) {
+          msg.element.innerHTML = text;
+        } else {
+          msg.element.remove();
+          App.messages = App.messages.filter(m => m !== msg);
+        }
+        msg.element.classList.remove('partial');
+      } else if (text) {
+        addChatMsg('user', text, turnId);
       }
-      if (text) addChatMsg('user', text, App.currentTurn);
     }
 
     function appendAIDelta(text, turnId) {
@@ -592,10 +620,20 @@
             handleAudioBinary(msg.data);
             break;
           case 'vad_utterance_end':
-            App.activeTurnId = App.currentTurn + 1;
             App.utteranceActive = false;
             App.sustainedHighRmsCount = 0;
-            appendDebug(`utterance_end sent via worker VAD (activeTurnId -> ${App.activeTurnId})`);
+
+            // Client-Driven Architecture: Explicitly command the backend to run LLM
+            let finalText = "";
+            let msgObj = findUserMsg(App.currentTurn);
+            if (msgObj) {
+              finalText = msgObj.text;
+              msgObj.isPartial = false;
+              msgObj.element.classList.remove('partial'); // finalize visual instantly
+            }
+            workerSend({ type: 'send_control', control: 'trigger_llm', turn_id: App.currentTurn, text: finalText });
+
+            appendDebug(`Frontend triggered LLM (trigger_llm) for Turn ${App.currentTurn}`);
             break;
         }
       };
@@ -608,7 +646,6 @@
     function handleEvent(msg) {
       const type = msg.type;
       if (!type) return;
-      if (msg.turn_id) App.currentTurn = msg.turn_id;
 
       // Status and error messages must ALWAYS be processed (never filtered by Turn-ID).
       // They carry session-wide state changes (e.g., Listening after interrupt).
@@ -632,16 +669,18 @@
         return;
       }
 
-      // Turn-ID filter: drop stale LLM/ASR/TTS data from old turns
-      if (msg.turn_id && msg.turn_id < App.activeTurnId) {
-        appendDebug(`Stale msg dropped: type=${type} turn=${msg.turn_id} (active=${App.activeTurnId})`);
+      // Turn-ID filter: The Iron Wall of Client-Driven Optimistic Locking
+      // If the backend sends ANY data (partial/final ASR, LLM tokens) that doesn't match
+      // the exact Turn ID the frontend is presently observing, it is SILENTLY DISCARDED.
+      if (msg.turn_id && msg.turn_id !== App.currentTurn) {
+        appendDebug(`Stale msg dropped: type=${type} turn=${msg.turn_id} (current=${App.currentTurn})`);
         return;
       }
 
-      if (type === 'asr_partial') { updatePartialASR(msg.text || ''); return; }
-      if (type === 'asr_final') { finalizeASR(msg.text || ''); return; }
-      if (type === 'llm_delta') { appendAIDelta(msg.text || '', msg.turn_id || App.currentTurn); return; }
-      if (type === 'llm_final') { finalizeAI(msg.turn_id || App.currentTurn); return; }
+      if (type === 'asr_partial') { updatePartialASR(msg.text || '', msg.turn_id); return; }
+      if (type === 'asr_final') { finalizeASR(msg.text || '', msg.turn_id); return; }
+      if (type === 'llm_delta') { appendAIDelta(msg.text || '', msg.turn_id); return; }
+      if (type === 'llm_final') { finalizeAI(msg.turn_id); return; }
       if (type === 'tts_chunk') { App.pendingChunkMeta.push(msg); return; }
     }
 
@@ -796,6 +835,13 @@
 
       if (rms > currentVoiceThresh) {
         App.lastVoiceAt = Date.now();
+        if (!App.utteranceActive) {
+          // This is the absolute START of a brand new utterance from complete silence
+          App.currentTurn++;
+          App.activeTurnId = App.currentTurn;
+          workerSend({ type: 'send_control', control: 'start_listen', turn_id: App.currentTurn });
+          appendDebug(`Speech Onset -> Turn incremented to ${App.currentTurn}`);
+        }
         App.utteranceActive = true;
         workerSend({ type: 'voice_detected' });
         if (aiLoud) {
@@ -815,23 +861,74 @@
         const now = Date.now();
         if (now - App.lastInterruptAt > 500) {
           App.lastInterruptAt = now;
-          App.activeTurnId = App.currentTurn + 1;
+          App.currentTurn++; // Increment turn immediately upon barge-in recognition
+          App.activeTurnId = App.currentTurn;
           stopPlayback();
           // Reset backendState immediately so VAD and voice threshold return to normal
           App.backendState = 'Listening';
           setStatus('Listening', 'listening');
-          workerSend({ type: 'interrupt' });
+
+          workerSend({ type: 'send_control', control: 'interrupt', reason: 'barge_in', turn_id: App.currentTurn });
           App.sustainedHighRmsCount = 0;
+
+          // Send pre-roll buffer immediately since we just barged in
+          App.audioSending = true;
+          for (const preFrame of App.preRollBuffer) {
+            for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
+          }
+          App.preRollBuffer = [];
+
           appendDebug(`barge-in interrupt sent (activeTurnId -> ${App.activeTurnId})`);
         }
       }
 
+      // Software AEC (Acoustic Echo Cancellation)
+      // If AI is playing back out loud, we aggressively drop frames so ASR doesn't transcribe the AI's own speech.
+      // Exception: If user barged in, aiLoud becomes false immediately (because stopPlayback clears playing state).
+      if (aiLoud) {
+        App.preRollBuffer = []; // Clear pre-roll too to prevent AI echo buffering
+        return; // Drop microphone frame completely
+      }
+
       // Downsample and forward audio to Worker for WS sending
+      // Silent frame filtering: only send audio when voice is active
       const int16 = downsampleToPCM16(floatChunk, App.sampleRateIn, 16000);
-      for (let i = 0; i < int16.length; i++) App.pcmQueue.push(int16[i]);
-      while (App.pcmQueue.length >= App.frameSamples16k) {
-        const frame = new Int16Array(App.pcmQueue.splice(0, App.frameSamples16k));
-        workerSend({ type: 'send_audio', data: frame.buffer }, [frame.buffer]);
+
+      // Decide whether to send this frame
+      const voiceDetected = rms > App.voiceThreshold;
+      if (voiceDetected) {
+        // Voice detected: flush pre-roll buffer first (if not already sending)
+        if (!App.audioSending) {
+          App.audioSending = true;
+          // Send buffered pre-roll frames so ASR has onset context
+          for (const preFrame of App.preRollBuffer) {
+            for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
+          }
+          App.preRollBuffer = [];
+        }
+        App.silentFramesSinceVoice = 0;
+      } else {
+        App.silentFramesSinceVoice++;
+        if (App.audioSending && App.silentFramesSinceVoice > App.silentTailFrames) {
+          // Silence long enough: stop sending, switch to buffering
+          App.audioSending = false;
+          App.pcmQueue = [];
+        }
+      }
+
+      if (App.audioSending || App.utteranceActive) {
+        // Active: send audio to ASR
+        for (let i = 0; i < int16.length; i++) App.pcmQueue.push(int16[i]);
+        while (App.pcmQueue.length >= App.frameSamples16k) {
+          const frame = new Int16Array(App.pcmQueue.splice(0, App.frameSamples16k));
+          workerSend({ type: 'send_audio', data: frame.buffer }, [frame.buffer]);
+        }
+      } else {
+        // Silent: buffer frames for pre-roll
+        App.preRollBuffer.push(int16);
+        if (App.preRollBuffer.length > App.preRollMaxFrames) {
+          App.preRollBuffer.shift();
+        }
       }
     }
 
@@ -873,8 +970,8 @@
         App.pendingChunkMeta = [];
         App.playbackQueue = [];
         App.activeTurnId = 1;
-        App.currentTurn = 0;
-        workerSend({ type: 'start' });
+        App.currentTurn = 1;
+        workerSend({ type: 'start', turn_id: App.currentTurn });
         setStatus('Connecting', 'listening');
         addChatMsg('system', '对话已开始，请说话...', 0);
       } catch (err) {
@@ -884,7 +981,7 @@
     }
 
     function stopAll(reason) {
-      workerSend({ type: 'stop' });
+      workerSend({ type: 'stop', turn_id: App.currentTurn });
       stopPlayback();
       stopMic();
       App.running = false;

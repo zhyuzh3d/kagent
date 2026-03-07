@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,7 +53,8 @@ type ASREvent struct {
 }
 
 type ASRClient interface {
-	Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent) error
+	Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent, history []ChatMessage) error
+	Finish()
 }
 
 type DoubaoASRClient struct {
@@ -60,6 +62,7 @@ type DoubaoASRClient struct {
 	dialer   *websocket.Dialer
 	writeTTL time.Duration
 	readTTL  time.Duration
+	finishCh chan struct{}
 }
 
 type asrDialTarget struct {
@@ -85,10 +88,20 @@ func NewDoubaoASRClient(cfg ASRConfig) *DoubaoASRClient {
 		},
 		writeTTL: 6 * time.Second,
 		readTTL:  60 * time.Second,
+		finishCh: make(chan struct{}, 1),
 	}
 }
 
-func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent) error {
+// Finish forcefully tells the ASR server that the audio stream is complete.
+// This is critical when frontend applies aggressive silence filtering and starves the stream.
+func (c *DoubaoASRClient) Finish() {
+	select {
+	case c.finishCh <- struct{}{}:
+	default:
+	}
+}
+
+func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent, history []ChatMessage) error {
 	targets := c.prepareDialTargets()
 	var conn *websocket.Conn
 	var target asrDialTarget
@@ -140,9 +153,15 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 		_ = conn.WriteMessage(websocket.BinaryMessage, frame)
 	}
 
+	// Drain any pending finish signals from a previous run
+	select {
+	case <-c.finishCh:
+	default:
+	}
+
 	// Send start frame
 	{
-		payload := c.buildStartPayload(target.resourceID)
+		payload := c.buildStartPayload(target.resourceID, history)
 		body, _ := json.Marshal(payload)
 		frame, err := buildASRClientFrame(asrMsgTypeFullClient, asrFlagNoSequence, asrSerializationJSON, asrCompressionGzip, body)
 		if err != nil {
@@ -177,6 +196,20 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 				if err := writeAudio(frame, false); err != nil {
 					errCh <- fmt.Errorf("write asr audio frame: %w", err)
 					return
+				}
+			case <-c.finishCh:
+				log.Printf("[asr] Finish signal received, sending ending frame to ASR server")
+				writeStop()
+				// Drain remaining audio and wait for context cancellation.
+				// The read goroutine will receive ASREventEndpoint from the server.
+				for {
+					select {
+					case <-ctx.Done():
+						errCh <- nil
+						return
+					case <-audio:
+						// drain
+					}
 				}
 			}
 		}
@@ -305,7 +338,41 @@ func wrapWSDialError(prefix string, err error, resp *http.Response) error {
 	return fmt.Errorf("%s: %w (status=%d body=%s)", prefix, err, resp.StatusCode, msg)
 }
 
-func (c *DoubaoASRClient) buildStartPayload(resourceID string) map[string]any {
+func (c *DoubaoASRClient) buildStartPayload(resourceID string, history []ChatMessage) map[string]any {
+	reqParams := map[string]any{
+		"model_name":             "bigmodel",
+		"show_utterances":        true,
+		"result_type":            "single",
+		"enable_itn":             true,
+		"enable_punc":            true,
+		"end_window_size":        500,
+		"force_to_speech_time":   1000,
+		"enable_accelerate_text": true,
+		"accelerate_score":       10,
+		"enable_nonstream":       false,
+	}
+
+	// Pass conversation history as ASR context for better recognition
+	if len(history) > 0 {
+		maxCtx := 10
+		if len(history) < maxCtx {
+			maxCtx = len(history)
+		}
+		// Build context_data from most recent history
+		recent := history[len(history)-maxCtx:]
+		ctxData := make([]map[string]string, 0, len(recent))
+		for _, msg := range recent {
+			ctxData = append(ctxData, map[string]string{"text": msg.Content})
+		}
+		ctxJSON, _ := json.Marshal(map[string]any{
+			"context_type": "dialog_ctx",
+			"context_data": ctxData,
+		})
+		reqParams["corpus"] = map[string]any{
+			"context": string(ctxJSON),
+		}
+	}
+
 	return map[string]any{
 		"user": map[string]any{
 			"uid": "kagent",
@@ -317,14 +384,7 @@ func (c *DoubaoASRClient) buildStartPayload(resourceID string) map[string]any {
 			"bits":    16,
 			"channel": 1,
 		},
-		"request": map[string]any{
-			"model_name":      "bigmodel",
-			"show_utterances": true,
-			"result_type":     "single",
-			"enable_itn":      true,
-			"enable_punc":     true,
-			"end_window_size": 800,
-		},
+		"request":     reqParams,
 		"resource_id": resourceID,
 	}
 }

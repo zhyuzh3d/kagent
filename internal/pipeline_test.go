@@ -9,7 +9,7 @@ type fakeLLM struct {
 	deltas []string
 }
 
-func (f *fakeLLM) Stream(ctx context.Context, input string, onDelta func(string)) (string, error) {
+func (f *fakeLLM) Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error) {
 	for _, d := range f.deltas {
 		onDelta(d)
 	}
@@ -43,7 +43,7 @@ func TestTurnPipelineRun(t *testing.T) {
 			return nil
 		},
 	})
-	if err := p.RunTurn(context.Background(), 1, "hi"); err != nil {
+	if err := p.RunTurn(context.Background(), 1, "hi", nil); err != nil {
 		t.Fatalf("run turn failed: %v", err)
 	}
 	if chunks == 0 {

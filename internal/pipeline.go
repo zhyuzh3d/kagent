@@ -29,7 +29,7 @@ func NewTurnPipeline(llm LLMClient, tts TTSClient, cb TurnCallbacks) *TurnPipeli
 	return &TurnPipeline{llm: llm, tts: tts, cb: cb}
 }
 
-func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText string) error {
+func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText string, history []ChatMessage) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -87,7 +87,7 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 	llmDeltaOnce := false
 
 	// Stream LLM — deltas are sent to frontend immediately, TTS segments are queued
-	final, err := p.llm.Stream(ctx, userText, func(delta string) {
+	final, err := p.llm.Stream(ctx, userText, history, func(delta string) {
 		d := strings.TrimSpace(delta)
 		if d == "" {
 			return

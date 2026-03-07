@@ -12,8 +12,16 @@ import (
 	"time"
 )
 
+// ChatMessage represents a single message in the conversation history.
+type ChatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+const systemPrompt = "你是一个语音助手。请用简洁自然的口语风格回答，每次回复控制在2-3句话以内，避免使用列表、标题、markdown等格式化文本。"
+
 type LLMClient interface {
-	Stream(ctx context.Context, input string, onDelta func(string)) (string, error)
+	Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error)
 }
 
 type DoubaoLLMClient struct {
@@ -30,15 +38,37 @@ func NewDoubaoLLMClient(cfg ChatConfig) *DoubaoLLMClient {
 	}
 }
 
-func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, onDelta func(string)) (string, error) {
+func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error) {
+	// Build the input array: system + history + current user message
+	inputArr := make([]map[string]any, 0, len(history)+2)
+	inputArr = append(inputArr, map[string]any{
+		"role":    "system",
+		"content": systemPrompt,
+	})
+	for _, m := range history {
+		inputArr = append(inputArr, map[string]any{
+			"role":    m.Role,
+			"content": m.Content,
+		})
+	}
+	inputArr = append(inputArr, map[string]any{
+		"role":    "user",
+		"content": input,
+	})
+
 	reqBody := map[string]any{
 		"model":  c.cfg.Model,
 		"stream": true,
-		"messages": []map[string]any{
-			{"role": "user", "content": input},
-		},
+		"input":  inputArr,
 	}
-	endpoint := strings.TrimRight(c.cfg.BaseURL, "/") + "/chat/completions"
+
+	endpoint := strings.TrimRight(c.cfg.BaseURL, "/")
+	// If the baseUrl already ends with /responses, use it directly.
+	// Otherwise append /chat/completions for backwards compatibility.
+	if !strings.HasSuffix(endpoint, "/responses") {
+		endpoint += "/chat/completions"
+	}
+
 	b, _ := json.Marshal(reqBody)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
@@ -69,15 +99,26 @@ func parseLLMSSE(ctx context.Context, body io.Reader, onDelta func(string)) (str
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 2*1024*1024)
 	var finalBuilder strings.Builder
+	var currentEvent string
 
 	for scanner.Scan() {
 		if ctx.Err() != nil {
 			return strings.TrimSpace(finalBuilder.String()), ctx.Err()
 		}
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, ":") {
+		line := scanner.Text()
+
+		// SSE event type line
+		if strings.HasPrefix(line, "event:") {
+			currentEvent = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
 			continue
 		}
+
+		// Skip comments and empty lines
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, ":") {
+			continue
+		}
+
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
@@ -85,10 +126,27 @@ func parseLLMSSE(ctx context.Context, body io.Reader, onDelta func(string)) (str
 		if data == "[DONE]" {
 			break
 		}
+
 		m, err := unmarshalMap([]byte(data))
 		if err != nil {
 			continue
 		}
+
+		// Handle Responses API events
+		if currentEvent != "" {
+			delta := extractResponsesDelta(m, currentEvent)
+			if delta != "" {
+				finalBuilder.WriteString(delta)
+				onDelta(delta)
+			}
+			if currentEvent == "response.completed" {
+				break
+			}
+			currentEvent = ""
+			continue
+		}
+
+		// Fallback: Chat Completions API format
 		typ := strings.ToLower(firstNonEmpty(asString(m["type"]), asString(m["event"])))
 		delta := extractLLMDelta(m, typ)
 		if delta != "" {
@@ -109,6 +167,18 @@ func parseLLMSSE(ctx context.Context, body io.Reader, onDelta func(string)) (str
 	return strings.TrimSpace(finalBuilder.String()), nil
 }
 
+// extractResponsesDelta extracts text delta from Responses API SSE events.
+func extractResponsesDelta(m map[string]any, event string) string {
+	switch event {
+	case "response.output_text.delta":
+		return asString(m["delta"])
+	case "response.content_part.delta":
+		return asString(m["delta"])
+	default:
+		return ""
+	}
+}
+
 func parseLLMNonStream(body io.Reader) (string, error) {
 	raw, err := io.ReadAll(body)
 	if err != nil {
@@ -120,9 +190,44 @@ func parseLLMNonStream(body io.Reader) (string, error) {
 	}
 	final := extractLLMFinal(m)
 	if final == "" {
+		// Also try Responses API non-stream format
+		final = extractResponsesFinal(m)
+	}
+	if final == "" {
 		return "", fmt.Errorf("llm response does not contain text")
 	}
 	return final, nil
+}
+
+// extractResponsesFinal extracts text from non-streaming Responses API response.
+func extractResponsesFinal(m map[string]any) string {
+	output, ok := m["output"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, item := range output {
+		im, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if asString(im["type"]) != "message" {
+			continue
+		}
+		content, ok := im["content"].([]any)
+		if !ok {
+			continue
+		}
+		for _, c := range content {
+			cm, ok := c.(map[string]any)
+			if !ok {
+				continue
+			}
+			if asString(cm["type"]) == "output_text" {
+				return asString(cm["text"])
+			}
+		}
+	}
+	return ""
 }
 
 func extractLLMDelta(m map[string]any, _ string) string {
