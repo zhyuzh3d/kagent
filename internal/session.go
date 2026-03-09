@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,20 +68,20 @@ type Session struct {
 func NewSession(conn *websocket.Conn, cfg *ModelConfig) *Session {
 	activeCfg := cfg.ActiveChat()
 	s := &Session{
-		conn:     conn,
-		cfg:      cfg,
-		asr:      NewDoubaoASRClient(cfg.ASR),
-		llm:      NewDoubaoLLMClient(activeCfg),
-		tts:      NewDoubaoTTSClient(cfg.TTS),
-		state:    StateIdle,
-		audioIn:  make(chan []byte, upstreamAudioQueueSize),
-		control:  make(chan ControlMessage, 32),
-		ttsQueue: make(chan TTSChunk, downstreamTTSQueueSize),
+		conn:       conn,
+		cfg:        cfg,
+		asr:        NewDoubaoASRClient(cfg.ASR),
+		llm:        NewDoubaoLLMClient(activeCfg),
+		tts:        NewDoubaoTTSClient(cfg.TTS),
+		state:      StateIdle,
+		audioIn:    make(chan []byte, upstreamAudioQueueSize),
+		control:    make(chan ControlMessage, 32),
+		ttsQueue:   make(chan TTSChunk, downstreamTTSQueueSize),
 		asrFinalCh: make(chan struct{}, 1),
 	}
 	s.pipeline = NewTurnPipeline(s.llm, s.tts, TurnCallbacks{
-		OnStatus: func(state string, detail string) {
-			s.setState(state, detail)
+		OnStatus: func(turnID uint64, state string, detail string) {
+			s.setTurnState(turnID, state, detail)
 		},
 		OnEvent: func(evt EventMessage) {
 			// Capture assistant final response for multi-turn context
@@ -90,7 +89,7 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig) *Session {
 				s.appendAssistantHistory(evt.Text)
 			}
 			if err := s.sendEvent(evt); err != nil {
-				log.Printf("send event failed: %v", err)
+				Errorf("send event failed: %v", err)
 			}
 		},
 		OnChunk: func(chunk TTSChunk) error {
@@ -131,7 +130,7 @@ func (s *Session) readLoop() {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return
 			}
-			log.Printf("read ws failed: %v", err)
+			Debugf("read ws failed: %v", err)
 			return
 		}
 		switch mt {
@@ -166,7 +165,7 @@ func (s *Session) ttsSenderLoop() {
 			return
 		case chunk := <-s.ttsQueue:
 			if err := s.sendTTSChunk(chunk); err != nil {
-				log.Printf("send tts chunk failed: %v", err)
+				Errorf("send tts chunk failed: %v", err)
 				s.emitError(chunk.TurnID, "ws_write_failed", err.Error(), false)
 				s.rootCancel()
 				return
@@ -204,7 +203,7 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			tid = ctrl.TurnID
 		}
 		if tid != s.lastInterruptTurnID {
-			log.Printf("[session] -> interrupt from client: reason=%s turnID=%d", ctrl.Reason, tid)
+			Infof("[Turn:%d] -> VAD interrupt received (reason=%s)", tid, ctrl.Reason)
 			s.lastInterruptTurnID = tid
 		}
 
@@ -228,9 +227,9 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		s.asr.Finish()
 		select {
 		case <-s.asrFinalCh:
-			log.Printf("[session] ASR final received for trigger_llm turnID=%d", tid)
+			Debugf("[Turn:%d] ASR final received for trigger_llm", tid)
 		case <-time.After(320 * time.Millisecond):
-			log.Printf("[session] ASR final wait timed out for trigger_llm turnID=%d; falling back", tid)
+			Warnf("[Turn:%d] ASR final wait timed out for trigger_llm; falling back", tid)
 		}
 
 		// Always consume backend ASR text to prevent stale text leaking to next turn.
@@ -241,7 +240,12 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			text = ctrl.Text
 		}
 
-		log.Printf("[session] -> trigger_llm: text=%q turnID=%d", text, tid)
+		if text != "" {
+			Infof("[Turn:%d] %q -> LLM Triggered", tid, Snippet(text))
+		} else {
+			Debugf("[Turn:%d] \"\" -> LLM Trigger (skipped, empty text)", tid)
+		}
+
 		s.cancelASR()
 
 		if text != "" {
@@ -257,8 +261,10 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			s.turnID.Store(ctrl.TurnID)
 			tid = ctrl.TurnID
 		}
-		log.Printf("[session] -> start_listen from client: turnID=%d", tid)
-		s.interruptTurn()
+		Infof("[Turn:%d] -> VAD listening started", tid)
+		if shouldInterruptOnStartListen(s.getState()) {
+			s.interruptTurn()
+		}
 		s.cancelASR()
 		s.startASRTurn(tid)
 		s.setState(StateListening, "listening to user")
@@ -266,7 +272,13 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		// Backward compatibility fallback until frontend is fully updated mapping VAD to trigger_llm.
 		tid := s.turnID.Load()
 		text := s.consumeLastASRText()
-		log.Printf("[session] (legacy) utterance_end triggering startTurn text=%q turnID=%d", text, tid)
+
+		if text != "" {
+			Infof("[Turn:%d] %q -> Legacy utterance end", tid, Snippet(text))
+		} else {
+			Debugf("[Turn:%d] \"\" -> Legacy utterance end (skipped, empty text)", tid)
+		}
+
 		s.cancelASR()
 		if text != "" {
 			s.startTurn(text, tid)
@@ -290,17 +302,25 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 		}
 		s.lastASRTextMu.Unlock()
 
+		s.maybeInterruptForRecognizedSpeech(explicitTurnID, evt.Text)
+
 		s.setState(StateRecognizing, "receiving speech")
 		s.saveLastASRText(evt.Text)
 		_ = s.sendEvent(NewTextEvent("asr_partial", explicitTurnID, evt.Text))
 
 	case ASREventFinal:
+		s.maybeInterruptForRecognizedSpeech(explicitTurnID, evt.Text)
 		s.setState(StateRecognizing, "speech finalized")
 		s.lastASRTextMu.Lock()
 		if !s.endpointConsumed {
 			s.lastASRText = strings.TrimSpace(evt.Text)
 		}
 		s.lastASRTextMu.Unlock()
+
+		if text := strings.TrimSpace(evt.Text); text != "" {
+			Infof("[Turn:%d] %q -> ASR final", explicitTurnID, Snippet(text))
+		}
+
 		// Always send asr_final with the explicitly bound turn ID!
 		_ = s.sendEvent(NewTextEvent("asr_final", explicitTurnID, evt.Text))
 		select {
@@ -319,7 +339,7 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 		// The LLM trigger authority belongs entirely to the Frontend via `trigger_llm`.
 		// But during transition, we only log it.
 		if text != "" {
-			log.Printf("[session] ASR returned EndPoint text=%q for turnID=%d. Awaiting frontend trigger_llm.", text, explicitTurnID)
+			Debugf("[Turn:%d] %q -> ASR endpoint, await trigger_llm", explicitTurnID, Snippet(text))
 		}
 	}
 }
@@ -332,6 +352,34 @@ func (s *Session) interruptTurnLocked() {
 		s.turnCancel = nil
 	}
 	s.turnMu.Unlock()
+}
+
+func shouldInterruptOnStartListen(state string) bool {
+	return state == StateSpeaking
+}
+
+func shouldInterruptForRecognizedSpeech(state string, activeGeneratedTurnID uint64, speechTurnID uint64, text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	if speechTurnID == 0 || activeGeneratedTurnID == 0 || speechTurnID <= activeGeneratedTurnID {
+		return false
+	}
+	return state == StateThinking || state == StateSpeaking
+}
+
+func (s *Session) maybeInterruptForRecognizedSpeech(turnID uint64, text string) {
+	activeState := s.getState()
+	s.turnMu.Lock()
+	activeGeneratedTurnID := s.lastStartedTurnID
+	hasActiveTurn := s.turnCancel != nil
+	s.turnMu.Unlock()
+
+	if !hasActiveTurn || !shouldInterruptForRecognizedSpeech(activeState, activeGeneratedTurnID, turnID, text) {
+		return
+	}
+	Infof("[Turn:%d] %q -> Interrupt active response after confirmed user speech", turnID, Snippet(text))
+	s.interruptTurn()
 }
 
 func (s *Session) cancelASR() {
@@ -366,7 +414,7 @@ func (s *Session) startASRTurn(turnID uint64) {
 
 	go func() {
 		defer cancel() // auto clean if finished normally
-		log.Printf("[asr] Connecting dedicated ASR WebSocket for turnID=%d", turnID)
+		Debugf("[Turn:%d] Connecting dedicated ASR WebSocket", turnID)
 
 		events := make(chan ASREvent, 64)
 		stopCh := make(chan struct{})
@@ -392,10 +440,10 @@ func (s *Session) startASRTurn(turnID uint64) {
 		<-stopCh // wait for events to flush
 
 		if err != nil && !errors.Is(err, context.Canceled) && ctx.Err() == nil && s.rootCtx.Err() == nil {
-			log.Printf("[asr] turnID=%d run error: %v", turnID, err)
+			Errorf("[Turn:%d] asr run error: %v", turnID, err)
 			s.emitError(turnID, "asr_failed", err.Error(), true)
 		}
-		log.Printf("[asr] Dedicated connection for turnID=%d closed", turnID)
+		Debugf("[Turn:%d] Dedicated ASR connection closed", turnID)
 	}()
 }
 
@@ -408,7 +456,7 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	s.turnMu.Lock()
 	if s.lastStartedTurnID == targetTurnID {
 		s.turnMu.Unlock()
-		log.Printf("[session] startTurn ignored: turnID %d already launched", targetTurnID)
+		Debugf("[Turn:%d] startTurn ignored: turn already launched", targetTurnID)
 		return
 	}
 	s.lastStartedTurnID = targetTurnID
@@ -433,11 +481,12 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	go func(turnID uint64, input string, hist []ChatMessage) {
 		err := s.pipeline.RunTurn(ctx, turnID, input, hist)
 		if err != nil && !errors.Is(err, context.Canceled) {
+			Errorf("[Turn:%d] turn failed: %v", turnID, err)
 			s.emitError(turnID, "turn_failed", err.Error(), true)
-			s.setState(StateError, "turn failed")
+			s.setTurnState(turnID, StateError, "turn failed")
 		}
 		if ctx.Err() == nil {
-			s.setState(StateListening, "ready for next utterance")
+			s.setTurnState(turnID, StateListening, "ready for next utterance")
 		}
 	}(targetTurnID, clean, history)
 }
@@ -473,11 +522,15 @@ func (s *Session) cleanup() {
 }
 
 func (s *Session) setState(state string, detail string) {
+	s.setTurnState(s.turnID.Load(), state, detail)
+}
+
+func (s *Session) setTurnState(turnID uint64, state string, detail string) {
 	s.stateMu.Lock()
 	s.state = state
 	s.stateMu.Unlock()
-	if err := s.sendEvent(NewStatusEvent(s.turnID.Load(), state, detail)); err != nil {
-		log.Printf("send status failed: %v", err)
+	if err := s.sendEvent(NewStatusEvent(turnID, state, detail)); err != nil {
+		Errorf("send status failed: %v", err)
 	}
 }
 

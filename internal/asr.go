@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -201,7 +200,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 				}
 			case <-c.finishCh:
 				finishRequested.Store(true)
-				log.Printf("[asr] Finish signal received, sending ending frame to ASR server")
+				Debugf("Finish signal received, sending ending frame to ASR server")
 				writeStop()
 				// Drain remaining audio and wait for context cancellation.
 				// The read goroutine will receive ASREventEndpoint from the server.

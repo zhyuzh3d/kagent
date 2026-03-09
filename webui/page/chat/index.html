@@ -59,39 +59,58 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: var(--muted);
-      transition: background 0.3s;
+      background: transparent;
+      border: 2px solid var(--muted);
+      transition: border-color 0.3s;
     }
 
-    .status-dot.listening {
-      background: var(--ok);
-      animation: pulse 1.5s infinite;
-    }
+    /* Flashing animations for data flow */
+    @keyframes flashSend {
+      0% {
+        border-color: #ffffff;
+        box-shadow: 0 0 6px #ffffff;
+      }
 
-    .status-dot.thinking {
-      background: var(--warn);
-      animation: pulse 0.8s infinite;
-    }
-
-    .status-dot.speaking {
-      background: var(--accent);
-      animation: pulse 1s infinite;
-    }
-
-    .status-dot.error {
-      background: var(--err);
-    }
-
-    @keyframes pulse {
-
-      0%,
       100% {
-        opacity: 1;
+        border-color: var(--muted);
+        box-shadow: none;
+      }
+    }
+
+    @keyframes flashReceive {
+      0% {
+        border-color: var(--ok);
+        box-shadow: 0 0 6px var(--ok);
       }
 
-      50% {
-        opacity: 0.4;
+      100% {
+        border-color: var(--muted);
+        box-shadow: none;
       }
+    }
+
+    @keyframes flashError {
+      0% {
+        border-color: var(--err);
+        box-shadow: 0 0 6px var(--err);
+      }
+
+      100% {
+        border-color: var(--muted);
+        box-shadow: none;
+      }
+    }
+
+    .flash-send {
+      animation: flashSend 0.3s ease-out;
+    }
+
+    .flash-receive {
+      animation: flashReceive 0.3s ease-out;
+    }
+
+    .flash-error {
+      animation: flashError 0.3s ease-out;
     }
 
     .status-text {
@@ -401,6 +420,7 @@
       running: false,
       backendState: 'Idle',
       audioCtx: null,
+      workletModuleCtx: null,
       mediaStream: null,
       sourceNode: null,
       workletNode: null,
@@ -434,6 +454,10 @@
       // Frames since last voice activity (for tail audio)
       silentFramesSinceVoice: 0,
       silentTailFrames: 50, // ~1000ms of trailing audio to ensure ASR triggers end_window_size
+      replyOnsetGuardUntil: 0,
+      replyOnsetGuardMs: 1200,
+      replyOnsetGuardTurn: 0,
+      replyOnsetGuardLoggedTurn: 0,
     };
 
     const el = {
@@ -499,38 +523,110 @@
       });
     }
 
-    function appendDebug(line) {
-      const ts = new Date().toISOString();
-      el.debug.textContent += `[${ts}] ${line}\n`;
-      el.debug.scrollTop = el.debug.scrollHeight;
+    function snippet(text) {
+      if (!text) return '""';
+      const clean = text.trim();
+      if (clean.length > 10) return '"' + clean.substring(0, 10) + '..."';
+      return '"' + clean + '"';
     }
 
+    // New format: 2026-03-08 10:45:12 [INFO] [AudioPipeline] [Turn:54] "你好，请..." -> TTS start sending...
+    function appendDebug(level, module, turnId, text, action) {
+      if (!action) {
+        action = text;
+        text = null;
+      }
+
+      const parts = [];
+
+      // 1. Timestamp
+      const d = new Date();
+      const tzOffset = d.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(d - tzOffset)).toISOString().slice(0, 19).replace('T', ' ');
+      parts.push(localISOTime);
+
+      // 2. Level
+      parts.push(`[${level}]`);
+
+      // 3. Module
+      if (module) parts.push(`[${module}]`);
+
+      // 4. TurnID
+      if (turnId !== undefined && turnId !== null) {
+        parts.push(`[Turn:${turnId}]`);
+      }
+
+      // 5. Text Snippet & Action
+      if (text !== null && text !== undefined) {
+        parts.push(`${snippet(text)} -> ${action}`);
+      } else {
+        parts.push(`-> ${action}`);
+      }
+
+      el.debug.textContent += parts.join(' ') + '\n';
+      el.debug.scrollTop = el.debug.scrollHeight;
+    }
     async function loadVersion() {
       try {
         const resp = await fetch('/version', { cache: 'no-store' });
         if (!resp.ok) throw new Error(`status ${resp.status}`);
-        const v = await resp.json();
+        v = await resp.json();
         const backend = v.backend || 'unknown';
         const webui = v.webui || 'unknown';
         const s = `b${backend} ui${webui}`;
         el.versionText.textContent = s;
-        appendDebug(`version ${s}`);
+        appendDebug('INFO', 'System', null, null, `version ${s}`);
       } catch (err) {
         el.versionText.textContent = 'version unknown';
-        appendDebug(`version load failed: ${err.message || err}`);
+        appendDebug('ERROR', 'System', null, null, `version load failed: ${err.message || err}`);
       }
     }
 
-    function setStatus(state, cls) {
+    function setStatus(state) {
       App.backendState = state || App.backendState;
       el.statusText.textContent = state;
+    }
+
+    let flashTimeout = null;
+    let lastFlashTime = 0;
+    function flashIndicator(type) {
+      // Throttle flashes to max once every 100ms to avoid UI stutter
+      const now = Date.now();
+      if (now - lastFlashTime < 100) return;
+      lastFlashTime = now;
+
+      // Force reflow to restart animation if it's already running
       el.statusDot.className = 'status-dot';
+      void el.statusDot.offsetWidth;
+
+      let cls = '';
+      if (type === 'send') cls = 'flash-send';
+      else if (type === 'receive') cls = 'flash-receive';
+      else if (type === 'error') cls = 'flash-error';
+
       if (cls) el.statusDot.classList.add(cls);
+
+      // Auto clear after animation completes
+      if (flashTimeout) clearTimeout(flashTimeout);
+      flashTimeout = setTimeout(() => {
+        el.statusDot.className = 'status-dot';
+      }, 300);
     }
 
     function setButtons(running) {
       el.startBtn.disabled = running;
       el.stopBtn.disabled = !running;
+    }
+
+    function noteReplyTurn(turnId) {
+      if (!turnId) return;
+      if (turnId > App.activeTurnId) {
+        App.activeTurnId = turnId;
+      }
+    }
+
+    function isReplyPayloadType(type) {
+      return type === 'llm_delta' || type === 'llm_final' || type === 'tts_chunk';
     }
 
     function addChatMsg(role, text, turnId, isPartial = false, sessionEpoch = App.sessionEpoch) {
@@ -607,14 +703,14 @@
         if (!msg) return;
         switch (msg.type) {
           case 'ws_open':
-            appendDebug('ws connected (via worker)');
+            appendDebug('INFO', 'Network', null, null, 'ws connected (via worker)');
             break;
           case 'ws_close':
-            appendDebug('ws closed (via worker)');
+            appendDebug('WARN', 'Network', null, null, 'ws closed (via worker)');
             if (App.running) stopAll('ws closed');
             break;
           case 'ws_error':
-            appendDebug('ws error (via worker)');
+            appendDebug('ERROR', 'Network', null, null, 'ws error (via worker)');
             break;
           case 'ws_text':
             try { handleEvent(JSON.parse(msg.data)); } catch (_) { }
@@ -634,16 +730,24 @@
               msgObj.isPartial = false;
               msgObj.element.classList.remove('partial'); // finalize visual instantly
             }
+            App.replyOnsetGuardUntil = Date.now() + App.replyOnsetGuardMs;
+            App.replyOnsetGuardTurn = App.currentTurn;
+            App.replyOnsetGuardLoggedTurn = 0;
             workerSend({ type: 'send_control', control: 'trigger_llm', turn_id: App.currentTurn, text: finalText });
 
-            appendDebug(`Frontend triggered LLM (trigger_llm) for Turn ${App.currentTurn}`);
+            appendDebug('INFO', 'SessionControl', App.currentTurn, finalText, 'Trigger LLM explicitly (trigger_llm)');
             break;
         }
       };
     }
 
     function workerSend(msg, transferables) {
-      if (ioWorker) ioWorker.postMessage(msg, transferables || []);
+      if (ioWorker) {
+        if (msg.type === 'send_audio' || msg.type === 'send_control') {
+          flashIndicator('send');
+        }
+        ioWorker.postMessage(msg, transferables || []);
+      }
     }
 
     function handleEvent(msg) {
@@ -654,31 +758,57 @@
       // They carry session-wide state changes (e.g., Listening after interrupt).
       if (type === 'status') {
         const v = msg.value || '';
-        const cls = v === 'Error' ? 'error' : v === 'Speaking' ? 'speaking' : v === 'Thinking' ? 'thinking' : (v === 'Listening' || v === 'Recognizing') ? 'listening' : '';
-        setStatus(v, cls);
-        appendDebug(`status=${v} detail=${msg.detail || ''} turn=${msg.turn_id || 0}`);
+        if ((v === 'Thinking' || v === 'Speaking') && (msg.turn_id || 0) > 0) {
+          noteReplyTurn(msg.turn_id);
+        }
+        setStatus(v);
+        // Error status triggers error flash, otherwise receive flash
+        if (v === 'Error') flashIndicator('error');
+        else flashIndicator('receive');
+        appendDebug('INFO', 'AppState', msg.turn_id || 0, msg.detail || '', `Status update: ${v}`);
         return;
       }
       if (type === 'error') {
-        setStatus('Error', 'error');
-        appendDebug(`error code=${msg.code || ''} message=${msg.message || ''}`);
+        setStatus('Error');
+        flashIndicator('error');
+        appendDebug('ERROR', 'AppState', msg.turn_id || 0, null, `code=${msg.code || ''} message=${msg.message || ''}`);
+        return;
+      }
+      if (type === 'tts_warn') {
+        flashIndicator('receive');
+        const seq = msg.seq ? ` seq=${msg.seq}` : '';
+        appendDebug('WARN', 'TTSBackend', msg.turn_id || 0, msg.text || null, `code=${msg.code || 'tts_warn'}${seq} message=${msg.message || 'tts segment warning'}`);
         return;
       }
 
       // Backend confirms utterance_end had no ASR text — roll back activeTurnId
       if (type === 'turn_nack') {
-        App.activeTurnId = Math.max(App.activeTurnId - 1, msg.turn_id || 0);
-        appendDebug(`turn_nack received, activeTurnId rolled back to ${App.activeTurnId}`);
+        if ((msg.turn_id || 0) === App.replyOnsetGuardTurn) {
+          App.replyOnsetGuardUntil = 0;
+          App.replyOnsetGuardTurn = 0;
+          App.replyOnsetGuardLoggedTurn = 0;
+        }
+        appendDebug('WARN', 'SessionControl', msg.turn_id || 0, null, `turn_nack received, activeReply=${App.activeTurnId}`);
         return;
       }
 
       // Turn-ID filter: The Iron Wall of Client-Driven Optimistic Locking
-      // If the backend sends ANY data (partial/final ASR, LLM tokens) that doesn't match
-      // the exact Turn ID the frontend is presently observing, it is SILENTLY DISCARDED.
-      if (msg.turn_id && msg.turn_id !== App.currentTurn) {
-        appendDebug(`Stale msg dropped: type=${type} turn=${msg.turn_id} (current=${App.currentTurn})`);
+      if (msg.turn_id && (type === 'asr_partial' || type === 'asr_final') && msg.turn_id !== App.currentTurn) {
+        appendDebug('DEBUG', 'Network', msg.turn_id, null, `Stale msg dropped: type=${type} (currentInput=${App.currentTurn})`);
         return;
       }
+
+      // Reply payloads follow the latest confirmed reply turn, not the latest onset turn.
+      if (msg.turn_id && isReplyPayloadType(type) && msg.turn_id < App.activeTurnId) {
+        appendDebug('DEBUG', 'Network', msg.turn_id, null, `Stale msg dropped: type=${type} (activeReply=${App.activeTurnId})`);
+        return;
+      }
+      if (msg.turn_id && isReplyPayloadType(type)) {
+        noteReplyTurn(msg.turn_id);
+      }
+
+      // Valid payload: flash network receipt
+      flashIndicator('receive');
 
       if (type === 'asr_partial') { updatePartialASR(msg.text || '', msg.turn_id); return; }
       if (type === 'asr_final') { finalizeASR(msg.text || '', msg.turn_id); return; }
@@ -689,11 +819,12 @@
 
     function handleAudioBinary(buf) {
       const meta = App.pendingChunkMeta.shift();
-      if (!meta) { appendDebug('binary arrived without tts_chunk metadata'); return; }
+      if (!meta) { appendDebug('WARN', 'FrontendAudio', null, null, 'binary arrived without tts_chunk metadata'); return; }
       if (meta.turn_id < App.activeTurnId) {
-        appendDebug(`Stale TTS chunk dropped: turn=${meta.turn_id} (active=${App.activeTurnId})`);
+        appendDebug('DEBUG', 'FrontendAudio', meta.turn_id, null, `Stale TTS chunk dropped (active=${App.activeTurnId})`);
         return;
       }
+      flashIndicator('receive');
       const format = (meta.format || 'audio/mpeg').toLowerCase();
       App.playbackQueue.push({ format, data: buf, turnId: meta.turn_id, seq: meta.seq, epoch: App.playbackEpoch });
       playNext();
@@ -703,6 +834,24 @@
     function ensurePlaybackContext() {
       if (!App.audioCtx) App.audioCtx = new AudioContext();
       return App.audioCtx;
+    }
+
+    async function ensurePCMWorkletLoaded(ctx) {
+      if (App.workletModuleCtx === ctx) return;
+      const code = `class PCMProcessor extends AudioWorkletProcessor {
+        process(inputs) { const i = inputs[0]; if (i && i[0]) this.port.postMessage(i[0]); return true; }
+      }
+      if (!globalThis.__pcmProcessorRegistered) {
+        registerProcessor('pcm-processor', PCMProcessor);
+        globalThis.__pcmProcessorRegistered = true;
+      }`;
+      const blobURL = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+      try {
+        await ctx.audioWorklet.addModule(blobURL);
+        App.workletModuleCtx = ctx;
+      } finally {
+        URL.revokeObjectURL(blobURL);
+      }
     }
 
     function playNext() {
@@ -746,7 +895,7 @@
         src.start();
       };
       const errorCb = (err) => {
-        appendDebug('decodeAudioData error: ' + (err ? (err.message || err) : 'unknown'));
+        appendDebug('ERROR', 'FrontendAudio', item.turnId, null, 'decodeAudioData error: ' + (err ? (err.message || err) : 'unknown'));
         App.isPlaying = false;
         playNext();
       };
@@ -783,7 +932,7 @@
         };
         src.start();
       } catch (err) {
-        appendDebug('PCM format error: ' + err.message);
+        appendDebug('ERROR', 'FrontendAudio', item.turnId, null, 'PCM format error: ' + err.message);
         App.isPlaying = false;
         playNext();
       }
@@ -802,6 +951,13 @@
         for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
       }
       App.preRollBuffer = [];
+    }
+
+    function pushPreRollFrame(int16) {
+      App.preRollBuffer.push(int16);
+      if (App.preRollBuffer.length > App.preRollMaxFrames) {
+        App.preRollBuffer.shift();
+      }
     }
 
     function queuePCMFrame(int16) {
@@ -828,20 +984,15 @@
 
       let workletOk = false;
       try {
-        const code = `class PCMProcessor extends AudioWorkletProcessor {
-          process(inputs) { const i = inputs[0]; if (i && i[0]) this.port.postMessage(i[0]); return true; }
-        } registerProcessor('pcm-processor', PCMProcessor);`;
-        const blobURL = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
-        await ctx.audioWorklet.addModule(blobURL);
-        URL.revokeObjectURL(blobURL);
+        await ensurePCMWorkletLoaded(ctx);
         App.workletNode = new AudioWorkletNode(ctx, 'pcm-processor');
         App.workletNode.port.onmessage = (e) => handleFloatChunk(e.data);
         App.sourceNode.connect(App.workletNode);
         App.workletNode.connect(App.sinkNode);
         workletOk = true;
-        appendDebug('audio path: AudioWorklet');
+        appendDebug('INFO', 'FrontendVAD', null, null, 'audio path: AudioWorklet');
       } catch (err) {
-        appendDebug(`worklet fallback: ${err.message}`);
+        appendDebug('WARN', 'FrontendVAD', null, null, `worklet fallback: ${err.message}`);
       }
       if (!workletOk) {
         App.scriptNode = ctx.createScriptProcessor(4096, 1, 1);
@@ -852,13 +1003,28 @@
     }
 
     function stopMic() {
-      if (App.workletNode) { try { App.workletNode.disconnect(); } catch (_) { } App.workletNode = null; }
-      if (App.scriptNode) { try { App.scriptNode.disconnect(); } catch (_) { } App.scriptNode = null; }
+      if (App.workletNode) {
+        try { App.workletNode.port.onmessage = null; } catch (_) { }
+        try { App.workletNode.disconnect(); } catch (_) { }
+        App.workletNode = null;
+      }
+      if (App.scriptNode) {
+        try { App.scriptNode.onaudioprocess = null; } catch (_) { }
+        try { App.scriptNode.disconnect(); } catch (_) { }
+        App.scriptNode = null;
+      }
       if (App.sourceNode) { try { App.sourceNode.disconnect(); } catch (_) { } App.sourceNode = null; }
+      if (App.sinkNode) { try { App.sinkNode.disconnect(); } catch (_) { } App.sinkNode = null; }
       if (App.mediaStream) { for (const t of App.mediaStream.getTracks()) t.stop(); App.mediaStream = null; }
       App.pcmQueue = [];
+      App.preRollBuffer = [];
+      App.audioSending = false;
+      App.silentFramesSinceVoice = 0;
       App.utteranceActive = false;
       App.sustainedHighRmsCount = 0;
+      App.replyOnsetGuardUntil = 0;
+      App.replyOnsetGuardTurn = 0;
+      App.replyOnsetGuardLoggedTurn = 0;
     }
 
     // ── Audio processing (main thread) ─────────────────────────────────
@@ -873,6 +1039,7 @@
       const int16 = downsampleToPCM16(floatChunk, App.sampleRateIn, 16000);
       const aiAudible = App.isPlaying || App.playbackQueue.length > 0;
       const dynamicBargeThresh = 0.08;
+      const replyOnsetGuardActive = Date.now() < App.replyOnsetGuardUntil;
 
       // Tell Worker about AI playback state so it can suppress VAD
       workerSend({ type: 'set_ai_loud', value: aiAudible });
@@ -880,8 +1047,7 @@
       if (aiAudible) {
         if (rms > dynamicBargeThresh) {
           App.sustainedHighRmsCount++;
-          App.preRollBuffer.push(int16);
-          if (App.preRollBuffer.length > App.preRollMaxFrames) App.preRollBuffer.shift();
+          pushPreRollFrame(int16);
         } else if (App.sustainedHighRmsCount > 0) {
           App.sustainedHighRmsCount = Math.max(0, App.sustainedHighRmsCount - 1);
         }
@@ -895,7 +1061,7 @@
             App.activeTurnId = App.currentTurn;
             stopPlayback();
             App.backendState = 'Listening';
-            setStatus('Listening', 'listening');
+            setStatus('Listening');
             App.utteranceActive = true;
             App.audioSending = true;
             App.silentFramesSinceVoice = 0;
@@ -904,7 +1070,7 @@
             flushPreRollIntoQueue();
             queuePCMFrame(int16);
             App.sustainedHighRmsCount = 0;
-            appendDebug(`barge-in committed -> turn ${App.currentTurn}`);
+            appendDebug('INFO', 'FrontendVAD', App.currentTurn, null, 'Barge-in committed (interrupt)');
           }
         }
         return; // Drop microphone frame completely
@@ -912,12 +1078,19 @@
 
       const voiceDetected = rms > App.voiceThreshold;
       if (voiceDetected) {
+        if (!App.utteranceActive && replyOnsetGuardActive) {
+          pushPreRollFrame(int16);
+          if (App.replyOnsetGuardLoggedTurn !== App.replyOnsetGuardTurn) {
+            App.replyOnsetGuardLoggedTurn = App.replyOnsetGuardTurn;
+            appendDebug('DEBUG', 'FrontendVAD', App.replyOnsetGuardTurn || App.currentTurn, null, 'Speech onset suppressed while awaiting reply');
+          }
+          return;
+        }
         App.lastVoiceAt = Date.now();
         if (!App.utteranceActive) {
           App.currentTurn++;
-          App.activeTurnId = App.currentTurn;
           workerSend({ type: 'send_control', control: 'start_listen', turn_id: App.currentTurn });
-          appendDebug(`Speech Onset -> Turn incremented to ${App.currentTurn}`);
+          appendDebug('INFO', 'FrontendVAD', App.currentTurn, null, 'Speech onset detected (start_listen)');
         }
         App.utteranceActive = true;
         workerSend({ type: 'voice_detected' });
@@ -941,10 +1114,7 @@
         queuePCMFrame(int16);
       } else {
         // Silent: buffer frames for pre-roll
-        App.preRollBuffer.push(int16);
-        if (App.preRollBuffer.length > App.preRollMaxFrames) {
-          App.preRollBuffer.shift();
-        }
+        pushPreRollFrame(int16);
       }
     }
 
@@ -958,7 +1128,10 @@
       const ratio = inRate / outRate;
       const outLen = Math.floor(float32.length / ratio);
       const out = new Int16Array(outLen);
-      for (let i = 0; i < outLen; i++) { const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)] || 0)); out[i] = s < 0 ? s * 32768 : s * 32767; }
+      for (let i = 0; i < outLen; i++) {
+        const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)] || 0));
+        out[i] = s < 0 ? s * 32768 : s * 32767;
+      }
       return out;
     }
 
@@ -992,13 +1165,16 @@
         App.utteranceActive = false;
         App.silentFramesSinceVoice = 0;
         App.sustainedHighRmsCount = 0;
+        App.replyOnsetGuardUntil = 0;
+        App.replyOnsetGuardTurn = 0;
+        App.replyOnsetGuardLoggedTurn = 0;
         App.activeTurnId = 0;
         App.currentTurn = 0;
         workerSend({ type: 'start', turn_id: App.currentTurn });
-        setStatus('Connecting', 'listening');
+        setStatus('Connecting');
         addChatMsg('system', '对话已开始，请说话...', 0);
       } catch (err) {
-        appendDebug(`start failed: ${err.message}`);
+        appendDebug('ERROR', 'System', null, null, `start failed: ${err.message}`);
         stopAll('start failed');
       }
     }
@@ -1009,14 +1185,14 @@
       stopMic();
       App.running = false;
       setButtons(false);
-      setStatus('Idle', '');
+      setStatus('Idle');
       if (reason) addChatMsg('system', `对话结束: ${reason}`, 0);
     }
 
     // ── Visibility change: force AudioContext resume ────────────────────
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && App.running && App.audioCtx) {
-        App.audioCtx.resume().then(() => appendDebug('AudioContext resumed on tab focus'));
+        App.audioCtx.resume().then(() => appendDebug('INFO', 'AudioContext', null, null, 'AudioContext resumed on tab focus'));
       }
     });
 

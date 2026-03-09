@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +18,7 @@ type TTSChunk struct {
 }
 
 type TurnCallbacks struct {
-	OnStatus func(state string, detail string)
+	OnStatus func(turnID uint64, state string, detail string)
 	OnEvent  func(evt EventMessage)
 	OnChunk  func(chunk TTSChunk) error
 }
@@ -42,6 +41,7 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 	backlog := newPlaybackBacklogEstimator()
 	var finalBuilder strings.Builder
 	seq := 0
+	segmentSeq := 0
 	spokenOnce := false
 	pendingSentences := make([]string, 0, 8)
 
@@ -62,6 +62,7 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 			if ctx.Err() != nil {
 				return
 			}
+			segmentSeq++
 			audio, format, err := p.tts.Synthesize(ctx, seg)
 			if err != nil {
 				if ctx.Err() != nil {
@@ -70,21 +71,24 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 				if firstErr == nil {
 					firstErr = err
 				}
-				log.Printf("[tts] segment synth failed: text=%q err=%v", seg, err)
+				Errorf("[Turn:%d] %q -> TTS segment synth failed: err=%v", turnID, seg, err)
+				p.cb.OnEvent(NewTTSWarnEvent(turnID, segmentSeq, "tts_segment_failed", err.Error(), seg))
 				continue
 			}
 			if len(audio) == 0 {
 				if firstErr == nil {
 					firstErr = fmt.Errorf("tts session finished without audio: %s", seg)
 				}
-				log.Printf("[tts] segment synth returned empty audio: text=%q", seg)
+				Warnf("[Turn:%d] %q -> TTS synth returned empty audio", turnID, seg)
+				p.cb.OnEvent(NewTTSWarnEvent(turnID, segmentSeq, "tts_empty_audio", "tts synth returned empty audio", seg))
 				continue
 			}
 			if !spokenOnce {
 				spokenOnce = true
-				p.cb.OnStatus(StateSpeaking, "ai is speaking")
+				Infof("[Turn:%d] %q -> TTS start sending...", turnID, Snippet(seg))
+				p.cb.OnStatus(turnID, StateSpeaking, "ai is speaking")
 			}
-			seq++
+			seq = segmentSeq
 			audioOut++
 			backlog.Add(estimateSpeechDuration(seg))
 			if err := p.cb.OnChunk(TTSChunk{TurnID: turnID, Seq: seq, Format: format, Data: audio}); err != nil {
@@ -155,6 +159,8 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 	if err != nil {
 		return err
 	}
+
+	Infof("[Turn:%d] -> TTS finished sending", turnID)
 
 	if finalBuilder.Len() == 0 {
 		finalBuilder.WriteString(final)

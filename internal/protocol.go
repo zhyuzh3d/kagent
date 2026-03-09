@@ -82,6 +82,19 @@ func NewTTSChunkEvent(turnID uint64, seq int, format string) EventMessage {
 	}
 }
 
+func NewTTSWarnEvent(turnID uint64, seq int, code string, message string, text string) EventMessage {
+	return EventMessage{
+		Type:        "tts_warn",
+		TsMS:        nowMS(),
+		TurnID:      turnID,
+		Seq:         seq,
+		Code:        code,
+		Message:     message,
+		Recoverable: true,
+		Text:        strings.TrimSpace(text),
+	}
+}
+
 func encodeEvent(evt EventMessage) ([]byte, error) {
 	return json.Marshal(evt)
 }

@@ -102,7 +102,7 @@ func TestPunctuationOnlySegmentsAreSkipped(t *testing.T) {
 func TestTurnPipelineRun(t *testing.T) {
 	chunks := 0
 	p := NewTurnPipeline(&fakeLLM{deltas: []string{"你好，世界。", "今天天气不错。"}}, &fakeTTS{}, TurnCallbacks{
-		OnStatus: func(state string, detail string) {},
+		OnStatus: func(turnID uint64, state string, detail string) {},
 		OnEvent:  func(evt EventMessage) {},
 		OnChunk: func(chunk TTSChunk) error {
 			chunks++
@@ -124,9 +124,14 @@ func TestTurnPipelineContinuesAfterSegmentFailure(t *testing.T) {
 		},
 	}
 	var chunks []string
+	var warnEvents []EventMessage
 	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。", "第二句。", "第三句。"}}, tts, TurnCallbacks{
-		OnStatus: func(state string, detail string) {},
-		OnEvent:  func(evt EventMessage) {},
+		OnStatus: func(turnID uint64, state string, detail string) {},
+		OnEvent: func(evt EventMessage) {
+			if evt.Type == "tts_warn" {
+				warnEvents = append(warnEvents, evt)
+			}
+		},
 		OnChunk: func(chunk TTSChunk) error {
 			chunks = append(chunks, string(chunk.Data))
 			return nil
@@ -143,6 +148,12 @@ func TestTurnPipelineContinuesAfterSegmentFailure(t *testing.T) {
 	if !reflect.DeepEqual(chunks, wantChunks) {
 		t.Fatalf("unexpected audio chunks: got %#v want %#v", chunks, wantChunks)
 	}
+	if len(warnEvents) != 1 {
+		t.Fatalf("expected one tts warning event, got %#v", warnEvents)
+	}
+	if warnEvents[0].Code != "tts_segment_failed" || warnEvents[0].Seq != 1 || warnEvents[0].Text != "第一句。" {
+		t.Fatalf("unexpected tts warning event: %#v", warnEvents[0])
+	}
 }
 
 func TestTurnPipelineFailsIfNoAudioProduced(t *testing.T) {
@@ -152,7 +163,7 @@ func TestTurnPipelineFailsIfNoAudioProduced(t *testing.T) {
 		},
 	}
 	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。"}}, tts, TurnCallbacks{
-		OnStatus: func(state string, detail string) {},
+		OnStatus: func(turnID uint64, state string, detail string) {},
 		OnEvent:  func(evt EventMessage) {},
 		OnChunk: func(chunk TTSChunk) error {
 			return nil

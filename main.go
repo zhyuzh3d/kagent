@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -24,7 +23,8 @@ func main() {
 
 	cfg, err := app.LoadModelConfig(*configPath, *modelName)
 	if err != nil {
-		log.Fatalf("load config failed: %v", err)
+		app.Errorf("load config failed: %v", err)
+		os.Exit(1)
 	}
 
 	appCtx, appCancel := context.WithCancel(context.Background())
@@ -32,10 +32,10 @@ func main() {
 
 	ver, verr := app.LoadVersionInfo("version.json")
 	if verr != nil {
-		log.Printf("load version.json failed: %v", verr)
+		app.Warnf("load version.json failed: %v", verr)
 		ver = &app.VersionInfo{Format: "calver-yymmddnn", Backend: "unknown", WebUI: "unknown"}
 	}
-	log.Printf("kagent version backend=%s webui=%s", ver.Backend, ver.WebUI)
+	app.Infof("kagent version backend=%s webui=%s", ver.Backend, ver.WebUI)
 
 	mux := http.NewServeMux()
 	var server *http.Server
@@ -60,7 +60,7 @@ func main() {
 			return
 		}
 
-		log.Printf("shutdown requested from %s", r.RemoteAddr)
+		app.Warnf("shutdown requested from %s", r.RemoteAddr)
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -108,7 +108,7 @@ func main() {
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("ws upgrade failed: %v", err)
+			app.Errorf("ws upgrade failed: %v", err)
 			return
 		}
 		conn.SetReadLimit(16 * 1024 * 1024)
@@ -117,7 +117,7 @@ func main() {
 			ctx, cancel := context.WithCancel(appCtx)
 			defer cancel()
 			if err := s.Run(ctx); err != nil {
-				log.Printf("session ended with error: %v", err)
+				app.Errorf("session ended with error: %v", err)
 			}
 		}()
 	})
@@ -127,8 +127,9 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	log.Printf("kagent T0 server listening on http://%s", *addr)
+	app.Infof("kagent T0 server listening on http://%s", *addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("server failed: %v", err)
+		app.Errorf("server failed: %v", err)
+		os.Exit(1)
 	}
 }
