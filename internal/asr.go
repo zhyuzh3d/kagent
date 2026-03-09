@@ -58,11 +58,12 @@ type ASRClient interface {
 }
 
 type DoubaoASRClient struct {
-	cfg      ASRConfig
-	dialer   *websocket.Dialer
-	writeTTL time.Duration
-	readTTL  time.Duration
-	finishCh chan struct{}
+	cfg           ASRConfig
+	runtimeConfig *RuntimeConfigManager
+	dialer        *websocket.Dialer
+	writeTTL      time.Duration
+	readTTL       time.Duration
+	finishCh      chan struct{}
 }
 
 type asrDialTarget struct {
@@ -80,9 +81,10 @@ type asrServerFrame struct {
 	ErrorMsg    string
 }
 
-func NewDoubaoASRClient(cfg ASRConfig) *DoubaoASRClient {
+func NewDoubaoASRClient(cfg ASRConfig, runtimeConfig *RuntimeConfigManager) *DoubaoASRClient {
 	return &DoubaoASRClient{
-		cfg: cfg,
+		cfg:           cfg,
+		runtimeConfig: runtimeConfig,
 		dialer: &websocket.Dialer{
 			HandshakeTimeout: 8 * time.Second,
 		},
@@ -102,6 +104,9 @@ func (c *DoubaoASRClient) Finish() {
 }
 
 func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent, history []ChatMessage) error {
+	chatCfg := c.chatConfig()
+	writeTTL := durationFromMS(chatCfg.ASR.WriteTimeoutMs, c.writeTTL)
+	readTTL := durationFromMS(chatCfg.ASR.ReadTimeoutMs, c.readTTL)
 	targets := c.prepareDialTargets()
 	var conn *websocket.Conn
 	var target asrDialTarget
@@ -138,7 +143,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 		}
 		writeMu.Lock()
 		defer writeMu.Unlock()
-		_ = conn.SetWriteDeadline(time.Now().Add(c.writeTTL))
+		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
 		return conn.WriteMessage(websocket.BinaryMessage, frame)
 	}
 
@@ -150,7 +155,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "asr stop"), time.Now().Add(500*time.Millisecond))
 			return
 		}
-		_ = conn.SetWriteDeadline(time.Now().Add(c.writeTTL))
+		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
 		_ = conn.WriteMessage(websocket.BinaryMessage, frame)
 	}
 
@@ -169,7 +174,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 			return err
 		}
 		writeMu.Lock()
-		_ = conn.SetWriteDeadline(time.Now().Add(c.writeTTL))
+		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
 		err = conn.WriteMessage(websocket.BinaryMessage, frame)
 		writeMu.Unlock()
 		if err != nil {
@@ -220,7 +225,7 @@ func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events c
 	// Read goroutine: reads server frames
 	go func() {
 		for {
-			if err := conn.SetReadDeadline(time.Now().Add(c.readTTL)); err != nil {
+			if err := conn.SetReadDeadline(time.Now().Add(readTTL)); err != nil {
 				errCh <- fmt.Errorf("set asr read deadline: %w", err)
 				return
 			}
@@ -353,22 +358,26 @@ func wrapWSDialError(prefix string, err error, resp *http.Response) error {
 }
 
 func (c *DoubaoASRClient) buildStartPayload(resourceID string, history []ChatMessage) map[string]any {
+	asrCfg := c.chatConfig().ASR
 	reqParams := map[string]any{
 		"model_name":             "bigmodel",
 		"show_utterances":        true,
 		"result_type":            "single",
-		"enable_itn":             true,
-		"enable_punc":            true,
-		"end_window_size":        500,
-		"force_to_speech_time":   1000,
-		"enable_accelerate_text": true,
-		"accelerate_score":       10,
-		"enable_nonstream":       false,
+		"enable_itn":             asrCfg.EnableITN,
+		"enable_punc":            asrCfg.EnablePunc,
+		"end_window_size":        asrCfg.EndWindowSize,
+		"force_to_speech_time":   asrCfg.ForceToSpeechTime,
+		"enable_accelerate_text": asrCfg.EnableAccelerateText,
+		"accelerate_score":       asrCfg.AccelerateScore,
+		"enable_nonstream":       asrCfg.EnableNonstream,
 	}
 
 	// Pass conversation history as ASR context for better recognition
 	if len(history) > 0 {
-		maxCtx := 10
+		maxCtx := asrCfg.AsrContextMaxMessages
+		if maxCtx <= 0 {
+			maxCtx = defaultPublicConfig().Chat.ASR.AsrContextMaxMessages
+		}
 		if len(history) < maxCtx {
 			maxCtx = len(history)
 		}
@@ -401,6 +410,13 @@ func (c *DoubaoASRClient) buildStartPayload(resourceID string, history []ChatMes
 		"request":     reqParams,
 		"resource_id": resourceID,
 	}
+}
+
+func (c *DoubaoASRClient) chatConfig() ChatPublicConfig {
+	if c.runtimeConfig != nil {
+		return c.runtimeConfig.Snapshot().Chat
+	}
+	return defaultPublicConfig().Chat
 }
 
 func buildASRClientFrame(msgType byte, flags byte, serialization byte, compression byte, payload []byte) ([]byte, error) {

@@ -16,7 +16,9 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "config/configx.json", "path to config json")
+	configPath := flag.String("config", "config/configx.json", "path to private config json")
+	publicConfigPath := flag.String("public-config", "config/config.json", "path to public config json")
+	userConfigPath := flag.String("user-config", "data/users/default/user_custom_config.json", "path to user custom config json")
 	modelName := flag.String("model", "doubao", "model name in config")
 	addr := flag.String("addr", "127.0.0.1:18080", "listen addr")
 	flag.Parse()
@@ -24,6 +26,11 @@ func main() {
 	cfg, err := app.LoadModelConfig(*configPath, *modelName)
 	if err != nil {
 		app.Errorf("load config failed: %v", err)
+		os.Exit(1)
+	}
+	runtimeCfg, err := app.NewRuntimeConfigManager(*publicConfigPath, *userConfigPath)
+	if err != nil {
+		app.Errorf("load runtime config failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -42,6 +49,29 @@ func main() {
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(ver)
+	})
+	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(runtimeCfg.EffectiveMap())
+		case http.MethodPut:
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, "invalid config payload", http.StatusBadRequest)
+				return
+			}
+			effective, err := runtimeCfg.UpdateEffectiveMap(body)
+			if err != nil {
+				app.Errorf("update runtime config failed: %v", err)
+				http.Error(w, "update runtime config failed", http.StatusInternalServerError)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(effective)
+		default:
+			w.Header().Set("Allow", http.MethodGet+", "+http.MethodPut)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
 	})
 	mux.HandleFunc("/admin/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -112,7 +142,7 @@ func main() {
 			return
 		}
 		conn.SetReadLimit(16 * 1024 * 1024)
-		s := app.NewSession(conn, cfg)
+		s := app.NewSession(conn, cfg, runtimeCfg)
 		go func() {
 			ctx, cancel := context.WithCancel(appCtx)
 			defer cancel()

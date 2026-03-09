@@ -19,10 +19,11 @@ type TTSClient interface {
 }
 
 type DoubaoTTSClient struct {
-	cfg      TTSConfig
-	dialer   *websocket.Dialer
-	writeTTL time.Duration
-	readTTL  time.Duration
+	cfg           TTSConfig
+	runtimeConfig *RuntimeConfigManager
+	dialer        *websocket.Dialer
+	writeTTL      time.Duration
+	readTTL       time.Duration
 }
 
 type ttsDialTarget struct {
@@ -78,9 +79,10 @@ const (
 	ttsEventTTSResponse     uint32 = 352
 )
 
-func NewDoubaoTTSClient(cfg TTSConfig) *DoubaoTTSClient {
+func NewDoubaoTTSClient(cfg TTSConfig, runtimeConfig *RuntimeConfigManager) *DoubaoTTSClient {
 	return &DoubaoTTSClient{
-		cfg: cfg,
+		cfg:           cfg,
+		runtimeConfig: runtimeConfig,
 		dialer: &websocket.Dialer{
 			HandshakeTimeout: 6 * time.Second,
 		},
@@ -94,6 +96,10 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 	if txt == "" {
 		return nil, "", fmt.Errorf("empty tts text")
 	}
+	chatCfg := c.chatConfig()
+	writeTTL := durationFromMS(chatCfg.TTS.WriteTimeoutMs, c.writeTTL)
+	readTTL := durationFromMS(chatCfg.TTS.ReadTimeoutMs, c.readTTL)
+	voiceType := firstNonEmpty(chatCfg.TTS.VoiceType, c.cfg.VoiceType)
 
 	targets := c.prepareDialTargets()
 	if len(targets) == 0 {
@@ -120,10 +126,10 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 	}
 	defer conn.Close()
 
-	if err := c.sendControlEvent(conn, ttsEventStartConnection, "", []byte(`{}`)); err != nil {
+	if err := c.sendControlEvent(conn, ttsEventStartConnection, "", []byte(`{}`), writeTTL); err != nil {
 		return nil, "", fmt.Errorf("send tts start_connection: %w", err)
 	}
-	startConnResp, err := c.readServerFrame(conn)
+	startConnResp, err := c.readServerFrame(conn, readTTL)
 	if err != nil {
 		return nil, "", fmt.Errorf("read tts start_connection response: %w", err)
 	}
@@ -143,7 +149,7 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 		"event":     ttsEventStartSession,
 		"namespace": "BidirectionalTTS",
 		"req_params": map[string]any{
-			"speaker": c.cfg.VoiceType,
+			"speaker": voiceType,
 			"audio_params": map[string]any{
 				"format":      "mp3",
 				"sample_rate": 24000,
@@ -151,10 +157,10 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 		},
 	}
 	startSessionBytes, _ := json.Marshal(startSessionPayload)
-	if err := c.sendControlEvent(conn, ttsEventStartSession, sessionID, startSessionBytes); err != nil {
+	if err := c.sendControlEvent(conn, ttsEventStartSession, sessionID, startSessionBytes, writeTTL); err != nil {
 		return nil, "", fmt.Errorf("send tts start_session: %w", err)
 	}
-	startSessionResp, err := c.readServerFrame(conn)
+	startSessionResp, err := c.readServerFrame(conn, readTTL)
 	if err != nil {
 		return nil, "", fmt.Errorf("read tts start_session response: %w", err)
 	}
@@ -176,12 +182,12 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 		},
 	}
 	taskBytes, _ := json.Marshal(taskPayload)
-	if err := c.sendControlEvent(conn, ttsEventTaskRequest, sessionID, taskBytes); err != nil {
+	if err := c.sendControlEvent(conn, ttsEventTaskRequest, sessionID, taskBytes, writeTTL); err != nil {
 		return nil, "", fmt.Errorf("send tts task_request: %w", err)
 	}
 
 	// Tell server no more tasks in this session.
-	if err := c.sendControlEvent(conn, ttsEventFinishSession, sessionID, []byte(`{}`)); err != nil {
+	if err := c.sendControlEvent(conn, ttsEventFinishSession, sessionID, []byte(`{}`), writeTTL); err != nil {
 		return nil, "", fmt.Errorf("send tts finish_session: %w", err)
 	}
 
@@ -191,7 +197,7 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 		if ctx.Err() != nil {
 			return nil, "", ctx.Err()
 		}
-		frame, err := c.readServerFrame(conn)
+		frame, err := c.readServerFrame(conn, readTTL)
 		if err != nil {
 			if len(audio) > 0 {
 				return audio, format, nil
@@ -208,7 +214,7 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 			if len(audio) == 0 {
 				return nil, "", fmt.Errorf("tts session finished without audio: %s", compactPayloadString(frame.Payload))
 			}
-			_ = c.sendControlEvent(conn, ttsEventFinishConnection, "", []byte(`{}`))
+			_ = c.sendControlEvent(conn, ttsEventFinishConnection, "", []byte(`{}`), writeTTL)
 			return audio, format, nil
 		case ttsEventSessionFailed:
 			return nil, "", fmt.Errorf("tts session failed: %s", compactPayloadString(frame.Payload))
@@ -229,13 +235,13 @@ func (c *DoubaoTTSClient) Synthesize(ctx context.Context, text string) ([]byte, 
 	}
 }
 
-func (c *DoubaoTTSClient) sendControlEvent(conn *websocket.Conn, event uint32, sessionID string, payloadJSON []byte) error {
+func (c *DoubaoTTSClient) sendControlEvent(conn *websocket.Conn, event uint32, sessionID string, payloadJSON []byte, writeTTL time.Duration) error {
 	payload := payloadJSON
 	if len(payload) == 0 {
 		payload = []byte(`{}`)
 	}
 	frame := buildTTSFrame(ttsMsgTypeFullClient, ttsFlagWithEvent, ttsSerializationJSON, ttsCompressionNone, event, sessionID, payload)
-	_ = conn.SetWriteDeadline(time.Now().Add(c.writeTTL))
+	_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
 	return conn.WriteMessage(websocket.BinaryMessage, frame)
 }
 
@@ -268,8 +274,8 @@ func buildTTSFrame(msgType byte, flags byte, serialization byte, compression byt
 	return out
 }
 
-func (c *DoubaoTTSClient) readServerFrame(conn *websocket.Conn) (*ttsServerFrame, error) {
-	if err := conn.SetReadDeadline(time.Now().Add(c.readTTL)); err != nil {
+func (c *DoubaoTTSClient) readServerFrame(conn *websocket.Conn, readTTL time.Duration) (*ttsServerFrame, error) {
+	if err := conn.SetReadDeadline(time.Now().Add(readTTL)); err != nil {
 		return nil, err
 	}
 	mt, msg, err := conn.ReadMessage()
@@ -439,4 +445,11 @@ func buildTTSHeaders(cfg TTSConfig, resourceID string) http.Header {
 	h.Set("X-Api-Connect-Id", newRequestID())
 	h.Set("X-Api-Request-Id", newRequestID())
 	return h
+}
+
+func (c *DoubaoTTSClient) chatConfig() ChatPublicConfig {
+	if c.runtimeConfig != nil {
+		return c.runtimeConfig.Snapshot().Chat
+	}
+	return defaultPublicConfig().Chat
 }

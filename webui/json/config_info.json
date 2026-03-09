@@ -1,0 +1,161 @@
+{
+  "tabs": [
+    {
+      "key": "app",
+      "label": "应用"
+    },
+    {
+      "key": "chat",
+      "label": "对话"
+    }
+  ],
+  "fields": {
+    "chat.frontend.voiceThreshold": {
+      "tab": "chat",
+      "group": "听你说",
+      "label": "输入灵敏度",
+      "description": "值越低越容易判定为用户开口。",
+      "show": true,
+      "editable": true,
+      "control": "slider",
+      "unit": "",
+      "min": 0.005,
+      "max": 0.08,
+      "step": 0.001,
+      "recommended": 0.018,
+      "scope": "m",
+      "applyHint": "修改后对后续 message 检测立即生效。"
+    },
+    "chat.frontend.utteranceSilenceMs": {
+      "tab": "chat",
+      "group": "听你说",
+      "label": "停顿判句时长",
+      "description": "用户静音多久后，前端认为一句话结束并触发后续处理。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "ms",
+      "min": 200,
+      "max": 2000,
+      "step": 50,
+      "recommended": 500,
+      "scope": "m",
+      "applyHint": "修改后对后续停顿检测立即生效。"
+    },
+    "chat.frontend.replyOnsetGuardMs": {
+      "tab": "chat",
+      "group": "抢话控制",
+      "label": "回复误触发保护窗",
+      "description": "触发大模型后短暂抑制误 onset 的保护时间。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 3000,
+      "step": 50,
+      "recommended": 1200,
+      "scope": "t",
+      "applyHint": "从下一轮 turn 生效。"
+    },
+    "chat.session.triggerLLMWaitFinalMs": {
+      "tab": "chat",
+      "group": "会话调度",
+      "label": "等待 ASR Final 时间",
+      "description": "触发大模型前，后端等待 ASR 最终文本的最长时间。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "ms",
+      "min": 0,
+      "max": 2000,
+      "step": 20,
+      "recommended": 320,
+      "scope": "t",
+      "applyHint": "从下一轮 turn 生效。"
+    },
+    "chat.session.maxHistoryMessages": {
+      "tab": "chat",
+      "group": "上下文",
+      "label": "历史消息上限",
+      "description": "后端保留的最近消息数量上限，用于多轮上下文。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "条",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "recommended": 20,
+      "scope": "r",
+      "applyHint": "建议从新 thread 生效。当前实现中会在后续裁剪历史时逐步体现。"
+    },
+    "chat.asr.endWindowSize": {
+      "tab": "chat",
+      "group": "识别",
+      "label": "ASR 结束窗",
+      "description": "识别端判断语音结束的窗口大小。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "ms",
+      "min": 100,
+      "max": 3000,
+      "step": 50,
+      "recommended": 500,
+      "scope": "t",
+      "applyHint": "从下一轮 turn 的 ASR 连接生效。"
+    },
+    "chat.asr.forceToSpeechTime": {
+      "tab": "chat",
+      "group": "识别",
+      "label": "强制转语音时间",
+      "description": "ASR 端加速将输入视作有效语音的时间阈值。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "ms",
+      "min": 100,
+      "max": 3000,
+      "step": 50,
+      "recommended": 1000,
+      "scope": "t",
+      "applyHint": "从下一轮 turn 的 ASR 连接生效。"
+    },
+    "chat.llm.systemPrompt": {
+      "tab": "chat",
+      "group": "回复风格",
+      "label": "系统提示词",
+      "description": "控制 AI 的整体回复风格和约束。",
+      "show": true,
+      "editable": true,
+      "control": "textarea",
+      "recommended": "你是一个语音助手。请用简洁自然的口语风格回答，每次回复控制在2-3句话以内，避免使用列表、标题、markdown等格式化文本。",
+      "scope": "t",
+      "applyHint": "从下一轮 turn 的大模型请求生效。"
+    },
+    "chat.tts.voiceType": {
+      "tab": "chat",
+      "group": "语音输出",
+      "label": "音色",
+      "description": "为空时沿用私密配置中的默认音色。",
+      "show": true,
+      "editable": true,
+      "control": "text",
+      "recommended": "",
+      "scope": "t",
+      "applyHint": "从下一轮 turn 的 TTS 请求生效。"
+    },
+    "chat.pipeline.groupingPolicies": {
+      "tab": "chat",
+      "group": "语音拼组",
+      "label": "TTS 拼句策略",
+      "description": "控制 backlog 增大时每次合成拼接多少句。",
+      "show": false,
+      "editable": false,
+      "control": "json",
+      "scope": "t",
+      "applyHint": "当前实现支持配置读取，后续再开放前端编辑。"
+    }
+  }
+}

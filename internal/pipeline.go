@@ -24,21 +24,23 @@ type TurnCallbacks struct {
 }
 
 type TurnPipeline struct {
-	llm LLMClient
-	tts TTSClient
-	cb  TurnCallbacks
+	llm           LLMClient
+	tts           TTSClient
+	runtimeConfig *RuntimeConfigManager
+	cb            TurnCallbacks
 }
 
-func NewTurnPipeline(llm LLMClient, tts TTSClient, cb TurnCallbacks) *TurnPipeline {
-	return &TurnPipeline{llm: llm, tts: tts, cb: cb}
+func NewTurnPipeline(llm LLMClient, tts TTSClient, runtimeConfig *RuntimeConfigManager, cb TurnCallbacks) *TurnPipeline {
+	return &TurnPipeline{llm: llm, tts: tts, runtimeConfig: runtimeConfig, cb: cb}
 }
 
 func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText string, history []ChatMessage) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	segmenter := NewSentenceSegmenter()
-	backlog := newPlaybackBacklogEstimator()
+	pipelineCfg := p.chatConfig().Pipeline
+	segmenter := NewSentenceSegmenterWithBreaks(pipelineCfg.SentenceBreaks)
+	backlog := newPlaybackBacklogEstimator(int64(pipelineCfg.BacklogCapMs))
 	var finalBuilder strings.Builder
 	seq := 0
 	segmentSeq := 0
@@ -90,7 +92,7 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 			}
 			seq = segmentSeq
 			audioOut++
-			backlog.Add(estimateSpeechDuration(seg))
+			backlog.Add(estimateSpeechDurationWithConfig(seg, pipelineCfg))
 			if err := p.cb.OnChunk(TTSChunk{TurnID: turnID, Seq: seq, Format: format, Data: audio}); err != nil {
 				if firstErr == nil {
 					firstErr = err
@@ -113,7 +115,7 @@ func (p *TurnPipeline) RunTurn(ctx context.Context, turnID uint64, userText stri
 
 	drainReady := func(flush bool) {
 		for {
-			group, used := selectSentenceGroup(pendingSentences, backlog.CurrentMS(), flush)
+			group, used := selectSentenceGroupWithConfig(pendingSentences, backlog.CurrentMS(), flush, pipelineCfg)
 			if used == 0 {
 				return
 			}
@@ -175,8 +177,20 @@ type SentenceSegmenter struct {
 }
 
 func NewSentenceSegmenter() *SentenceSegmenter {
-	return &SentenceSegmenter{
-		sentenceBreak: map[rune]struct{}{
+	return NewSentenceSegmenterWithBreaks(defaultPublicConfig().Chat.Pipeline.SentenceBreaks)
+}
+
+func NewSentenceSegmenterWithBreaks(breaks []string) *SentenceSegmenter {
+	sentenceBreak := map[rune]struct{}{}
+	for _, item := range breaks {
+		runes := []rune(item)
+		if len(runes) != 1 {
+			continue
+		}
+		sentenceBreak[runes[0]] = struct{}{}
+	}
+	if len(sentenceBreak) == 0 {
+		sentenceBreak = map[rune]struct{}{
 			'。':  {},
 			'！':  {},
 			'？':  {},
@@ -187,7 +201,10 @@ func NewSentenceSegmenter() *SentenceSegmenter {
 			';':  {},
 			'…':  {},
 			'\n': {},
-		},
+		}
+	}
+	return &SentenceSegmenter{
+		sentenceBreak: sentenceBreak,
 	}
 }
 
@@ -256,11 +273,15 @@ type sentenceGroupPolicy struct {
 }
 
 func selectSentenceGroup(sentences []string, backlogMS int64, flush bool) (string, int) {
+	return selectSentenceGroupWithConfig(sentences, backlogMS, flush, defaultPublicConfig().Chat.Pipeline)
+}
+
+func selectSentenceGroupWithConfig(sentences []string, backlogMS int64, flush bool, cfg ChatPipelinePublicConfig) (string, int) {
 	if len(sentences) == 0 {
 		return "", 0
 	}
 
-	policy := groupingPolicy(backlogMS)
+	policy := groupingPolicy(backlogMS, cfg)
 	if !flush && policy.targetSentences > 1 && len(sentences) < policy.targetSentences {
 		return "", 0
 	}
@@ -281,19 +302,13 @@ func selectSentenceGroup(sentences []string, backlogMS int64, flush bool) (strin
 	return strings.TrimSpace(strings.Join(sentences[:count], "")), count
 }
 
-func groupingPolicy(backlogMS int64) sentenceGroupPolicy {
-	switch {
-	case backlogMS >= 20000:
-		return sentenceGroupPolicy{targetSentences: 10, maxRunes: 500}
-	case backlogMS >= 10000:
-		return sentenceGroupPolicy{targetSentences: 5, maxRunes: 200}
-	case backlogMS >= 5000:
-		return sentenceGroupPolicy{targetSentences: 3, maxRunes: 50}
-	case backlogMS >= 3000:
-		return sentenceGroupPolicy{targetSentences: 2, maxRunes: 24}
-	default:
-		return sentenceGroupPolicy{targetSentences: 1, maxRunes: 80}
+func groupingPolicy(backlogMS int64, cfg ChatPipelinePublicConfig) sentenceGroupPolicy {
+	for _, rule := range cfg.GroupingPolicies {
+		if backlogMS >= int64(rule.BacklogMs) {
+			return sentenceGroupPolicy{targetSentences: rule.TargetSentences, maxRunes: rule.MaxRunes}
+		}
 	}
+	return sentenceGroupPolicy{targetSentences: 1, maxRunes: 80}
 }
 
 func joinedRuneCount(parts []string) int {
@@ -305,22 +320,26 @@ func joinedRuneCount(parts []string) int {
 }
 
 func estimateSpeechDuration(text string) int64 {
+	return estimateSpeechDurationWithConfig(text, defaultPublicConfig().Chat.Pipeline)
+}
+
+func estimateSpeechDurationWithConfig(text string, cfg ChatPipelinePublicConfig) int64 {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return 0
 	}
 	runes := []rune(text)
-	ms := 180 * len(runes)
+	ms := cfg.SpeechRuneMs * len(runes)
 	for _, r := range runes {
 		switch r {
 		case '。', '！', '？', '；', '.', '!', '?', ';', '…':
-			ms += 220
+			ms += cfg.SentencePauseMs
 		case '，', '、', ',', ':', '：':
-			ms += 90
+			ms += cfg.ClausePauseMs
 		}
 	}
-	if ms < 400 {
-		ms = 400
+	if ms < cfg.MinimumSpeechMs {
+		ms = cfg.MinimumSpeechMs
 	}
 	return int64(ms)
 }
@@ -329,10 +348,14 @@ type playbackBacklogEstimator struct {
 	mu        sync.Mutex
 	pendingMS float64
 	lastAt    time.Time
+	capMS     float64
 }
 
-func newPlaybackBacklogEstimator() *playbackBacklogEstimator {
-	return &playbackBacklogEstimator{lastAt: time.Now()}
+func newPlaybackBacklogEstimator(capMS int64) *playbackBacklogEstimator {
+	if capMS <= 0 {
+		capMS = int64(defaultPublicConfig().Chat.Pipeline.BacklogCapMs)
+	}
+	return &playbackBacklogEstimator{lastAt: time.Now(), capMS: float64(capMS)}
 }
 
 func (e *playbackBacklogEstimator) Add(ms int64) {
@@ -343,8 +366,8 @@ func (e *playbackBacklogEstimator) Add(ms int64) {
 	defer e.mu.Unlock()
 	e.decayLocked(time.Now())
 	e.pendingMS += float64(ms)
-	if e.pendingMS > 60000 {
-		e.pendingMS = 60000
+	if e.pendingMS > e.capMS {
+		e.pendingMS = e.capMS
 	}
 }
 
@@ -382,4 +405,11 @@ func isPunctuationOnly(text string) bool {
 		}
 	}
 	return hasRune
+}
+
+func (p *TurnPipeline) chatConfig() ChatPublicConfig {
+	if p.runtimeConfig != nil {
+		return p.runtimeConfig.Snapshot().Chat
+	}
+	return defaultPublicConfig().Chat
 }

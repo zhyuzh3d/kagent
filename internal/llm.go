@@ -18,32 +18,29 @@ type ChatMessage struct {
 	Content string `json:"content"`
 }
 
-const systemPrompt = "你是一个语音助手。请用简洁自然的口语风格回答，每次回复控制在2-3句话以内，避免使用列表、标题、markdown等格式化文本。"
-
 type LLMClient interface {
 	Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error)
 }
 
 type DoubaoLLMClient struct {
-	cfg    ChatConfig
-	client *http.Client
+	cfg           ChatConfig
+	runtimeConfig *RuntimeConfigManager
 }
 
-func NewDoubaoLLMClient(cfg ChatConfig) *DoubaoLLMClient {
+func NewDoubaoLLMClient(cfg ChatConfig, runtimeConfig *RuntimeConfigManager) *DoubaoLLMClient {
 	return &DoubaoLLMClient{
-		cfg: cfg,
-		client: &http.Client{
-			Timeout: 65 * time.Second,
-		},
+		cfg:           cfg,
+		runtimeConfig: runtimeConfig,
 	}
 }
 
 func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error) {
+	chatCfg := c.chatConfig()
 	// Build the input array: system + history + current user message
 	inputArr := make([]map[string]any, 0, len(history)+2)
 	inputArr = append(inputArr, map[string]any{
 		"role":    "system",
-		"content": systemPrompt,
+		"content": chatCfg.LLM.SystemPrompt,
 	})
 	for _, m := range history {
 		inputArr = append(inputArr, map[string]any{
@@ -78,7 +75,8 @@ func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []Ch
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 
-	resp, err := c.client.Do(req)
+	client := &http.Client{Timeout: durationFromMS(chatCfg.LLM.StreamTimeoutMs, 65*time.Second)}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("call llm stream: %w", err)
 	}
@@ -93,6 +91,13 @@ func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []Ch
 		return parseLLMSSE(ctx, resp.Body, onDelta)
 	}
 	return parseLLMNonStream(resp.Body)
+}
+
+func (c *DoubaoLLMClient) chatConfig() ChatPublicConfig {
+	if c.runtimeConfig != nil {
+		return c.runtimeConfig.Snapshot().Chat
+	}
+	return defaultPublicConfig().Chat
 }
 
 func parseLLMSSE(ctx context.Context, body io.Reader, onDelta func(string)) (string, error) {

@@ -101,7 +101,7 @@ func TestPunctuationOnlySegmentsAreSkipped(t *testing.T) {
 
 func TestTurnPipelineRun(t *testing.T) {
 	chunks := 0
-	p := NewTurnPipeline(&fakeLLM{deltas: []string{"你好，世界。", "今天天气不错。"}}, &fakeTTS{}, TurnCallbacks{
+	p := NewTurnPipeline(&fakeLLM{deltas: []string{"你好，世界。", "今天天气不错。"}}, &fakeTTS{}, nil, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {},
 		OnEvent:  func(evt EventMessage) {},
 		OnChunk: func(chunk TTSChunk) error {
@@ -125,7 +125,7 @@ func TestTurnPipelineContinuesAfterSegmentFailure(t *testing.T) {
 	}
 	var chunks []string
 	var warnEvents []EventMessage
-	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。", "第二句。", "第三句。"}}, tts, TurnCallbacks{
+	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。", "第二句。", "第三句。"}}, tts, nil, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {},
 		OnEvent: func(evt EventMessage) {
 			if evt.Type == "tts_warn" {
@@ -162,7 +162,7 @@ func TestTurnPipelineFailsIfNoAudioProduced(t *testing.T) {
 			"第一句。": errors.New("mock fail"),
 		},
 	}
-	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。"}}, tts, TurnCallbacks{
+	p := NewTurnPipeline(&fakeLLM{deltas: []string{"第一句。"}}, tts, nil, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {},
 		OnEvent:  func(evt EventMessage) {},
 		OnChunk: func(chunk TTSChunk) error {

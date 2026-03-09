@@ -187,3 +187,59 @@
 - 开发结果：
   - 成功：`go build ./...` 通过；`/version`、`/ws`、`/admin/shutdown` 等 API 路由不受影响
   - `/favicon.ico` 现可正常访问；对话页面通过 `/page/chat/` 访问
+
+## [2026-03-09 18:16 CST] 公开配置体系落地与聊天页模块化重构
+- 时间范围：2026-03-08 01:57 CST -> 2026-03-09 18:16 CST
+- 主要变更：
+  - 建立公开运行时配置体系：新增 `config/config.json`、`internal/public_config.go`、`internal/runtime_config.go`、`internal/runtime_config_test.go`，并在 `main.go` 提供 `GET /api/config` 与 `PUT /api/config`
+  - 将一批后端硬编码参数接入公开配置：包括 `session` 队列与历史窗口、ASR 请求参数与超时、LLM `systemPrompt`、TTS 音色与超时、pipeline backlog 拼句规则
+  - 新增 `webui/json/config_info.json`，前端开始使用元数据控制配置抽屉字段的展示、说明、控件形式和 `mtrca` 标签
+  - 聊天页完成多轮模块化拆分：新增 `config-store.js`、`config-drawer.js`、`chat-store.js`、`audio-playback.js`、`audio-capture.js`、`event-router.js`、`session-controller.js`、`io-worker.js`，`index.html` 收敛为装配层
+  - 配置抽屉支持读取、保存、重载、撤销和未保存草稿回滚；会话控制增加 Worker 超时、停止清理与页面卸载静默停止
+  - 核对并确认一个仍待修复的边缘问题：旧 turn 的 `asr_partial` 气泡在被新 turn 顶掉后，可能因 stale 过滤而长期保持斜体
+- 关键文件/模块：
+  - `config/config.json`
+  - `main.go`
+  - `internal/public_config.go`
+  - `internal/runtime_config.go`
+  - `internal/runtime_config_test.go`
+  - `internal/asr.go`
+  - `internal/llm.go`
+  - `internal/pipeline.go`
+  - `internal/session.go`
+  - `internal/tts.go`
+  - `webui/json/config_info.json`
+  - `webui/page/chat/index.html`
+  - `webui/page/chat/config-store.js`
+  - `webui/page/chat/config-drawer.js`
+  - `webui/page/chat/chat-store.js`
+  - `webui/page/chat/audio-playback.js`
+  - `webui/page/chat/audio-capture.js`
+  - `webui/page/chat/event-router.js`
+  - `webui/page/chat/session-controller.js`
+  - `webui/page/chat/io-worker.js`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：
+    - 公开配置读写链路已贯通，单机版可通过 `config.json + user_custom_config overrides` 驱动前后端运行时参数
+    - 配置抽屉已可实际编辑并保存部分公开参数，且未保存草稿关闭时会自动回滚
+    - 前端聊天页已从单文件大脚本拆为多个职责明确的运行模块
+    - 本地验证通过：`go test ./...`、`go build -buildvcs=false ./...`、新增前端模块语法检查均通过
+  - 失败/问题：
+    - 尚未补浏览器自动化或完整实机回归，当前前端验证仍以模块语法检查和局部逻辑核验为主
+    - `partial` 用户气泡在 superseded turn 下的收口逻辑仍不完整，已定位但未正式修复
+- 经验与结论：
+  - 有效实践：
+    - 配置体系应先统一事实源和保存链路，再做抽屉 UI，否则容易出现“改了但不生效”的假配置
+    - 聊天页模块化按运行域拆分（配置、消息、播放、采集、事件、会话控制）比按视觉结构拆分更稳
+    - 对单机版软件，`JSON overrides` 比 SQLite 更轻、更直观，也更便于手工恢复
+  - 失败教训：
+    - 只靠 `asr_final` 单一路径去掉 partial 样式，在 turn 被快速 supersede 时会留下悬挂消息
+    - 配置抽屉若允许“预览即生效”，关闭时必须同时处理未保存状态回滚，否则用户会误判为已经保存
+  - 后续规避：
+    - 下一步修补旧 partial 气泡问题时，应优先考虑“允许旧 `asr_final` 收口 + superseded fallback”，避免简单粗暴地把所有旧 partial 一律转正
+    - 后续继续迭代前端前，先补实机回归和关键边缘场景验证
+- 下一步：
+  - 修复旧 turn `partial` 气泡在 stale 场景下无法收口的问题
+  - 补一轮浏览器侧真实语音链路回归，重点验证空 turn、barge-in、连续快说和配置抽屉实时预览
+  - 视需要继续收敛 `index.html` 的页面装配层和说明文档中的模块边界

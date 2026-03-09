@@ -1,0 +1,97 @@
+{
+  "app": {
+    "debug": {
+      "logLevel": "info"
+    },
+    "ui": {
+      "showDebugPanelByDefault": false
+    }
+  },
+  "chat": {
+    "frontend": {
+      "voiceThreshold": 0.018,
+      "utteranceSilenceMs": 500,
+      "bargeInThreshold": 0.08,
+      "bargeInMinFrames": 5,
+      "bargeInCooldownMs": 500,
+      "replyOnsetGuardMs": 1200,
+      "preRollMaxFrames": 5,
+      "silentTailFrames": 50,
+      "frameSamples16k": 320
+    },
+    "session": {
+      "upstreamAudioQueueSize": 64,
+      "downstreamTTSQueueSize": 24,
+      "controlQueueSize": 32,
+      "triggerLLMWaitFinalMs": 320,
+      "maxHistoryMessages": 20
+    },
+    "asr": {
+      "endWindowSize": 500,
+      "forceToSpeechTime": 1000,
+      "accelerateScore": 10,
+      "enableITN": true,
+      "enablePunc": true,
+      "enableAccelerateText": true,
+      "enableNonstream": false,
+      "asrContextMaxMessages": 10,
+      "writeTimeoutMs": 6000,
+      "readTimeoutMs": 60000
+    },
+    "llm": {
+      "systemPrompt": "你是一个语音助手。请用简洁自然的口语风格回答，每次回复控制在2-3句话以内，避免使用列表、标题、markdown等格式化文本。",
+      "streamTimeoutMs": 65000
+    },
+    "tts": {
+      "voiceType": "",
+      "writeTimeoutMs": 6000,
+      "readTimeoutMs": 35000
+    },
+    "pipeline": {
+      "groupingPolicies": [
+        {
+          "backlogMs": 20000,
+          "targetSentences": 10,
+          "maxRunes": 500
+        },
+        {
+          "backlogMs": 10000,
+          "targetSentences": 5,
+          "maxRunes": 200
+        },
+        {
+          "backlogMs": 5000,
+          "targetSentences": 3,
+          "maxRunes": 50
+        },
+        {
+          "backlogMs": 3000,
+          "targetSentences": 2,
+          "maxRunes": 24
+        },
+        {
+          "backlogMs": 0,
+          "targetSentences": 1,
+          "maxRunes": 80
+        }
+      ],
+      "sentenceBreaks": [
+        "。",
+        "！",
+        "？",
+        "；",
+        ".",
+        "!",
+        "?",
+        ";",
+        "…",
+        "\n"
+      ],
+      "speechRuneMs": 180,
+      "sentencePauseMs": 220,
+      "clausePauseMs": 90,
+      "minimumSpeechMs": 400,
+      "backlogCapMs": 60000
+    }
+  }
+}

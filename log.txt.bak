@@ -8995,3 +8995,1038 @@ time="2026-03-08 11:33:57.240" level=ERROR source=internal/session.go:496 msg="s
 2026-03-08 12:19:54.598 [ERROR] [SessionManager:533] send status failed: websocket: close sent
 2026-03-08 12:32:09.571 [WARN] [System:63] shutdown requested from 127.0.0.1:57284
 
+=== DEPLOY id=0df80553-78da-4ed0-bbfe-65d1b2f3061b ts=2026-03-08 12:32:09 CST backend=26030801 pid=? ===
+=== DEPLOY id=0df80553-78da-4ed0-bbfe-65d1b2f3061b ts=2026-03-08 12:32:09 CST backend=26030801 pid=93346 started ===
+2026-03-08 12:32:11.975 [INFO] [System:38] kagent version backend=26030801 webui=26030801
+2026-03-08 12:32:11.976 [INFO] [System:130] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-08 12:32:16.480 [INFO] [SessionManager:264] [Turn:1] -> VAD listening started
+2026-03-08 12:32:18.062 [INFO] [SessionManager:321] [Turn:1] "吃饭了，吃饭了。" -> ASR final
+2026-03-08 12:32:18.062 [INFO] [SessionManager:244] [Turn:1] "吃饭了，吃饭了。" -> LLM Triggered
+2026-03-08 12:32:20.528 [INFO] [AudioPipeline:88] [Turn:1] "哇，那好好享受美食呀..." -> TTS start sending...
+2026-03-08 12:32:20.528 [INFO] [AudioPipeline:163] [Turn:1] -> TTS finished sending
+2026-03-08 12:32:24.330 [INFO] [SessionManager:264] [Turn:2] -> VAD listening started
+2026-03-08 12:32:25.782 [WARN] [SessionManager:232] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:32:25.792 [INFO] [SessionManager:264] [Turn:3] -> VAD listening started
+2026-03-08 12:32:28.140 [INFO] [SessionManager:321] [Turn:3] "那个头，你怎么不去吃..." -> ASR final
+2026-03-08 12:32:28.140 [INFO] [SessionManager:244] [Turn:3] "那个头，你怎么不去吃..." -> LLM Triggered
+2026-03-08 12:32:30.389 [INFO] [SessionManager:264] [Turn:4] -> VAD listening started
+2026-03-08 12:32:31.211 [INFO] [AudioPipeline:88] [Turn:3] "哈哈，我不用吃饭哒~..." -> TTS start sending...
+2026-03-08 12:32:31.211 [INFO] [AudioPipeline:163] [Turn:3] -> TTS finished sending
+2026-03-08 12:32:31.381 [WARN] [SessionManager:232] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:32:39.599 [INFO] [SessionManager:264] [Turn:5] -> VAD listening started
+2026-03-08 12:32:40.682 [WARN] [SessionManager:232] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:32:41.583 [INFO] [SessionManager:264] [Turn:6] -> VAD listening started
+2026-03-08 12:32:42.481 [WARN] [SessionManager:232] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:32:42.489 [INFO] [SessionManager:264] [Turn:7] -> VAD listening started
+2026-03-08 12:32:45.478 [INFO] [SessionManager:321] [Turn:7] "那么牛逼，你怎么就不..." -> ASR final
+2026-03-08 12:32:45.479 [INFO] [SessionManager:244] [Turn:7] "那么牛逼，你怎么就不..." -> LLM Triggered
+2026-03-08 12:32:48.783 [INFO] [SessionManager:264] [Turn:8] -> VAD listening started
+2026-03-08 12:32:49.043 [INFO] [AudioPipeline:88] [Turn:7] "我是AI呀，不用吃饭..." -> TTS start sending...
+2026-03-08 12:32:49.043 [INFO] [AudioPipeline:163] [Turn:7] -> TTS finished sending
+2026-03-08 12:32:54.783 [WARN] [SessionManager:232] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:32:54.789 [INFO] [SessionManager:264] [Turn:9] -> VAD listening started
+2026-03-08 12:32:57.438 [INFO] [SessionManager:321] [Turn:9] "不行，你要过来跟我一..." -> ASR final
+2026-03-08 12:32:57.760 [INFO] [SessionManager:244] [Turn:9] "不行，你要过来跟我一..." -> LLM Triggered
+2026-03-08 12:33:00.868 [INFO] [SessionManager:264] [Turn:10] -> VAD listening started
+2026-03-08 12:33:01.781 [WARN] [SessionManager:232] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:02.296 [INFO] [AudioPipeline:88] [Turn:9] "哈哈，我只能在这儿看..." -> TTS start sending...
+2026-03-08 12:33:02.296 [INFO] [AudioPipeline:163] [Turn:9] -> TTS finished sending
+2026-03-08 12:33:07.562 [INFO] [SessionManager:264] [Turn:11] -> VAD listening started
+2026-03-08 12:33:08.481 [WARN] [SessionManager:232] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:09.279 [INFO] [SessionManager:264] [Turn:12] -> VAD listening started
+2026-03-08 12:33:10.282 [WARN] [SessionManager:232] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:10.624 [INFO] [SessionManager:264] [Turn:13] -> VAD listening started
+2026-03-08 12:33:11.582 [WARN] [SessionManager:232] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:11.584 [INFO] [SessionManager:264] [Turn:14] -> VAD listening started
+2026-03-08 12:33:12.481 [WARN] [SessionManager:232] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:13.279 [INFO] [SessionManager:264] [Turn:15] -> VAD listening started
+2026-03-08 12:33:14.581 [WARN] [SessionManager:232] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:16.949 [INFO] [SessionManager:264] [Turn:16] -> VAD listening started
+2026-03-08 12:33:18.581 [WARN] [SessionManager:232] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:18.601 [INFO] [SessionManager:264] [Turn:17] -> VAD listening started
+2026-03-08 12:33:19.481 [WARN] [SessionManager:232] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:21.823 [INFO] [SessionManager:264] [Turn:18] -> VAD listening started
+2026-03-08 12:33:27.679 [INFO] [SessionManager:321] [Turn:18] "呃，好烦啊，一会要去..." -> ASR final
+2026-03-08 12:33:27.679 [INFO] [SessionManager:244] [Turn:18] "呃，好烦啊，一会要去..." -> LLM Triggered
+2026-03-08 12:33:28.772 [INFO] [SessionManager:264] [Turn:19] -> VAD listening started
+2026-03-08 12:33:30.182 [WARN] [SessionManager:232] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:33:32.497 [INFO] [AudioPipeline:88] [Turn:18] "上班确实有点小烦呢，..." -> TTS start sending...
+2026-03-08 12:33:32.500 [INFO] [AudioPipeline:163] [Turn:18] -> TTS finished sending
+2026-03-08 12:33:41.599 [INFO] [SessionManager:264] [Turn:20] -> VAD listening started
+2026-03-08 12:33:43.579 [INFO] [SessionManager:321] [Turn:20] "要不然呢？才能下班啦..." -> ASR final
+2026-03-08 12:33:43.579 [INFO] [SessionManager:244] [Turn:20] "要不然呢？才能下班啦..." -> LLM Triggered
+2026-03-08 12:33:46.782 [INFO] [AudioPipeline:88] [Turn:20] "哈哈，再坚持一会儿就..." -> TTS start sending...
+2026-03-08 12:33:46.782 [INFO] [AudioPipeline:163] [Turn:20] -> TTS finished sending
+2026-03-08 12:34:27.894 [INFO] [SessionManager:264] [Turn:21] -> VAD listening started
+2026-03-08 12:34:28.780 [WARN] [SessionManager:232] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:34:34.294 [INFO] [SessionManager:264] [Turn:22] -> VAD listening started
+2026-03-08 12:34:35.282 [WARN] [SessionManager:232] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:34:35.638 [INFO] [SessionManager:264] [Turn:23] -> VAD listening started
+2026-03-08 12:34:36.482 [WARN] [SessionManager:232] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:34:54.586 [INFO] [SessionManager:264] [Turn:24] -> VAD listening started
+2026-03-08 12:34:55.481 [WARN] [SessionManager:232] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:34:56.374 [INFO] [SessionManager:264] [Turn:25] -> VAD listening started
+2026-03-08 12:34:57.882 [WARN] [SessionManager:232] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:34:57.942 [INFO] [SessionManager:264] [Turn:26] -> VAD listening started
+2026-03-08 12:34:59.781 [WARN] [SessionManager:232] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:04.006 [INFO] [SessionManager:264] [Turn:27] -> VAD listening started
+2026-03-08 12:35:04.880 [WARN] [SessionManager:232] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:04.890 [INFO] [SessionManager:264] [Turn:28] -> VAD listening started
+2026-03-08 12:35:06.281 [WARN] [SessionManager:232] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:06.758 [INFO] [SessionManager:264] [Turn:29] -> VAD listening started
+2026-03-08 12:35:07.681 [WARN] [SessionManager:232] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:09.249 [INFO] [SessionManager:264] [Turn:30] -> VAD listening started
+2026-03-08 12:35:14.280 [WARN] [SessionManager:232] [Turn:30] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:14.608 [INFO] [SessionManager:264] [Turn:31] -> VAD listening started
+2026-03-08 12:35:15.681 [WARN] [SessionManager:232] [Turn:31] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:16.129 [INFO] [SessionManager:264] [Turn:32] -> VAD listening started
+2026-03-08 12:35:17.481 [WARN] [SessionManager:232] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:35:23.878 [INFO] [SessionManager:264] [Turn:33] -> VAD listening started
+2026-03-08 12:35:24.781 [WARN] [SessionManager:232] [Turn:33] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:22.427 [INFO] [SessionManager:264] [Turn:34] -> VAD listening started
+2026-03-08 12:36:23.380 [WARN] [SessionManager:232] [Turn:34] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:51.882 [INFO] [SessionManager:264] [Turn:35] -> VAD listening started
+2026-03-08 12:36:53.181 [WARN] [SessionManager:232] [Turn:35] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:53.216 [INFO] [SessionManager:264] [Turn:36] -> VAD listening started
+2026-03-08 12:36:54.881 [WARN] [SessionManager:232] [Turn:36] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:54.892 [INFO] [SessionManager:264] [Turn:37] -> VAD listening started
+2026-03-08 12:36:55.782 [WARN] [SessionManager:232] [Turn:37] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:55.883 [INFO] [SessionManager:264] [Turn:38] -> VAD listening started
+2026-03-08 12:36:58.380 [WARN] [SessionManager:232] [Turn:38] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:58.432 [INFO] [SessionManager:264] [Turn:39] -> VAD listening started
+2026-03-08 12:36:59.789 [WARN] [SessionManager:232] [Turn:39] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:36:59.805 [INFO] [SessionManager:264] [Turn:40] -> VAD listening started
+2026-03-08 12:37:00.682 [WARN] [SessionManager:232] [Turn:40] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:00.710 [INFO] [SessionManager:264] [Turn:41] -> VAD listening started
+2026-03-08 12:37:03.782 [WARN] [SessionManager:232] [Turn:41] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:05.531 [INFO] [SessionManager:264] [Turn:42] -> VAD listening started
+2026-03-08 12:37:06.381 [WARN] [SessionManager:232] [Turn:42] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:08.283 [INFO] [SessionManager:264] [Turn:43] -> VAD listening started
+2026-03-08 12:37:09.280 [WARN] [SessionManager:232] [Turn:43] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:09.366 [INFO] [SessionManager:264] [Turn:44] -> VAD listening started
+2026-03-08 12:37:10.880 [WARN] [SessionManager:232] [Turn:44] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:11.024 [INFO] [SessionManager:264] [Turn:45] -> VAD listening started
+2026-03-08 12:37:12.981 [WARN] [SessionManager:232] [Turn:45] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:13.311 [INFO] [SessionManager:264] [Turn:46] -> VAD listening started
+2026-03-08 12:37:17.282 [WARN] [SessionManager:232] [Turn:46] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:17.617 [INFO] [SessionManager:264] [Turn:47] -> VAD listening started
+2026-03-08 12:37:19.388 [WARN] [SessionManager:232] [Turn:47] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:19.523 [INFO] [SessionManager:264] [Turn:48] -> VAD listening started
+2026-03-08 12:37:22.481 [WARN] [SessionManager:232] [Turn:48] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:37:22.522 [INFO] [SessionManager:264] [Turn:49] -> VAD listening started
+2026-03-08 12:37:23.381 [WARN] [SessionManager:232] [Turn:49] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:38:10.224 [INFO] [SessionManager:264] [Turn:50] -> VAD listening started
+2026-03-08 12:38:11.082 [WARN] [SessionManager:232] [Turn:50] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:38:15.973 [INFO] [SessionManager:264] [Turn:51] -> VAD listening started
+2026-03-08 12:38:16.882 [WARN] [SessionManager:232] [Turn:51] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:31.046 [INFO] [SessionManager:264] [Turn:52] -> VAD listening started
+2026-03-08 12:39:31.882 [WARN] [SessionManager:232] [Turn:52] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:32.838 [INFO] [SessionManager:264] [Turn:53] -> VAD listening started
+2026-03-08 12:39:36.981 [WARN] [SessionManager:232] [Turn:53] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:37.258 [INFO] [SessionManager:264] [Turn:54] -> VAD listening started
+2026-03-08 12:39:38.181 [WARN] [SessionManager:232] [Turn:54] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:38.204 [INFO] [SessionManager:264] [Turn:55] -> VAD listening started
+2026-03-08 12:39:39.981 [WARN] [SessionManager:232] [Turn:55] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:41.237 [INFO] [SessionManager:264] [Turn:56] -> VAD listening started
+2026-03-08 12:39:42.881 [WARN] [SessionManager:232] [Turn:56] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:42.902 [INFO] [SessionManager:264] [Turn:57] -> VAD listening started
+2026-03-08 12:39:43.979 [WARN] [SessionManager:232] [Turn:57] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:44.363 [INFO] [SessionManager:264] [Turn:58] -> VAD listening started
+2026-03-08 12:39:45.982 [WARN] [SessionManager:232] [Turn:58] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:46.300 [INFO] [SessionManager:264] [Turn:59] -> VAD listening started
+2026-03-08 12:39:47.181 [WARN] [SessionManager:232] [Turn:59] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:47.254 [INFO] [SessionManager:264] [Turn:60] -> VAD listening started
+2026-03-08 12:39:49.089 [WARN] [SessionManager:232] [Turn:60] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:51.339 [INFO] [SessionManager:264] [Turn:61] -> VAD listening started
+2026-03-08 12:39:54.982 [WARN] [SessionManager:232] [Turn:61] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:55.014 [INFO] [SessionManager:264] [Turn:62] -> VAD listening started
+2026-03-08 12:39:57.281 [WARN] [SessionManager:232] [Turn:62] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:39:58.492 [INFO] [SessionManager:264] [Turn:63] -> VAD listening started
+2026-03-08 12:40:00.181 [WARN] [SessionManager:232] [Turn:63] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:00.213 [INFO] [SessionManager:264] [Turn:64] -> VAD listening started
+2026-03-08 12:40:01.180 [WARN] [SessionManager:232] [Turn:64] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:04.160 [INFO] [SessionManager:264] [Turn:65] -> VAD listening started
+2026-03-08 12:40:05.880 [WARN] [SessionManager:232] [Turn:65] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:06.822 [INFO] [SessionManager:264] [Turn:66] -> VAD listening started
+2026-03-08 12:40:08.480 [WARN] [SessionManager:232] [Turn:66] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:08.651 [INFO] [SessionManager:264] [Turn:67] -> VAD listening started
+2026-03-08 12:40:09.980 [WARN] [SessionManager:232] [Turn:67] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:10.256 [INFO] [SessionManager:264] [Turn:68] -> VAD listening started
+2026-03-08 12:40:11.180 [WARN] [SessionManager:232] [Turn:68] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:11.382 [INFO] [SessionManager:264] [Turn:69] -> VAD listening started
+2026-03-08 12:40:13.481 [WARN] [SessionManager:232] [Turn:69] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:13.958 [INFO] [SessionManager:264] [Turn:70] -> VAD listening started
+2026-03-08 12:40:14.882 [WARN] [SessionManager:232] [Turn:70] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:15.890 [INFO] [SessionManager:264] [Turn:71] -> VAD listening started
+2026-03-08 12:40:16.781 [WARN] [SessionManager:232] [Turn:71] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:16.832 [INFO] [SessionManager:264] [Turn:72] -> VAD listening started
+2026-03-08 12:40:18.081 [WARN] [SessionManager:232] [Turn:72] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:18.608 [INFO] [SessionManager:264] [Turn:73] -> VAD listening started
+2026-03-08 12:40:20.881 [WARN] [SessionManager:232] [Turn:73] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:21.409 [INFO] [SessionManager:264] [Turn:74] -> VAD listening started
+2026-03-08 12:40:23.681 [WARN] [SessionManager:232] [Turn:74] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:24.832 [INFO] [SessionManager:264] [Turn:75] -> VAD listening started
+2026-03-08 12:40:27.282 [WARN] [SessionManager:232] [Turn:75] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:27.483 [INFO] [SessionManager:264] [Turn:76] -> VAD listening started
+2026-03-08 12:40:29.180 [WARN] [SessionManager:232] [Turn:76] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:29.536 [INFO] [SessionManager:264] [Turn:77] -> VAD listening started
+2026-03-08 12:40:31.781 [WARN] [SessionManager:232] [Turn:77] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:34.086 [INFO] [SessionManager:264] [Turn:78] -> VAD listening started
+2026-03-08 12:40:34.984 [WARN] [SessionManager:232] [Turn:78] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:35.249 [INFO] [SessionManager:264] [Turn:79] -> VAD listening started
+2026-03-08 12:40:37.881 [WARN] [SessionManager:232] [Turn:79] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:37.974 [INFO] [SessionManager:264] [Turn:80] -> VAD listening started
+2026-03-08 12:40:39.189 [WARN] [SessionManager:232] [Turn:80] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:39.867 [INFO] [SessionManager:264] [Turn:81] -> VAD listening started
+2026-03-08 12:40:41.581 [WARN] [SessionManager:232] [Turn:81] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:41.727 [INFO] [SessionManager:264] [Turn:82] -> VAD listening started
+2026-03-08 12:40:43.180 [WARN] [SessionManager:232] [Turn:82] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:40:44.491 [INFO] [SessionManager:264] [Turn:83] -> VAD listening started
+2026-03-08 12:40:48.480 [WARN] [SessionManager:232] [Turn:83] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:11.067 [INFO] [SessionManager:264] [Turn:84] -> VAD listening started
+2026-03-08 12:42:11.980 [WARN] [SessionManager:232] [Turn:84] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:12.294 [INFO] [SessionManager:264] [Turn:85] -> VAD listening started
+2026-03-08 12:42:13.281 [WARN] [SessionManager:232] [Turn:85] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:13.312 [INFO] [SessionManager:264] [Turn:86] -> VAD listening started
+2026-03-08 12:42:14.981 [WARN] [SessionManager:232] [Turn:86] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:14.997 [INFO] [SessionManager:264] [Turn:87] -> VAD listening started
+2026-03-08 12:42:16.282 [WARN] [SessionManager:232] [Turn:87] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:16.373 [INFO] [SessionManager:264] [Turn:88] -> VAD listening started
+2026-03-08 12:42:18.381 [WARN] [SessionManager:232] [Turn:88] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:18.416 [INFO] [SessionManager:264] [Turn:89] -> VAD listening started
+2026-03-08 12:42:19.281 [WARN] [SessionManager:232] [Turn:89] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:19.376 [INFO] [SessionManager:264] [Turn:90] -> VAD listening started
+2026-03-08 12:42:20.780 [WARN] [SessionManager:232] [Turn:90] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:22.149 [INFO] [SessionManager:264] [Turn:91] -> VAD listening started
+2026-03-08 12:42:22.980 [WARN] [SessionManager:232] [Turn:91] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:42:23.497 [ERROR] [SessionManager:533] send status failed: websocket: close sent
+2026-03-08 12:51:34.859 [INFO] [SessionManager:264] [Turn:1] -> VAD listening started
+2026-03-08 12:51:36.799 [INFO] [SessionManager:321] [Turn:1] "我要准备去吃饭了。" -> ASR final
+2026-03-08 12:51:36.800 [INFO] [SessionManager:244] [Turn:1] "我要准备去吃饭了。" -> LLM Triggered
+2026-03-08 12:51:40.652 [INFO] [AudioPipeline:88] [Turn:1] "祝你吃得开心，好好享..." -> TTS start sending...
+2026-03-08 12:51:40.653 [INFO] [AudioPipeline:163] [Turn:1] -> TTS finished sending
+2026-03-08 12:51:48.470 [INFO] [SessionManager:264] [Turn:2] -> VAD listening started
+2026-03-08 12:51:50.493 [INFO] [SessionManager:321] [Turn:2] "我吃的不开心。" -> ASR final
+2026-03-08 12:51:50.493 [INFO] [SessionManager:244] [Turn:2] "我吃的不开心。" -> LLM Triggered
+2026-03-08 12:51:53.273 [INFO] [AudioPipeline:88] [Turn:2] "别不开心啦，是不是饭..." -> TTS start sending...
+2026-03-08 12:51:54.073 [INFO] [AudioPipeline:163] [Turn:2] -> TTS finished sending
+2026-03-08 12:52:00.134 [INFO] [SessionManager:264] [Turn:3] -> VAD listening started
+2026-03-08 12:52:01.343 [WARN] [SessionManager:232] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:01.363 [INFO] [SessionManager:264] [Turn:4] -> VAD listening started
+2026-03-08 12:52:02.244 [WARN] [SessionManager:232] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:09.952 [INFO] [SessionManager:264] [Turn:5] -> VAD listening started
+2026-03-08 12:52:10.842 [WARN] [SessionManager:232] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:11.472 [INFO] [SessionManager:264] [Turn:6] -> VAD listening started
+2026-03-08 12:52:12.342 [WARN] [SessionManager:232] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:18.789 [INFO] [SessionManager:264] [Turn:7] -> VAD listening started
+2026-03-08 12:52:19.643 [WARN] [SessionManager:232] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:19.670 [INFO] [SessionManager:264] [Turn:8] -> VAD listening started
+2026-03-08 12:52:20.542 [WARN] [SessionManager:232] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:21.690 [INFO] [SessionManager:264] [Turn:9] -> VAD listening started
+2026-03-08 12:52:22.942 [WARN] [SessionManager:232] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:25.338 [INFO] [SessionManager:264] [Turn:10] -> VAD listening started
+2026-03-08 12:52:30.843 [WARN] [SessionManager:232] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:32.821 [INFO] [SessionManager:264] [Turn:11] -> VAD listening started
+2026-03-08 12:52:34.743 [WARN] [SessionManager:232] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:34.860 [INFO] [SessionManager:264] [Turn:12] -> VAD listening started
+2026-03-08 12:52:36.642 [WARN] [SessionManager:232] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:36.671 [INFO] [SessionManager:264] [Turn:13] -> VAD listening started
+2026-03-08 12:52:39.242 [WARN] [SessionManager:232] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:39.440 [INFO] [SessionManager:264] [Turn:14] -> VAD listening started
+2026-03-08 12:52:40.943 [WARN] [SessionManager:232] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:41.083 [INFO] [SessionManager:264] [Turn:15] -> VAD listening started
+2026-03-08 12:52:43.842 [WARN] [SessionManager:232] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:47.734 [INFO] [SessionManager:264] [Turn:16] -> VAD listening started
+2026-03-08 12:52:49.141 [WARN] [SessionManager:232] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:51.509 [INFO] [SessionManager:264] [Turn:17] -> VAD listening started
+2026-03-08 12:52:52.443 [WARN] [SessionManager:232] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:52.912 [INFO] [SessionManager:264] [Turn:18] -> VAD listening started
+2026-03-08 12:52:53.842 [WARN] [SessionManager:232] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:54.092 [INFO] [SessionManager:264] [Turn:19] -> VAD listening started
+2026-03-08 12:52:54.942 [WARN] [SessionManager:232] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:56.762 [INFO] [SessionManager:264] [Turn:20] -> VAD listening started
+2026-03-08 12:52:57.642 [WARN] [SessionManager:232] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:52:58.629 [INFO] [SessionManager:264] [Turn:21] -> VAD listening started
+2026-03-08 12:52:59.543 [WARN] [SessionManager:232] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:00.080 [INFO] [SessionManager:264] [Turn:22] -> VAD listening started
+2026-03-08 12:53:00.942 [WARN] [SessionManager:232] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:01.899 [INFO] [SessionManager:264] [Turn:23] -> VAD listening started
+2026-03-08 12:53:02.743 [WARN] [SessionManager:232] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:03.712 [INFO] [SessionManager:264] [Turn:24] -> VAD listening started
+2026-03-08 12:53:04.642 [WARN] [SessionManager:232] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:05.552 [INFO] [SessionManager:264] [Turn:25] -> VAD listening started
+2026-03-08 12:53:06.444 [WARN] [SessionManager:232] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:17.189 [INFO] [SessionManager:264] [Turn:26] -> VAD listening started
+2026-03-08 12:53:18.243 [WARN] [SessionManager:232] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:18.904 [INFO] [SessionManager:264] [Turn:27] -> VAD listening started
+2026-03-08 12:53:19.742 [WARN] [SessionManager:232] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:23.691 [INFO] [SessionManager:264] [Turn:28] -> VAD listening started
+2026-03-08 12:53:24.643 [WARN] [SessionManager:232] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:28.853 [INFO] [SessionManager:264] [Turn:29] -> VAD listening started
+2026-03-08 12:53:29.741 [WARN] [SessionManager:232] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:31.211 [INFO] [SessionManager:264] [Turn:30] -> VAD listening started
+2026-03-08 12:53:32.141 [WARN] [SessionManager:232] [Turn:30] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:40.331 [INFO] [SessionManager:264] [Turn:31] -> VAD listening started
+2026-03-08 12:53:41.243 [WARN] [SessionManager:232] [Turn:31] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:42.698 [INFO] [SessionManager:264] [Turn:32] -> VAD listening started
+2026-03-08 12:53:43.542 [WARN] [SessionManager:232] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:43.701 [INFO] [SessionManager:264] [Turn:33] -> VAD listening started
+2026-03-08 12:53:44.543 [WARN] [SessionManager:232] [Turn:33] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:46.501 [INFO] [SessionManager:264] [Turn:34] -> VAD listening started
+2026-03-08 12:53:47.342 [WARN] [SessionManager:232] [Turn:34] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:48.711 [INFO] [SessionManager:264] [Turn:35] -> VAD listening started
+2026-03-08 12:53:49.643 [WARN] [SessionManager:232] [Turn:35] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:50.699 [INFO] [SessionManager:264] [Turn:36] -> VAD listening started
+2026-03-08 12:53:51.542 [WARN] [SessionManager:232] [Turn:36] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:53:53.531 [INFO] [SessionManager:264] [Turn:37] -> VAD listening started
+2026-03-08 12:53:54.442 [WARN] [SessionManager:232] [Turn:37] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:02.949 [INFO] [SessionManager:264] [Turn:38] -> VAD listening started
+2026-03-08 12:54:04.043 [WARN] [SessionManager:232] [Turn:38] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:04.202 [INFO] [SessionManager:264] [Turn:39] -> VAD listening started
+2026-03-08 12:54:05.143 [WARN] [SessionManager:232] [Turn:39] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:05.899 [INFO] [SessionManager:264] [Turn:40] -> VAD listening started
+2026-03-08 12:54:06.843 [WARN] [SessionManager:232] [Turn:40] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:06.874 [INFO] [SessionManager:264] [Turn:41] -> VAD listening started
+2026-03-08 12:54:07.742 [WARN] [SessionManager:232] [Turn:41] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:08.901 [INFO] [SessionManager:264] [Turn:42] -> VAD listening started
+2026-03-08 12:54:13.143 [WARN] [SessionManager:232] [Turn:42] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:13.280 [INFO] [SessionManager:264] [Turn:43] -> VAD listening started
+2026-03-08 12:54:15.144 [WARN] [SessionManager:232] [Turn:43] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:16.763 [INFO] [SessionManager:264] [Turn:44] -> VAD listening started
+2026-03-08 12:54:17.642 [WARN] [SessionManager:232] [Turn:44] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:17.676 [INFO] [SessionManager:264] [Turn:45] -> VAD listening started
+2026-03-08 12:54:18.542 [WARN] [SessionManager:232] [Turn:45] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:20.773 [INFO] [SessionManager:264] [Turn:46] -> VAD listening started
+2026-03-08 12:54:21.642 [WARN] [SessionManager:232] [Turn:46] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:21.679 [INFO] [SessionManager:264] [Turn:47] -> VAD listening started
+2026-03-08 12:54:22.642 [WARN] [SessionManager:232] [Turn:47] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:22.675 [INFO] [SessionManager:264] [Turn:48] -> VAD listening started
+2026-03-08 12:54:23.542 [WARN] [SessionManager:232] [Turn:48] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:24.790 [INFO] [SessionManager:264] [Turn:49] -> VAD listening started
+2026-03-08 12:54:26.043 [WARN] [SessionManager:232] [Turn:49] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:28.272 [INFO] [SessionManager:264] [Turn:50] -> VAD listening started
+2026-03-08 12:54:29.142 [WARN] [SessionManager:232] [Turn:50] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:29.840 [INFO] [SessionManager:264] [Turn:51] -> VAD listening started
+2026-03-08 12:54:31.342 [WARN] [SessionManager:232] [Turn:51] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:31.862 [INFO] [SessionManager:264] [Turn:52] -> VAD listening started
+2026-03-08 12:54:33.146 [WARN] [SessionManager:232] [Turn:52] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:33.551 [INFO] [SessionManager:264] [Turn:53] -> VAD listening started
+2026-03-08 12:54:34.442 [WARN] [SessionManager:232] [Turn:53] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:35.531 [INFO] [SessionManager:264] [Turn:54] -> VAD listening started
+2026-03-08 12:54:37.043 [WARN] [SessionManager:232] [Turn:54] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:37.813 [INFO] [SessionManager:264] [Turn:55] -> VAD listening started
+2026-03-08 12:54:38.742 [WARN] [SessionManager:232] [Turn:55] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:38.911 [INFO] [SessionManager:264] [Turn:56] -> VAD listening started
+2026-03-08 12:54:39.842 [WARN] [SessionManager:232] [Turn:56] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:45.851 [INFO] [SessionManager:264] [Turn:57] -> VAD listening started
+2026-03-08 12:54:46.742 [WARN] [SessionManager:232] [Turn:57] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:47.050 [INFO] [SessionManager:264] [Turn:58] -> VAD listening started
+2026-03-08 12:54:48.443 [WARN] [SessionManager:232] [Turn:58] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:48.933 [INFO] [SessionManager:264] [Turn:59] -> VAD listening started
+2026-03-08 12:54:49.841 [WARN] [SessionManager:232] [Turn:59] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:51.141 [INFO] [SessionManager:264] [Turn:60] -> VAD listening started
+2026-03-08 12:54:53.743 [WARN] [SessionManager:232] [Turn:60] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:53.861 [INFO] [SessionManager:264] [Turn:61] -> VAD listening started
+2026-03-08 12:54:55.745 [WARN] [SessionManager:232] [Turn:61] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:55.963 [INFO] [SessionManager:264] [Turn:62] -> VAD listening started
+2026-03-08 12:54:56.843 [WARN] [SessionManager:232] [Turn:62] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:57.819 [INFO] [SessionManager:264] [Turn:63] -> VAD listening started
+2026-03-08 12:54:58.742 [WARN] [SessionManager:232] [Turn:63] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:54:59.840 [INFO] [SessionManager:264] [Turn:64] -> VAD listening started
+2026-03-08 12:55:09.446 [WARN] [SessionManager:232] [Turn:64] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:09.589 [INFO] [SessionManager:264] [Turn:65] -> VAD listening started
+2026-03-08 12:55:13.143 [WARN] [SessionManager:232] [Turn:65] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:13.600 [INFO] [SessionManager:264] [Turn:66] -> VAD listening started
+2026-03-08 12:55:15.442 [WARN] [SessionManager:232] [Turn:66] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:17.962 [INFO] [SessionManager:264] [Turn:67] -> VAD listening started
+2026-03-08 12:55:18.844 [WARN] [SessionManager:232] [Turn:67] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:18.970 [INFO] [SessionManager:264] [Turn:68] -> VAD listening started
+2026-03-08 12:55:19.844 [WARN] [SessionManager:232] [Turn:68] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:20.591 [INFO] [SessionManager:264] [Turn:69] -> VAD listening started
+2026-03-08 12:55:22.342 [WARN] [SessionManager:232] [Turn:69] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:22.388 [INFO] [SessionManager:264] [Turn:70] -> VAD listening started
+2026-03-08 12:55:24.341 [WARN] [SessionManager:232] [Turn:70] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:24.374 [INFO] [SessionManager:264] [Turn:71] -> VAD listening started
+2026-03-08 12:55:25.644 [WARN] [SessionManager:232] [Turn:71] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:25.738 [INFO] [SessionManager:264] [Turn:72] -> VAD listening started
+2026-03-08 12:55:26.942 [WARN] [SessionManager:232] [Turn:72] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:29.519 [INFO] [SessionManager:264] [Turn:73] -> VAD listening started
+2026-03-08 12:55:30.843 [WARN] [SessionManager:232] [Turn:73] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:30.873 [INFO] [SessionManager:264] [Turn:74] -> VAD listening started
+2026-03-08 12:55:32.442 [WARN] [SessionManager:232] [Turn:74] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:32.522 [INFO] [SessionManager:264] [Turn:75] -> VAD listening started
+2026-03-08 12:55:33.842 [WARN] [SessionManager:232] [Turn:75] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:34.971 [INFO] [SessionManager:264] [Turn:76] -> VAD listening started
+2026-03-08 12:55:38.142 [WARN] [SessionManager:232] [Turn:76] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:38.174 [INFO] [SessionManager:264] [Turn:77] -> VAD listening started
+2026-03-08 12:55:39.042 [WARN] [SessionManager:232] [Turn:77] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:39.071 [INFO] [SessionManager:264] [Turn:78] -> VAD listening started
+2026-03-08 12:55:42.349 [WARN] [SessionManager:232] [Turn:78] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:42.381 [INFO] [SessionManager:264] [Turn:79] -> VAD listening started
+2026-03-08 12:55:44.843 [WARN] [SessionManager:232] [Turn:79] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:46.410 [INFO] [SessionManager:264] [Turn:80] -> VAD listening started
+2026-03-08 12:55:48.942 [WARN] [SessionManager:232] [Turn:80] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:48.970 [INFO] [SessionManager:264] [Turn:81] -> VAD listening started
+2026-03-08 12:55:53.243 [WARN] [SessionManager:232] [Turn:81] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:53.280 [INFO] [SessionManager:264] [Turn:82] -> VAD listening started
+2026-03-08 12:55:55.942 [WARN] [SessionManager:232] [Turn:82] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:55:57.392 [INFO] [SessionManager:264] [Turn:83] -> VAD listening started
+2026-03-08 12:55:58.743 [WARN] [SessionManager:232] [Turn:83] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:00.053 [INFO] [SessionManager:264] [Turn:84] -> VAD listening started
+2026-03-08 12:56:02.443 [WARN] [SessionManager:232] [Turn:84] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:03.179 [INFO] [SessionManager:264] [Turn:85] -> VAD listening started
+2026-03-08 12:56:04.142 [WARN] [SessionManager:232] [Turn:85] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:04.250 [INFO] [SessionManager:264] [Turn:86] -> VAD listening started
+2026-03-08 12:56:06.142 [WARN] [SessionManager:232] [Turn:86] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:06.228 [INFO] [SessionManager:264] [Turn:87] -> VAD listening started
+2026-03-08 12:56:07.142 [WARN] [SessionManager:232] [Turn:87] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:07.493 [INFO] [SessionManager:264] [Turn:88] -> VAD listening started
+2026-03-08 12:56:09.042 [WARN] [SessionManager:232] [Turn:88] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:15.611 [INFO] [SessionManager:264] [Turn:89] -> VAD listening started
+2026-03-08 12:56:16.542 [WARN] [SessionManager:232] [Turn:89] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:23.781 [INFO] [SessionManager:264] [Turn:90] -> VAD listening started
+2026-03-08 12:56:24.942 [WARN] [SessionManager:232] [Turn:90] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:25.254 [INFO] [SessionManager:264] [Turn:91] -> VAD listening started
+2026-03-08 12:56:26.142 [WARN] [SessionManager:232] [Turn:91] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:56:29.733 [INFO] [SessionManager:264] [Turn:92] -> VAD listening started
+2026-03-08 12:56:30.642 [WARN] [SessionManager:232] [Turn:92] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:18.022 [INFO] [SessionManager:264] [Turn:93] -> VAD listening started
+2026-03-08 12:57:19.043 [WARN] [SessionManager:232] [Turn:93] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:22.399 [INFO] [SessionManager:264] [Turn:94] -> VAD listening started
+2026-03-08 12:57:23.442 [WARN] [SessionManager:232] [Turn:94] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:26.059 [INFO] [SessionManager:264] [Turn:95] -> VAD listening started
+2026-03-08 12:57:27.143 [WARN] [SessionManager:232] [Turn:95] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:27.461 [INFO] [SessionManager:264] [Turn:96] -> VAD listening started
+2026-03-08 12:57:28.343 [WARN] [SessionManager:232] [Turn:96] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:28.388 [INFO] [SessionManager:264] [Turn:97] -> VAD listening started
+2026-03-08 12:57:29.843 [WARN] [SessionManager:232] [Turn:97] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:30.101 [INFO] [SessionManager:264] [Turn:98] -> VAD listening started
+2026-03-08 12:57:31.244 [WARN] [SessionManager:232] [Turn:98] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:31.418 [INFO] [SessionManager:264] [Turn:99] -> VAD listening started
+2026-03-08 12:57:32.443 [WARN] [SessionManager:232] [Turn:99] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:33.231 [INFO] [SessionManager:264] [Turn:100] -> VAD listening started
+2026-03-08 12:57:34.542 [WARN] [SessionManager:232] [Turn:100] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:34.708 [INFO] [SessionManager:264] [Turn:101] -> VAD listening started
+2026-03-08 12:57:35.542 [WARN] [SessionManager:232] [Turn:101] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:36.138 [INFO] [SessionManager:264] [Turn:102] -> VAD listening started
+2026-03-08 12:57:37.344 [WARN] [SessionManager:232] [Turn:102] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:38.113 [INFO] [SessionManager:264] [Turn:103] -> VAD listening started
+2026-03-08 12:57:39.043 [WARN] [SessionManager:232] [Turn:103] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:39.590 [INFO] [SessionManager:264] [Turn:104] -> VAD listening started
+2026-03-08 12:57:40.543 [WARN] [SessionManager:232] [Turn:104] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:40.581 [INFO] [SessionManager:264] [Turn:105] -> VAD listening started
+2026-03-08 12:57:42.143 [WARN] [SessionManager:232] [Turn:105] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:42.778 [INFO] [SessionManager:264] [Turn:106] -> VAD listening started
+2026-03-08 12:57:43.643 [WARN] [SessionManager:232] [Turn:106] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:44.372 [INFO] [SessionManager:264] [Turn:107] -> VAD listening started
+2026-03-08 12:57:45.343 [WARN] [SessionManager:232] [Turn:107] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:45.909 [INFO] [SessionManager:264] [Turn:108] -> VAD listening started
+2026-03-08 12:57:46.843 [WARN] [SessionManager:232] [Turn:108] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:47.255 [INFO] [SessionManager:264] [Turn:109] -> VAD listening started
+2026-03-08 12:57:49.844 [WARN] [SessionManager:232] [Turn:109] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:49.951 [INFO] [SessionManager:264] [Turn:110] -> VAD listening started
+2026-03-08 12:57:51.343 [WARN] [SessionManager:232] [Turn:110] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:57:51.829 [INFO] [SessionManager:264] [Turn:111] -> VAD listening started
+2026-03-08 12:58:03.042 [WARN] [SessionManager:232] [Turn:111] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:04.298 [INFO] [SessionManager:264] [Turn:112] -> VAD listening started
+2026-03-08 12:58:05.142 [WARN] [SessionManager:232] [Turn:112] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:05.188 [INFO] [SessionManager:264] [Turn:113] -> VAD listening started
+2026-03-08 12:58:06.144 [WARN] [SessionManager:232] [Turn:113] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:14.034 [INFO] [SessionManager:264] [Turn:114] -> VAD listening started
+2026-03-08 12:58:15.042 [WARN] [SessionManager:232] [Turn:114] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:37.312 [INFO] [SessionManager:264] [Turn:115] -> VAD listening started
+2026-03-08 12:58:38.441 [WARN] [SessionManager:232] [Turn:115] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:52.479 [INFO] [SessionManager:264] [Turn:116] -> VAD listening started
+2026-03-08 12:58:53.342 [WARN] [SessionManager:232] [Turn:116] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:54.939 [INFO] [SessionManager:264] [Turn:117] -> VAD listening started
+2026-03-08 12:58:56.243 [WARN] [SessionManager:232] [Turn:117] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:58:58.012 [INFO] [SessionManager:264] [Turn:118] -> VAD listening started
+2026-03-08 12:58:58.942 [WARN] [SessionManager:232] [Turn:118] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:09.269 [INFO] [SessionManager:264] [Turn:119] -> VAD listening started
+2026-03-08 12:59:10.242 [WARN] [SessionManager:232] [Turn:119] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:13.621 [INFO] [SessionManager:264] [Turn:120] -> VAD listening started
+2026-03-08 12:59:14.542 [WARN] [SessionManager:232] [Turn:120] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:16.010 [INFO] [SessionManager:264] [Turn:121] -> VAD listening started
+2026-03-08 12:59:17.643 [WARN] [SessionManager:232] [Turn:121] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:19.631 [INFO] [SessionManager:264] [Turn:122] -> VAD listening started
+2026-03-08 12:59:21.942 [WARN] [SessionManager:232] [Turn:122] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:23.471 [INFO] [SessionManager:264] [Turn:123] -> VAD listening started
+2026-03-08 12:59:26.243 [WARN] [SessionManager:232] [Turn:123] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:31.952 [INFO] [SessionManager:264] [Turn:124] -> VAD listening started
+2026-03-08 12:59:32.843 [WARN] [SessionManager:232] [Turn:124] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:43.770 [INFO] [SessionManager:264] [Turn:125] -> VAD listening started
+2026-03-08 12:59:44.743 [WARN] [SessionManager:232] [Turn:125] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:45.152 [INFO] [SessionManager:264] [Turn:126] -> VAD listening started
+2026-03-08 12:59:46.352 [WARN] [SessionManager:232] [Turn:126] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:46.911 [INFO] [SessionManager:264] [Turn:127] -> VAD listening started
+2026-03-08 12:59:47.844 [WARN] [SessionManager:232] [Turn:127] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:48.202 [INFO] [SessionManager:264] [Turn:128] -> VAD listening started
+2026-03-08 12:59:49.142 [WARN] [SessionManager:232] [Turn:128] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:51.792 [INFO] [SessionManager:264] [Turn:129] -> VAD listening started
+2026-03-08 12:59:52.741 [WARN] [SessionManager:232] [Turn:129] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:52.799 [INFO] [SessionManager:264] [Turn:130] -> VAD listening started
+2026-03-08 12:59:54.542 [WARN] [SessionManager:232] [Turn:130] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:54.571 [INFO] [SessionManager:264] [Turn:131] -> VAD listening started
+2026-03-08 12:59:55.542 [WARN] [SessionManager:232] [Turn:131] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:56.191 [INFO] [SessionManager:264] [Turn:132] -> VAD listening started
+2026-03-08 12:59:57.143 [WARN] [SessionManager:232] [Turn:132] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 12:59:57.632 [INFO] [SessionManager:264] [Turn:133] -> VAD listening started
+2026-03-08 12:59:59.642 [WARN] [SessionManager:232] [Turn:133] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 13:00:02.773 [INFO] [SessionManager:264] [Turn:134] -> VAD listening started
+2026-03-08 13:00:05.143 [WARN] [SessionManager:232] [Turn:134] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 13:00:08.272 [INFO] [SessionManager:264] [Turn:135] -> VAD listening started
+2026-03-08 13:00:14.043 [WARN] [SessionManager:232] [Turn:135] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 13:00:15.129 [INFO] [SessionManager:264] [Turn:136] -> VAD listening started
+2026-03-08 13:00:16.542 [WARN] [SessionManager:232] [Turn:136] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 13:00:16.932 [INFO] [SessionManager:264] [Turn:137] -> VAD listening started
+2026-03-08 13:00:17.942 [WARN] [SessionManager:232] [Turn:137] ASR final wait timed out for trigger_llm; falling back
+2026-03-08 13:00:27.711 [INFO] [SessionManager:264] [Turn:138] -> VAD listening started
+2026-03-09 14:11:53.740 [WARN] [System:63] shutdown requested from 127.0.0.1:49854
+
+=== DEPLOY id=d908e99f-0412-4deb-ad3e-c288f0a6df8e ts=2026-03-09 14:11:53 CST backend=26030901 pid=? ===
+=== DEPLOY id=d908e99f-0412-4deb-ad3e-c288f0a6df8e ts=2026-03-09 14:11:53 CST backend=26030901 pid=29532 started ===
+2026-03-09 14:11:54.496 [INFO] [System:45] kagent version backend=26030901 webui=26030901
+2026-03-09 14:11:54.496 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-09 14:12:01.071 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 14:12:01.921 [WARN] [SessionManager:245] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:12:02.238 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 14:12:03.220 [WARN] [SessionManager:245] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:12:06.944 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 14:12:10.589 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 14:12:11.501 [WARN] [SessionManager:245] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:12:11.512 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 14:12:13.108 [INFO] [SessionManager:334] [Turn:2] "That, that..." -> ASR final
+2026-03-09 14:12:13.109 [INFO] [SessionManager:257] [Turn:2] "That, that..." -> LLM Triggered
+2026-03-09 14:12:16.902 [INFO] [AudioPipeline:90] [Turn:2] "别急别急，你慢慢说~..." -> TTS start sending...
+2026-03-09 14:12:16.903 [INFO] [AudioPipeline:165] [Turn:2] -> TTS finished sending
+2026-03-09 14:12:23.251 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
+2026-03-09 14:12:26.690 [INFO] [SessionManager:334] [Turn:3] "我问你在不在？在干什..." -> ASR final
+2026-03-09 14:12:26.690 [INFO] [SessionManager:257] [Turn:3] "我问你在不在？在干什..." -> LLM Triggered
+2026-03-09 14:12:28.681 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
+2026-03-09 14:12:29.755 [INFO] [AudioPipeline:90] [Turn:3] "在呢~我一直都在这儿..." -> TTS start sending...
+2026-03-09 14:12:29.755 [INFO] [AudioPipeline:165] [Turn:3] -> TTS finished sending
+2026-03-09 14:12:29.802 [WARN] [SessionManager:245] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:12:44.600 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
+2026-03-09 14:12:46.372 [INFO] [SessionManager:334] [Turn:5] "你吃饭了吗？" -> ASR final
+2026-03-09 14:12:46.578 [INFO] [SessionManager:257] [Turn:5] "你吃饭了吗？" -> LLM Triggered
+2026-03-09 14:12:48.741 [INFO] [AudioPipeline:90] [Turn:5] "我不用吃饭哦，不过还..." -> TTS start sending...
+2026-03-09 14:12:48.741 [INFO] [AudioPipeline:165] [Turn:5] -> TTS finished sending
+2026-03-09 14:12:52.431 [INFO] [SessionManager:219] [Turn:6] -> VAD interrupt received (reason=barge_in)
+2026-03-09 14:12:55.077 [INFO] [SessionManager:334] [Turn:6] "你别客气，吃点吃点。" -> ASR final
+2026-03-09 14:12:55.077 [INFO] [SessionManager:257] [Turn:6] "你别客气，吃点吃点。" -> LLM Triggered
+2026-03-09 14:12:58.332 [INFO] [AudioPipeline:90] [Turn:6] "哈哈，我可不用吃饭呢..." -> TTS start sending...
+2026-03-09 14:12:58.332 [INFO] [AudioPipeline:165] [Turn:6] -> TTS finished sending
+2026-03-09 14:13:02.281 [INFO] [SessionManager:219] [Turn:7] -> VAD interrupt received (reason=barge_in)
+2026-03-09 14:13:04.955 [INFO] [SessionManager:334] [Turn:7] "太客气了，你这人太客..." -> ASR final
+2026-03-09 14:13:04.956 [INFO] [SessionManager:257] [Turn:7] "太客气了，你这人太客..." -> LLM Triggered
+2026-03-09 14:13:08.336 [INFO] [AudioPipeline:90] [Turn:7] "嘿嘿，习惯啦~跟你聊..." -> TTS start sending...
+2026-03-09 14:13:08.337 [INFO] [AudioPipeline:165] [Turn:7] -> TTS finished sending
+2026-03-09 14:13:13.480 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
+2026-03-09 14:13:15.403 [INFO] [SessionManager:334] [Turn:8] "哦，我请你吃饭。" -> ASR final
+2026-03-09 14:13:15.403 [INFO] [SessionManager:257] [Turn:8] "哦，我请你吃饭。" -> LLM Triggered
+2026-03-09 14:13:18.632 [INFO] [AudioPipeline:90] [Turn:8] "哈哈，谢谢你的心意呀..." -> TTS start sending...
+2026-03-09 14:13:18.632 [INFO] [AudioPipeline:165] [Turn:8] -> TTS finished sending
+2026-03-09 14:13:24.963 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
+2026-03-09 14:13:25.801 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:13:27.362 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+2026-03-09 14:13:28.302 [WARN] [SessionManager:245] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:13:57.294 [INFO] [SessionManager:277] [Turn:11] -> VAD listening started
+2026-03-09 14:13:58.202 [WARN] [SessionManager:245] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:13:58.212 [INFO] [SessionManager:277] [Turn:12] -> VAD listening started
+2026-03-09 14:13:59.102 [WARN] [SessionManager:245] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:13:59.869 [INFO] [SessionManager:277] [Turn:13] -> VAD listening started
+2026-03-09 14:14:03.500 [WARN] [SessionManager:245] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:03.538 [INFO] [SessionManager:277] [Turn:14] -> VAD listening started
+2026-03-09 14:14:04.401 [WARN] [SessionManager:245] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:06.178 [INFO] [SessionManager:277] [Turn:15] -> VAD listening started
+2026-03-09 14:14:07.101 [WARN] [SessionManager:245] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:08.109 [INFO] [SessionManager:277] [Turn:16] -> VAD listening started
+2026-03-09 14:14:09.103 [WARN] [SessionManager:245] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:09.501 [INFO] [SessionManager:277] [Turn:17] -> VAD listening started
+2026-03-09 14:14:10.603 [WARN] [SessionManager:245] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:17.548 [INFO] [SessionManager:277] [Turn:18] -> VAD listening started
+2026-03-09 14:14:18.498 [WARN] [SessionManager:245] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:14:19.047 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 14:23:42.377 [WARN] [System:93] shutdown requested from 127.0.0.1:50331
+
+=== DEPLOY id=90e64418-c613-4382-8c81-fd3f617d5341 ts=2026-03-09 14:23:42 CST backend=26030901 pid=? ===
+=== DEPLOY id=90e64418-c613-4382-8c81-fd3f617d5341 ts=2026-03-09 14:23:42 CST backend=26030901 pid=31189 started ===
+2026-03-09 14:23:43.005 [INFO] [System:45] kagent version backend=26030901 webui=26030901
+2026-03-09 14:23:43.005 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-09 14:23:57.441 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 14:24:00.554 [INFO] [SessionManager:334] [Turn:1] "茄子、黄瓜、辣椒。" -> ASR final
+2026-03-09 14:24:00.554 [INFO] [SessionManager:257] [Turn:1] "茄子、黄瓜、辣椒。" -> LLM Triggered
+2026-03-09 14:24:04.933 [INFO] [AudioPipeline:90] [Turn:1] "茄子、黄瓜、辣椒都是..." -> TTS start sending...
+2026-03-09 14:24:05.973 [INFO] [AudioPipeline:165] [Turn:1] -> TTS finished sending
+2026-03-09 14:24:16.180 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 14:24:17.784 [WARN] [SessionManager:245] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:18.331 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
+2026-03-09 14:24:19.382 [WARN] [SessionManager:245] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:42.221 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
+2026-03-09 14:24:43.082 [WARN] [SessionManager:245] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:47.505 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
+2026-03-09 14:24:49.082 [WARN] [SessionManager:245] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:49.234 [INFO] [SessionManager:277] [Turn:6] -> VAD listening started
+2026-03-09 14:24:51.883 [WARN] [SessionManager:245] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:52.097 [INFO] [SessionManager:277] [Turn:7] -> VAD listening started
+2026-03-09 14:24:53.283 [WARN] [SessionManager:245] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:53.289 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
+2026-03-09 14:24:54.184 [WARN] [SessionManager:245] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:55.543 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
+2026-03-09 14:24:56.782 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:56.797 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+2026-03-09 14:24:58.984 [WARN] [SessionManager:245] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:24:58.990 [INFO] [SessionManager:277] [Turn:11] -> VAD listening started
+2026-03-09 14:25:01.284 [WARN] [SessionManager:245] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:01.318 [INFO] [SessionManager:277] [Turn:12] -> VAD listening started
+2026-03-09 14:25:02.382 [WARN] [SessionManager:245] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:02.390 [INFO] [SessionManager:277] [Turn:13] -> VAD listening started
+2026-03-09 14:25:04.082 [WARN] [SessionManager:245] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:05.351 [INFO] [SessionManager:277] [Turn:14] -> VAD listening started
+2026-03-09 14:25:06.382 [WARN] [SessionManager:245] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:07.116 [INFO] [SessionManager:277] [Turn:15] -> VAD listening started
+2026-03-09 14:25:09.083 [WARN] [SessionManager:245] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:13.079 [INFO] [SessionManager:277] [Turn:16] -> VAD listening started
+2026-03-09 14:25:14.081 [WARN] [SessionManager:245] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 14:25:16.386 [INFO] [SessionManager:277] [Turn:17] -> VAD listening started
+2026-03-09 14:25:16.391 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 15:50:10.286 [WARN] [System:93] shutdown requested from 127.0.0.1:52992
+
+=== DEPLOY id=84544d3c-70a2-4d65-b59d-430c0e72c6b2 ts=2026-03-09 15:50:10 CST backend=26030901 pid=? ===
+=== DEPLOY id=84544d3c-70a2-4d65-b59d-430c0e72c6b2 ts=2026-03-09 15:50:10 CST backend=26030901 pid=34981 started ===
+2026-03-09 15:50:10.926 [INFO] [System:45] kagent version backend=26030901 webui=26030901
+2026-03-09 15:50:10.926 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-09 15:50:17.859 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 15:50:20.311 [INFO] [SessionManager:334] [Turn:1] "乌拉拉拉，乌拉拉拉。" -> ASR final
+2026-03-09 15:50:20.312 [INFO] [SessionManager:257] [Turn:1] "乌拉拉拉，乌拉拉拉。" -> LLM Triggered
+2026-03-09 15:50:23.597 [INFO] [AudioPipeline:90] [Turn:1] "哇，这个声音听起来好..." -> TTS start sending...
+2026-03-09 15:50:23.597 [INFO] [AudioPipeline:165] [Turn:1] -> TTS finished sending
+2026-03-09 15:50:30.169 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 15:50:32.854 [INFO] [SessionManager:334] [Turn:2] "我在叫你呀？你以后就..." -> ASR final
+2026-03-09 15:50:32.856 [INFO] [SessionManager:257] [Turn:2] "我在叫你呀？你以后就..." -> LLM Triggered
+2026-03-09 15:50:35.770 [INFO] [AudioPipeline:90] [Turn:2] "好呀，那我以后就是乌..." -> TTS start sending...
+2026-03-09 15:50:35.770 [INFO] [AudioPipeline:165] [Turn:2] -> TTS finished sending
+2026-03-09 15:50:40.707 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
+2026-03-09 15:50:41.636 [WARN] [SessionManager:245] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:50:41.907 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
+2026-03-09 15:50:42.737 [WARN] [SessionManager:245] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:50:43.049 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
+2026-03-09 15:50:44.035 [WARN] [SessionManager:245] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:04.099 [INFO] [SessionManager:277] [Turn:6] -> VAD listening started
+2026-03-09 15:51:05.936 [WARN] [SessionManager:245] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:08.169 [INFO] [SessionManager:277] [Turn:7] -> VAD listening started
+2026-03-09 15:51:09.038 [WARN] [SessionManager:245] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:09.357 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
+2026-03-09 15:51:11.935 [WARN] [SessionManager:245] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:12.014 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
+2026-03-09 15:51:17.839 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:17.850 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+2026-03-09 15:51:21.636 [WARN] [SessionManager:245] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:21.920 [INFO] [SessionManager:277] [Turn:11] -> VAD listening started
+2026-03-09 15:51:22.936 [WARN] [SessionManager:245] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:23.535 [INFO] [SessionManager:277] [Turn:12] -> VAD listening started
+2026-03-09 15:51:25.236 [WARN] [SessionManager:245] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:26.580 [INFO] [SessionManager:277] [Turn:13] -> VAD listening started
+2026-03-09 15:51:27.637 [WARN] [SessionManager:245] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:28.218 [INFO] [SessionManager:277] [Turn:14] -> VAD listening started
+2026-03-09 15:51:29.635 [WARN] [SessionManager:245] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:30.778 [INFO] [SessionManager:277] [Turn:15] -> VAD listening started
+2026-03-09 15:51:31.735 [WARN] [SessionManager:245] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:31.785 [INFO] [SessionManager:277] [Turn:16] -> VAD listening started
+2026-03-09 15:51:32.635 [WARN] [SessionManager:245] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:51:42.121 [INFO] [SessionManager:277] [Turn:17] -> VAD listening started
+2026-03-09 15:51:43.035 [WARN] [SessionManager:245] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:14.911 [INFO] [SessionManager:277] [Turn:18] -> VAD listening started
+2026-03-09 15:52:15.835 [WARN] [SessionManager:245] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:22.068 [INFO] [SessionManager:277] [Turn:19] -> VAD listening started
+2026-03-09 15:52:23.035 [WARN] [SessionManager:245] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:43.367 [INFO] [SessionManager:277] [Turn:20] -> VAD listening started
+2026-03-09 15:52:44.237 [WARN] [SessionManager:245] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:45.685 [INFO] [SessionManager:277] [Turn:21] -> VAD listening started
+2026-03-09 15:52:46.537 [WARN] [SessionManager:245] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:50.026 [INFO] [SessionManager:277] [Turn:22] -> VAD listening started
+2026-03-09 15:52:50.936 [WARN] [SessionManager:245] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:51.828 [INFO] [SessionManager:277] [Turn:23] -> VAD listening started
+2026-03-09 15:52:52.735 [WARN] [SessionManager:245] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:52.829 [INFO] [SessionManager:277] [Turn:24] -> VAD listening started
+2026-03-09 15:52:54.136 [WARN] [SessionManager:245] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:52:58.722 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 15:53:28.202 [WARN] [System:93] shutdown requested from 127.0.0.1:53167
+
+=== DEPLOY id=e526c96f-0650-4978-b275-b7fb14a5e6ce ts=2026-03-09 15:53:28 CST backend=26030901 pid=? ===
+=== DEPLOY id=e526c96f-0650-4978-b275-b7fb14a5e6ce ts=2026-03-09 15:53:28 CST backend=26030901 pid=35706 started ===
+2026-03-09 15:53:28.719 [INFO] [System:45] kagent version backend=26030901 webui=26030901
+2026-03-09 15:53:28.719 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-09 15:53:34.178 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 15:53:36.481 [INFO] [SessionManager:334] [Turn:1] "我准备去吃饭了。" -> ASR final
+2026-03-09 15:53:36.483 [INFO] [SessionManager:257] [Turn:1] "我准备去吃饭了。" -> LLM Triggered
+2026-03-09 15:53:38.627 [INFO] [AudioPipeline:90] [Turn:1] "好嘞，祝你吃饭香香，..." -> TTS start sending...
+2026-03-09 15:53:38.627 [INFO] [AudioPipeline:165] [Turn:1] -> TTS finished sending
+2026-03-09 15:53:46.216 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 15:53:48.590 [INFO] [SessionManager:334] [Turn:2] "能有什么开心的？" -> ASR final
+2026-03-09 15:53:48.591 [INFO] [SessionManager:257] [Turn:2] "能有什么开心的？" -> LLM Triggered
+2026-03-09 15:53:52.900 [INFO] [AudioPipeline:90] [Turn:2] "当然有呀～热乎乎的饭..." -> TTS start sending...
+2026-03-09 15:53:52.900 [INFO] [AudioPipeline:165] [Turn:2] -> TTS finished sending
+2026-03-09 15:54:07.160 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
+2026-03-09 15:54:08.075 [WARN] [SessionManager:245] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:15.506 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
+2026-03-09 15:54:16.379 [WARN] [SessionManager:245] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:19.325 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
+2026-03-09 15:54:20.177 [WARN] [SessionManager:245] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:20.364 [INFO] [SessionManager:277] [Turn:6] -> VAD listening started
+2026-03-09 15:54:22.775 [WARN] [SessionManager:245] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:26.967 [INFO] [SessionManager:277] [Turn:7] -> VAD listening started
+2026-03-09 15:54:27.875 [WARN] [SessionManager:245] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:37.183 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
+2026-03-09 15:54:38.074 [WARN] [SessionManager:245] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:38.259 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
+2026-03-09 15:54:39.275 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:39.332 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+2026-03-09 15:54:40.874 [WARN] [SessionManager:245] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:41.124 [INFO] [SessionManager:277] [Turn:11] -> VAD listening started
+2026-03-09 15:54:42.575 [WARN] [SessionManager:245] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:42.671 [INFO] [SessionManager:277] [Turn:12] -> VAD listening started
+2026-03-09 15:54:43.874 [WARN] [SessionManager:245] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:44.505 [INFO] [SessionManager:277] [Turn:13] -> VAD listening started
+2026-03-09 15:54:45.474 [WARN] [SessionManager:245] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:46.948 [INFO] [SessionManager:277] [Turn:14] -> VAD listening started
+2026-03-09 15:54:48.176 [WARN] [SessionManager:245] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:49.518 [INFO] [SessionManager:277] [Turn:15] -> VAD listening started
+2026-03-09 15:54:51.375 [WARN] [SessionManager:245] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:54.031 [INFO] [SessionManager:277] [Turn:16] -> VAD listening started
+2026-03-09 15:54:55.874 [WARN] [SessionManager:245] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:55.929 [INFO] [SessionManager:277] [Turn:17] -> VAD listening started
+2026-03-09 15:54:57.475 [WARN] [SessionManager:245] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:54:57.485 [INFO] [SessionManager:277] [Turn:18] -> VAD listening started
+2026-03-09 15:54:58.375 [WARN] [SessionManager:245] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:03.871 [INFO] [SessionManager:277] [Turn:19] -> VAD listening started
+2026-03-09 15:55:06.475 [WARN] [SessionManager:245] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:07.273 [INFO] [SessionManager:277] [Turn:20] -> VAD listening started
+2026-03-09 15:55:08.174 [WARN] [SessionManager:245] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:08.494 [INFO] [SessionManager:277] [Turn:21] -> VAD listening started
+2026-03-09 15:55:09.379 [WARN] [SessionManager:245] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:26.698 [INFO] [SessionManager:277] [Turn:22] -> VAD listening started
+2026-03-09 15:55:27.775 [WARN] [SessionManager:245] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:28.442 [INFO] [SessionManager:277] [Turn:23] -> VAD listening started
+2026-03-09 15:55:29.375 [WARN] [SessionManager:245] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:30.031 [INFO] [SessionManager:277] [Turn:24] -> VAD listening started
+2026-03-09 15:55:30.974 [WARN] [SessionManager:245] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:35.594 [INFO] [SessionManager:277] [Turn:25] -> VAD listening started
+2026-03-09 15:55:36.474 [WARN] [SessionManager:245] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:37.780 [INFO] [SessionManager:277] [Turn:26] -> VAD listening started
+2026-03-09 15:55:40.174 [WARN] [SessionManager:245] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:40.943 [INFO] [SessionManager:277] [Turn:27] -> VAD listening started
+2026-03-09 15:55:42.775 [WARN] [SessionManager:245] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:42.953 [INFO] [SessionManager:277] [Turn:28] -> VAD listening started
+2026-03-09 15:55:43.975 [WARN] [SessionManager:245] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:44.644 [INFO] [SessionManager:277] [Turn:29] -> VAD listening started
+2026-03-09 15:55:45.675 [WARN] [SessionManager:245] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:46.756 [INFO] [SessionManager:277] [Turn:30] -> VAD listening started
+2026-03-09 15:55:49.375 [WARN] [SessionManager:245] [Turn:30] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:49.387 [INFO] [SessionManager:277] [Turn:31] -> VAD listening started
+2026-03-09 15:55:50.274 [WARN] [SessionManager:245] [Turn:31] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:57.076 [INFO] [SessionManager:277] [Turn:32] -> VAD listening started
+2026-03-09 15:55:58.274 [WARN] [SessionManager:245] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:58.280 [INFO] [SessionManager:277] [Turn:33] -> VAD listening started
+2026-03-09 15:55:59.175 [WARN] [SessionManager:245] [Turn:33] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:55:59.188 [INFO] [SessionManager:277] [Turn:34] -> VAD listening started
+2026-03-09 15:56:00.075 [WARN] [SessionManager:245] [Turn:34] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:00.474 [INFO] [SessionManager:277] [Turn:35] -> VAD listening started
+2026-03-09 15:56:02.575 [WARN] [SessionManager:245] [Turn:35] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:03.317 [INFO] [SessionManager:277] [Turn:36] -> VAD listening started
+2026-03-09 15:56:04.175 [WARN] [SessionManager:245] [Turn:36] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:04.388 [INFO] [SessionManager:277] [Turn:37] -> VAD listening started
+2026-03-09 15:56:06.276 [WARN] [SessionManager:245] [Turn:37] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:06.771 [INFO] [SessionManager:277] [Turn:38] -> VAD listening started
+2026-03-09 15:56:07.778 [WARN] [SessionManager:245] [Turn:38] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:09.882 [INFO] [SessionManager:277] [Turn:39] -> VAD listening started
+2026-03-09 15:56:12.074 [WARN] [SessionManager:245] [Turn:39] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:12.590 [INFO] [SessionManager:277] [Turn:40] -> VAD listening started
+2026-03-09 15:56:13.475 [WARN] [SessionManager:245] [Turn:40] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:13.535 [INFO] [SessionManager:277] [Turn:41] -> VAD listening started
+2026-03-09 15:56:14.675 [WARN] [SessionManager:245] [Turn:41] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:16.047 [INFO] [SessionManager:277] [Turn:42] -> VAD listening started
+2026-03-09 15:56:16.974 [WARN] [SessionManager:245] [Turn:42] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:23.588 [INFO] [SessionManager:277] [Turn:43] -> VAD listening started
+2026-03-09 15:56:24.474 [WARN] [SessionManager:245] [Turn:43] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:24.964 [INFO] [SessionManager:277] [Turn:44] -> VAD listening started
+2026-03-09 15:56:25.876 [WARN] [SessionManager:245] [Turn:44] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:29.967 [INFO] [SessionManager:277] [Turn:45] -> VAD listening started
+2026-03-09 15:56:31.376 [WARN] [SessionManager:245] [Turn:45] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:32.117 [INFO] [SessionManager:277] [Turn:46] -> VAD listening started
+2026-03-09 15:56:35.175 [WARN] [SessionManager:245] [Turn:46] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:36.170 [INFO] [SessionManager:277] [Turn:47] -> VAD listening started
+2026-03-09 15:56:37.074 [WARN] [SessionManager:245] [Turn:47] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:41.753 [INFO] [SessionManager:277] [Turn:48] -> VAD listening started
+2026-03-09 15:56:43.273 [WARN] [SessionManager:245] [Turn:48] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:43.534 [INFO] [SessionManager:277] [Turn:49] -> VAD listening started
+2026-03-09 15:56:45.673 [WARN] [SessionManager:245] [Turn:49] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:49.242 [INFO] [SessionManager:277] [Turn:50] -> VAD listening started
+2026-03-09 15:56:51.475 [WARN] [SessionManager:245] [Turn:50] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:52.992 [INFO] [SessionManager:277] [Turn:51] -> VAD listening started
+2026-03-09 15:56:53.874 [WARN] [SessionManager:245] [Turn:51] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:56:57.775 [INFO] [SessionManager:277] [Turn:52] -> VAD listening started
+2026-03-09 15:56:59.075 [WARN] [SessionManager:245] [Turn:52] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:01.769 [INFO] [SessionManager:277] [Turn:53] -> VAD listening started
+2026-03-09 15:57:02.675 [WARN] [SessionManager:245] [Turn:53] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:04.627 [INFO] [SessionManager:277] [Turn:54] -> VAD listening started
+2026-03-09 15:57:06.275 [WARN] [SessionManager:245] [Turn:54] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:07.945 [INFO] [SessionManager:277] [Turn:55] -> VAD listening started
+2026-03-09 15:57:09.875 [WARN] [SessionManager:245] [Turn:55] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:09.977 [INFO] [SessionManager:277] [Turn:56] -> VAD listening started
+2026-03-09 15:57:16.176 [WARN] [SessionManager:245] [Turn:56] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:16.601 [INFO] [SessionManager:277] [Turn:57] -> VAD listening started
+2026-03-09 15:57:25.073 [WARN] [SessionManager:245] [Turn:57] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:25.089 [INFO] [SessionManager:277] [Turn:58] -> VAD listening started
+2026-03-09 15:57:35.375 [WARN] [SessionManager:245] [Turn:58] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:35.471 [INFO] [SessionManager:277] [Turn:59] -> VAD listening started
+2026-03-09 15:57:39.973 [WARN] [SessionManager:245] [Turn:59] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:41.481 [INFO] [SessionManager:277] [Turn:60] -> VAD listening started
+2026-03-09 15:57:44.576 [WARN] [SessionManager:245] [Turn:60] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:44.767 [INFO] [SessionManager:277] [Turn:61] -> VAD listening started
+2026-03-09 15:57:46.275 [WARN] [SessionManager:245] [Turn:61] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:47.600 [INFO] [SessionManager:277] [Turn:62] -> VAD listening started
+2026-03-09 15:57:49.376 [WARN] [SessionManager:245] [Turn:62] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:49.497 [INFO] [SessionManager:277] [Turn:63] -> VAD listening started
+2026-03-09 15:57:50.373 [WARN] [SessionManager:245] [Turn:63] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:51.348 [INFO] [SessionManager:277] [Turn:64] -> VAD listening started
+2026-03-09 15:57:53.275 [WARN] [SessionManager:245] [Turn:64] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:54.227 [INFO] [SessionManager:277] [Turn:65] -> VAD listening started
+2026-03-09 15:57:57.174 [WARN] [SessionManager:245] [Turn:65] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:57:57.235 [INFO] [SessionManager:277] [Turn:66] -> VAD listening started
+2026-03-09 15:57:59.875 [WARN] [SessionManager:245] [Turn:66] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:01.274 [INFO] [SessionManager:277] [Turn:67] -> VAD listening started
+2026-03-09 15:58:02.175 [WARN] [SessionManager:245] [Turn:67] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:10.986 [INFO] [SessionManager:277] [Turn:68] -> VAD listening started
+2026-03-09 15:58:13.377 [WARN] [SessionManager:245] [Turn:68] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:13.412 [INFO] [SessionManager:277] [Turn:69] -> VAD listening started
+2026-03-09 15:58:15.075 [WARN] [SessionManager:245] [Turn:69] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:20.271 [INFO] [SessionManager:277] [Turn:70] -> VAD listening started
+2026-03-09 15:58:21.576 [WARN] [SessionManager:245] [Turn:70] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:21.860 [INFO] [SessionManager:277] [Turn:71] -> VAD listening started
+2026-03-09 15:58:22.775 [WARN] [SessionManager:245] [Turn:71] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:23.065 [INFO] [SessionManager:277] [Turn:72] -> VAD listening started
+2026-03-09 15:58:24.175 [WARN] [SessionManager:245] [Turn:72] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:24.195 [INFO] [SessionManager:277] [Turn:73] -> VAD listening started
+2026-03-09 15:58:27.374 [WARN] [SessionManager:245] [Turn:73] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:27.622 [INFO] [SessionManager:277] [Turn:74] -> VAD listening started
+2026-03-09 15:58:29.574 [WARN] [SessionManager:245] [Turn:74] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:29.596 [INFO] [SessionManager:277] [Turn:75] -> VAD listening started
+2026-03-09 15:58:31.074 [WARN] [SessionManager:245] [Turn:75] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:31.108 [INFO] [SessionManager:277] [Turn:76] -> VAD listening started
+2026-03-09 15:58:33.075 [WARN] [SessionManager:245] [Turn:76] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:33.610 [INFO] [SessionManager:277] [Turn:77] -> VAD listening started
+2026-03-09 15:58:35.875 [WARN] [SessionManager:245] [Turn:77] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:40.057 [INFO] [SessionManager:277] [Turn:78] -> VAD listening started
+2026-03-09 15:58:43.475 [WARN] [SessionManager:245] [Turn:78] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:43.557 [INFO] [SessionManager:277] [Turn:79] -> VAD listening started
+2026-03-09 15:58:44.674 [WARN] [SessionManager:245] [Turn:79] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:45.429 [INFO] [SessionManager:277] [Turn:80] -> VAD listening started
+2026-03-09 15:58:49.874 [WARN] [SessionManager:245] [Turn:80] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:51.418 [INFO] [SessionManager:277] [Turn:81] -> VAD listening started
+2026-03-09 15:58:53.076 [WARN] [SessionManager:245] [Turn:81] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:58:56.021 [INFO] [SessionManager:277] [Turn:82] -> VAD listening started
+2026-03-09 15:59:00.775 [WARN] [SessionManager:245] [Turn:82] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:01.775 [INFO] [SessionManager:277] [Turn:83] -> VAD listening started
+2026-03-09 15:59:04.175 [WARN] [SessionManager:245] [Turn:83] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:04.292 [INFO] [SessionManager:277] [Turn:84] -> VAD listening started
+2026-03-09 15:59:06.776 [WARN] [SessionManager:245] [Turn:84] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:07.331 [INFO] [SessionManager:277] [Turn:85] -> VAD listening started
+2026-03-09 15:59:08.274 [WARN] [SessionManager:245] [Turn:85] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:09.082 [INFO] [SessionManager:277] [Turn:86] -> VAD listening started
+2026-03-09 15:59:12.275 [WARN] [SessionManager:245] [Turn:86] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:13.994 [INFO] [SessionManager:277] [Turn:87] -> VAD listening started
+2026-03-09 15:59:15.376 [WARN] [SessionManager:245] [Turn:87] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:16.922 [INFO] [SessionManager:277] [Turn:88] -> VAD listening started
+2026-03-09 15:59:18.177 [WARN] [SessionManager:245] [Turn:88] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:18.206 [INFO] [SessionManager:277] [Turn:89] -> VAD listening started
+2026-03-09 15:59:19.175 [WARN] [SessionManager:245] [Turn:89] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:19.822 [INFO] [SessionManager:277] [Turn:90] -> VAD listening started
+2026-03-09 15:59:20.675 [WARN] [SessionManager:245] [Turn:90] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:20.789 [INFO] [SessionManager:277] [Turn:91] -> VAD listening started
+2026-03-09 15:59:21.977 [WARN] [SessionManager:245] [Turn:91] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:22.046 [INFO] [SessionManager:277] [Turn:92] -> VAD listening started
+2026-03-09 15:59:24.073 [WARN] [SessionManager:245] [Turn:92] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:24.098 [INFO] [SessionManager:277] [Turn:93] -> VAD listening started
+2026-03-09 15:59:26.075 [WARN] [SessionManager:245] [Turn:93] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:26.261 [INFO] [SessionManager:277] [Turn:94] -> VAD listening started
+2026-03-09 15:59:27.275 [WARN] [SessionManager:245] [Turn:94] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:28.073 [INFO] [SessionManager:277] [Turn:95] -> VAD listening started
+2026-03-09 15:59:28.975 [WARN] [SessionManager:245] [Turn:95] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 15:59:28.977 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 16:23:15.118 [WARN] [System:93] shutdown requested from 127.0.0.1:54290
+
+=== DEPLOY id=02180ee6-d952-4d7b-8ae2-5406613378a2 ts=2026-03-09 16:23:15 CST backend=26030901 pid=? ===
+=== DEPLOY id=02180ee6-d952-4d7b-8ae2-5406613378a2 ts=2026-03-09 16:23:15 CST backend=26030901 pid=36520 started ===
+2026-03-09 16:23:15.734 [INFO] [System:45] kagent version backend=26030901 webui=26030901
+2026-03-09 16:23:15.734 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-09 16:23:20.048 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
+2026-03-09 16:23:21.918 [INFO] [SessionManager:334] [Turn:1] "去锻炼呀。" -> ASR final
+2026-03-09 16:23:21.918 [INFO] [SessionManager:257] [Turn:1] "去锻炼呀。" -> LLM Triggered
+2026-03-09 16:23:24.357 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
+2026-03-09 16:23:24.717 [INFO] [AudioPipeline:90] [Turn:1] "好呀！" -> TTS start sending...
+2026-03-09 16:23:25.844 [INFO] [AudioPipeline:165] [Turn:1] -> TTS finished sending
+2026-03-09 16:23:33.190 [INFO] [SessionManager:334] [Turn:2] "我是说去吃饭。" -> ASR final
+2026-03-09 16:23:33.992 [INFO] [SessionManager:257] [Turn:2] "我是说去吃饭。" -> LLM Triggered
+2026-03-09 16:23:36.368 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
+2026-03-09 16:23:36.825 [INFO] [AudioPipeline:90] [Turn:2] "哦，原来是去吃饭呀！" -> TTS start sending...
+2026-03-09 16:23:37.760 [INFO] [AudioPipeline:165] [Turn:2] -> TTS finished sending
+2026-03-09 16:23:41.412 [WARN] [SessionManager:245] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:23:42.848 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
+2026-03-09 16:23:44.607 [INFO] [SessionManager:334] [Turn:4] "你要不要跟我去吃饭？" -> ASR final
+2026-03-09 16:23:44.608 [INFO] [SessionManager:257] [Turn:4] "你要不要跟我去吃饭？" -> LLM Triggered
+2026-03-09 16:23:47.373 [INFO] [AudioPipeline:90] [Turn:4] "哈哈，谢谢你邀请我呀..." -> TTS start sending...
+2026-03-09 16:23:47.373 [INFO] [AudioPipeline:165] [Turn:4] -> TTS finished sending
+2026-03-09 16:23:53.909 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
+2026-03-09 16:23:56.110 [INFO] [SessionManager:334] [Turn:5] "为什么你不能跟我去吃..." -> ASR final
+2026-03-09 16:23:56.110 [INFO] [SessionManager:257] [Turn:5] "为什么你不能跟我去吃..." -> LLM Triggered
+2026-03-09 16:24:00.060 [INFO] [AudioPipeline:90] [Turn:5] "因为我没办法变成实体..." -> TTS start sending...
+2026-03-09 16:24:00.060 [INFO] [AudioPipeline:165] [Turn:5] -> TTS finished sending
+2026-03-09 16:24:06.330 [INFO] [SessionManager:277] [Turn:6] -> VAD listening started
+2026-03-09 16:24:15.327 [INFO] [SessionManager:334] [Turn:6] "那你可以假装去一个实..." -> ASR final
+2026-03-09 16:24:15.327 [INFO] [SessionManager:257] [Turn:6] "那你可以假装去一个实..." -> LLM Triggered
+2026-03-09 16:24:20.217 [INFO] [AudioPipeline:90] [Turn:6] "哈哈，好嘛好嘛，假装..." -> TTS start sending...
+2026-03-09 16:24:21.654 [INFO] [AudioPipeline:165] [Turn:6] -> TTS finished sending
+2026-03-09 16:25:16.859 [INFO] [SessionManager:277] [Turn:7] -> VAD listening started
+2026-03-09 16:25:17.714 [WARN] [SessionManager:245] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:25:36.858 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
+2026-03-09 16:25:37.712 [WARN] [SessionManager:245] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:26:46.518 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
+2026-03-09 16:26:47.712 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:26:51.077 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+2026-03-09 16:26:51.913 [WARN] [SessionManager:245] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:26:52.160 [INFO] [SessionManager:277] [Turn:11] -> VAD listening started
+2026-03-09 16:26:53.014 [WARN] [SessionManager:245] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:26:54.837 [INFO] [SessionManager:277] [Turn:12] -> VAD listening started
+2026-03-09 16:26:55.713 [WARN] [SessionManager:245] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:22.447 [INFO] [SessionManager:277] [Turn:13] -> VAD listening started
+2026-03-09 16:27:23.912 [WARN] [SessionManager:245] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:23.941 [INFO] [SessionManager:277] [Turn:14] -> VAD listening started
+2026-03-09 16:27:24.812 [WARN] [SessionManager:245] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:24.858 [INFO] [SessionManager:277] [Turn:15] -> VAD listening started
+2026-03-09 16:27:26.412 [WARN] [SessionManager:245] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:26.538 [INFO] [SessionManager:277] [Turn:16] -> VAD listening started
+2026-03-09 16:27:28.612 [WARN] [SessionManager:245] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:28.821 [INFO] [SessionManager:277] [Turn:17] -> VAD listening started
+2026-03-09 16:27:30.514 [WARN] [SessionManager:245] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:30.767 [INFO] [SessionManager:277] [Turn:18] -> VAD listening started
+2026-03-09 16:27:31.813 [WARN] [SessionManager:245] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:32.410 [INFO] [SessionManager:277] [Turn:19] -> VAD listening started
+2026-03-09 16:27:33.314 [WARN] [SessionManager:245] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:33.760 [INFO] [SessionManager:277] [Turn:20] -> VAD listening started
+2026-03-09 16:27:36.713 [WARN] [SessionManager:245] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:37.498 [INFO] [SessionManager:277] [Turn:21] -> VAD listening started
+2026-03-09 16:27:38.513 [WARN] [SessionManager:245] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:38.768 [INFO] [SessionManager:277] [Turn:22] -> VAD listening started
+2026-03-09 16:27:39.812 [WARN] [SessionManager:245] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:40.341 [INFO] [SessionManager:277] [Turn:23] -> VAD listening started
+2026-03-09 16:27:42.412 [WARN] [SessionManager:245] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:43.147 [INFO] [SessionManager:277] [Turn:24] -> VAD listening started
+2026-03-09 16:27:45.113 [WARN] [SessionManager:245] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:45.408 [INFO] [SessionManager:277] [Turn:25] -> VAD listening started
+2026-03-09 16:27:50.913 [WARN] [SessionManager:245] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:53.429 [INFO] [SessionManager:277] [Turn:26] -> VAD listening started
+2026-03-09 16:27:55.013 [WARN] [SessionManager:245] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:55.866 [INFO] [SessionManager:277] [Turn:27] -> VAD listening started
+2026-03-09 16:27:57.213 [WARN] [SessionManager:245] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:27:57.397 [INFO] [SessionManager:277] [Turn:28] -> VAD listening started
+2026-03-09 16:28:02.013 [WARN] [SessionManager:245] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:02.037 [INFO] [SessionManager:277] [Turn:29] -> VAD listening started
+2026-03-09 16:28:03.513 [WARN] [SessionManager:245] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:03.850 [INFO] [SessionManager:277] [Turn:30] -> VAD listening started
+2026-03-09 16:28:07.414 [WARN] [SessionManager:245] [Turn:30] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:08.288 [INFO] [SessionManager:277] [Turn:31] -> VAD listening started
+2026-03-09 16:28:09.712 [WARN] [SessionManager:245] [Turn:31] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:11.717 [INFO] [SessionManager:277] [Turn:32] -> VAD listening started
+2026-03-09 16:28:12.613 [WARN] [SessionManager:245] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:16.970 [INFO] [SessionManager:277] [Turn:33] -> VAD listening started
+2026-03-09 16:28:17.912 [WARN] [SessionManager:245] [Turn:33] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:19.301 [INFO] [SessionManager:277] [Turn:34] -> VAD listening started
+2026-03-09 16:28:20.313 [WARN] [SessionManager:245] [Turn:34] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:28:50.106 [INFO] [SessionManager:277] [Turn:35] -> VAD listening started
+2026-03-09 16:28:51.813 [WARN] [SessionManager:245] [Turn:35] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:29:06.640 [INFO] [SessionManager:277] [Turn:36] -> VAD listening started
+2026-03-09 16:29:07.512 [WARN] [SessionManager:245] [Turn:36] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:29:09.558 [INFO] [SessionManager:277] [Turn:37] -> VAD listening started
+2026-03-09 16:29:10.512 [WARN] [SessionManager:245] [Turn:37] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:29:37.017 [INFO] [SessionManager:277] [Turn:38] -> VAD listening started
+2026-03-09 16:29:37.912 [WARN] [SessionManager:245] [Turn:38] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:29:41.168 [INFO] [SessionManager:277] [Turn:39] -> VAD listening started
+2026-03-09 16:29:42.213 [WARN] [SessionManager:245] [Turn:39] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:29:44.470 [INFO] [SessionManager:277] [Turn:40] -> VAD listening started
+2026-03-09 16:29:45.413 [WARN] [SessionManager:245] [Turn:40] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:07.318 [INFO] [SessionManager:277] [Turn:41] -> VAD listening started
+2026-03-09 16:30:08.713 [WARN] [SessionManager:245] [Turn:41] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:09.568 [INFO] [SessionManager:277] [Turn:42] -> VAD listening started
+2026-03-09 16:30:11.912 [WARN] [SessionManager:245] [Turn:42] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:12.581 [INFO] [SessionManager:277] [Turn:43] -> VAD listening started
+2026-03-09 16:30:16.712 [WARN] [SessionManager:245] [Turn:43] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:17.968 [INFO] [SessionManager:277] [Turn:44] -> VAD listening started
+2026-03-09 16:30:21.814 [WARN] [SessionManager:245] [Turn:44] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:21.930 [INFO] [SessionManager:277] [Turn:45] -> VAD listening started
+2026-03-09 16:30:23.813 [WARN] [SessionManager:245] [Turn:45] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:24.000 [INFO] [SessionManager:277] [Turn:46] -> VAD listening started
+2026-03-09 16:30:25.013 [WARN] [SessionManager:245] [Turn:46] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:25.477 [INFO] [SessionManager:277] [Turn:47] -> VAD listening started
+2026-03-09 16:30:26.512 [WARN] [SessionManager:245] [Turn:47] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:29.557 [INFO] [SessionManager:277] [Turn:48] -> VAD listening started
+2026-03-09 16:30:30.512 [WARN] [SessionManager:245] [Turn:48] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:30.581 [INFO] [SessionManager:277] [Turn:49] -> VAD listening started
+2026-03-09 16:30:33.513 [WARN] [SessionManager:245] [Turn:49] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:33.637 [INFO] [SessionManager:277] [Turn:50] -> VAD listening started
+2026-03-09 16:30:34.613 [WARN] [SessionManager:245] [Turn:50] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:34.997 [INFO] [SessionManager:277] [Turn:51] -> VAD listening started
+2026-03-09 16:30:35.913 [WARN] [SessionManager:245] [Turn:51] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:42.010 [INFO] [SessionManager:277] [Turn:52] -> VAD listening started
+2026-03-09 16:30:42.913 [WARN] [SessionManager:245] [Turn:52] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:45.157 [INFO] [SessionManager:277] [Turn:53] -> VAD listening started
+2026-03-09 16:30:46.012 [WARN] [SessionManager:245] [Turn:53] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:50.778 [INFO] [SessionManager:277] [Turn:54] -> VAD listening started
+2026-03-09 16:30:51.712 [WARN] [SessionManager:245] [Turn:54] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:30:57.866 [INFO] [SessionManager:277] [Turn:55] -> VAD listening started
+2026-03-09 16:30:58.713 [WARN] [SessionManager:245] [Turn:55] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:02.597 [INFO] [SessionManager:277] [Turn:56] -> VAD listening started
+2026-03-09 16:31:03.512 [WARN] [SessionManager:245] [Turn:56] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:04.539 [INFO] [SessionManager:277] [Turn:57] -> VAD listening started
+2026-03-09 16:31:05.413 [WARN] [SessionManager:245] [Turn:57] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:05.797 [INFO] [SessionManager:277] [Turn:58] -> VAD listening started
+2026-03-09 16:31:06.712 [WARN] [SessionManager:245] [Turn:58] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:07.120 [INFO] [SessionManager:277] [Turn:59] -> VAD listening started
+2026-03-09 16:31:08.012 [WARN] [SessionManager:245] [Turn:59] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:23.120 [INFO] [SessionManager:277] [Turn:60] -> VAD listening started
+2026-03-09 16:31:24.013 [WARN] [SessionManager:245] [Turn:60] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:24.047 [INFO] [SessionManager:277] [Turn:61] -> VAD listening started
+2026-03-09 16:31:25.650 [INFO] [SessionManager:334] [Turn:61] "天猫精灵，开灯。" -> ASR final
+2026-03-09 16:31:27.939 [INFO] [SessionManager:334] [Turn:61] "你好，主人。好的。" -> ASR final
+2026-03-09 16:31:28.592 [INFO] [SessionManager:257] [Turn:61] "你好，主人。好的。" -> LLM Triggered
+2026-03-09 16:31:29.797 [INFO] [SessionManager:277] [Turn:62] -> VAD listening started
+2026-03-09 16:31:30.912 [WARN] [SessionManager:245] [Turn:62] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:31.221 [INFO] [SessionManager:277] [Turn:63] -> VAD listening started
+2026-03-09 16:31:32.652 [INFO] [AudioPipeline:90] [Turn:61] "哈哈，主人～今天想吃..." -> TTS start sending...
+2026-03-09 16:31:32.912 [WARN] [SessionManager:245] [Turn:63] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:31:33.477 [INFO] [AudioPipeline:165] [Turn:61] -> TTS finished sending
+2026-03-09 16:31:38.391 [INFO] [SessionManager:219] [Turn:64] -> VAD interrupt received (reason=barge_in)
+2026-03-09 16:31:41.370 [INFO] [SessionManager:334] [Turn:64] "对不起，什么哄呀？那..." -> ASR final
+2026-03-09 16:31:41.370 [INFO] [SessionManager:257] [Turn:64] "对不起，什么哄呀？那..." -> LLM Triggered
+2026-03-09 16:31:42.501 [INFO] [SessionManager:277] [Turn:65] -> VAD listening started
+2026-03-09 16:31:45.658 [INFO] [AudioPipeline:90] [Turn:64] "哈哈，没关系～我是你..." -> TTS start sending...
+2026-03-09 16:31:45.659 [INFO] [AudioPipeline:165] [Turn:64] -> TTS finished sending
+2026-03-09 16:31:51.937 [INFO] [SessionManager:334] [Turn:65] "对不起，主人，我没有..." -> ASR final
+2026-03-09 16:31:51.937 [INFO] [SessionManager:257] [Turn:65] "对不起，主人，我没有..." -> LLM Triggered
+2026-03-09 16:31:53.098 [INFO] [SessionManager:277] [Turn:66] -> VAD listening started
+2026-03-09 16:31:56.421 [INFO] [AudioPipeline:90] [Turn:65] "哈哈，没关系～没听清..." -> TTS start sending...
+2026-03-09 16:31:56.421 [INFO] [AudioPipeline:165] [Turn:65] -> TTS finished sending
+2026-03-09 16:31:56.667 [INFO] [SessionManager:219] [Turn:67] -> VAD interrupt received (reason=barge_in)
+2026-03-09 16:31:57.612 [WARN] [SessionManager:245] [Turn:67] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:32:01.381 [INFO] [SessionManager:277] [Turn:68] -> VAD listening started
+2026-03-09 16:32:02.314 [WARN] [SessionManager:245] [Turn:68] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:32:03.568 [INFO] [SessionManager:277] [Turn:69] -> VAD listening started
+2026-03-09 16:32:04.514 [WARN] [SessionManager:245] [Turn:69] ASR final wait timed out for trigger_llm; falling back
+2026-03-09 16:32:08.059 [INFO] [SessionManager:277] [Turn:70] -> VAD listening started
+2026-03-09 16:32:10.434 [INFO] [SessionManager:334] [Turn:70] "你怎么不说话了？" -> ASR final
+2026-03-09 16:32:10.434 [INFO] [SessionManager:257] [Turn:70] "你怎么不说话了？" -> LLM Triggered
+2026-03-09 16:32:14.416 [INFO] [AudioPipeline:90] [Turn:70] "哈哈，我可一直都在呢..." -> TTS start sending...
+2026-03-09 16:32:15.375 [INFO] [AudioPipeline:165] [Turn:70] -> TTS finished sending
+2026-03-09 16:32:20.336 [ERROR] [SessionManager:546] send status failed: websocket: close sent
+2026-03-09 18:12:33.851 [WARN] [System:93] shutdown requested from 127.0.0.1:57634
+

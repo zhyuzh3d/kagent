@@ -159,6 +159,28 @@
       opacity: 0.85;
     }
 
+    .btn-ghost,
+    .btn-config {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-config:hover:not(:disabled),
+    .btn-ghost:hover:not(:disabled) {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent2);
+    }
+
     .chat-area {
       flex: 1;
       overflow-y: auto;
@@ -269,6 +291,280 @@
       height: 100%;
       overflow-y: auto;
     }
+
+    .config-shell {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .config-shell.open {
+      pointer-events: auto;
+    }
+
+    .config-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 8, 20, 0.54);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .config-shell.open .config-backdrop {
+      opacity: 1;
+    }
+
+    .config-drawer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: min(460px, 92vw);
+      height: 100%;
+      background: linear-gradient(180deg, rgba(18, 23, 37, 0.98), rgba(11, 15, 25, 0.98));
+      border-right: 1px solid rgba(99, 102, 241, 0.25);
+      box-shadow: 18px 0 36px rgba(0, 0, 0, 0.28);
+      transform: translateX(-100%);
+      transition: transform 0.24s ease;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(12px);
+    }
+
+    .config-shell.open .config-drawer {
+      transform: translateX(0);
+    }
+
+    .config-drawer-head,
+    .config-drawer-foot {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .config-drawer-foot {
+      border-top: 1px solid var(--line);
+      border-bottom: none;
+      margin-top: auto;
+    }
+
+    .config-drawer-head h2 {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .config-drawer-head p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .config-tabs {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px 0;
+    }
+
+    .config-tab {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 7px 14px;
+    }
+
+    .config-tab.active {
+      color: #fff;
+      border-color: var(--accent2);
+      background: rgba(99, 102, 241, 0.18);
+    }
+
+    .config-status {
+      min-height: 22px;
+      padding: 12px 20px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .config-status.pending {
+      color: var(--warn);
+    }
+
+    .config-status.success {
+      color: var(--ok);
+    }
+
+    .config-status.error {
+      color: var(--err);
+    }
+
+    .config-body {
+      padding: 16px 20px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .config-group {
+      padding: 16px;
+      border: 1px solid rgba(129, 140, 248, 0.12);
+      border-radius: 16px;
+      background: rgba(20, 25, 40, 0.76);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .config-group h3 {
+      font-size: 14px;
+      color: var(--accent2);
+    }
+
+    .config-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .config-group .config-field:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .config-field-top,
+    .config-field-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .config-field-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .config-field-desc,
+    .config-field-hint,
+    .config-field-error {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .config-field-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .config-field-controls input[type="text"],
+    .config-field-controls input[type="number"],
+    .config-field-controls textarea {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .config-field-controls input[type="range"] {
+      flex: 1;
+    }
+
+    .config-field-controls input[type="number"] {
+      width: 110px;
+    }
+
+    .config-field-controls textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .config-field-error {
+      color: var(--err);
+    }
+
+    .scope-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 22px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: 1px solid transparent;
+    }
+
+    .scope-m {
+      color: #8b5cf6;
+      border-color: rgba(139, 92, 246, 0.35);
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    .scope-t {
+      color: #f59e0b;
+      border-color: rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .scope-r {
+      color: #10b981;
+      border-color: rgba(16, 185, 129, 0.35);
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .scope-c {
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.15);
+    }
+
+    .scope-a {
+      color: #fb7185;
+      border-color: rgba(251, 113, 133, 0.35);
+      background: rgba(251, 113, 133, 0.15);
+    }
+
+    .config-empty {
+      padding: 24px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-wrap: wrap;
+      }
+
+      .status-text {
+        min-width: auto;
+      }
+
+      .config-drawer {
+        width: 100vw;
+      }
+
+      .config-field-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .config-field-controls input[type="number"] {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
@@ -278,11 +574,13 @@
     <div id="versionText" class="version-text"></div>
     <div id="statusDot" class="status-dot"></div>
     <div id="statusText" class="status-text">Idle</div>
+    <button id="configBtn" class="btn-config">配置</button>
     <button id="startBtn" class="btn-start">开始对话</button>
     <button id="stopBtn" class="btn-stop" disabled>停止</button>
   </div>
 
   <div id="chatArea" class="chat-area"></div>
+  <div id="configShell" class="config-shell"></div>
 
   <div class="resize-handle" id="resizeHandle"></div>
   <div class="debug-toggle" id="debugToggle">▶ 调试日志</div>
@@ -290,7 +588,15 @@
     <pre id="debug"></pre>
   </div>
 
-  <script>
+  <script type="module">
+    import { createAudioCapture } from './audio-capture.js';
+    import { createAudioPlayback } from './audio-playback.js';
+    import { createChatStore } from './chat-store.js';
+    import { loadRuntimeConfig, loadConfigInfo, applyChatFrontendConfig, buildWorkerConfig } from './config-store.js';
+    import { createConfigDrawer } from './config-drawer.js';
+    import { createEventRouter } from './event-router.js';
+    import { createSessionController } from './session-controller.js';
+
     // ===================================================================
     // Architecture: Main Thread (UI + AudioContext + Playback)
     //             + Web Worker (WebSocket + VAD timer + audio frame relay)
@@ -301,119 +607,6 @@
     // keep flowing and silence detection stays accurate even when the
     // user switches to another window.
     // ===================================================================
-
-    // ── Inline Worker Code ─────────────────────────────────────────────
-    const workerCode = `
-      let ws = null;
-      let running = false;
-      let utteranceActive = false;
-      let lastVoiceAt = 0;
-      let lastUtteranceEndAt = 0;
-      const UTTERANCE_SILENCE_MS = 500;
-      const VOICE_THRESHOLD = 0.018;
-      let vadTimer = null;
-
-      function wsReady() { return ws && ws.readyState === 1; }
-
-      function sendControl(type, reason, turn_id, text) {
-        if (!wsReady()) return;
-        const p = { type };
-        if (reason) p.reason = reason;
-        if (turn_id) p.turn_id = turn_id;
-        if (text) p.text = text;
-        ws.send(JSON.stringify(p));
-      }
-
-      // VAD timer runs in Worker — never throttled
-      function startVAD() {
-        if (vadTimer) clearInterval(vadTimer);
-        vadTimer = setInterval(() => {
-          if (!running || !wsReady()) return;
-          if (!utteranceActive) return;
-          if (Date.now() - lastVoiceAt >= UTTERANCE_SILENCE_MS) {
-            utteranceActive = false;
-            if (Date.now() - lastUtteranceEndAt < 2000) return;
-            lastUtteranceEndAt = Date.now();
-            self.postMessage({ type: 'vad_utterance_end' });
-          }
-        }, 100);
-      }
-
-      function stopVAD() {
-        if (vadTimer) { clearInterval(vadTimer); vadTimer = null; }
-        utteranceActive = false;
-      }
-
-      self.onmessage = function(e) {
-        const msg = e.data;
-        if (!msg || !msg.type) return;
-
-        switch (msg.type) {
-          case 'connect': {
-            const url = msg.url;
-            ws = new WebSocket(url);
-            ws.binaryType = 'arraybuffer';
-            ws.onopen = () => {
-              self.postMessage({ type: 'ws_open' });
-            };
-            ws.onclose = () => {
-              self.postMessage({ type: 'ws_close' });
-            };
-            ws.onerror = () => {
-              self.postMessage({ type: 'ws_error' });
-            };
-            ws.onmessage = (ev) => {
-              if (typeof ev.data === 'string') {
-                self.postMessage({ type: 'ws_text', data: ev.data });
-              } else if (ev.data instanceof ArrayBuffer) {
-                self.postMessage({ type: 'ws_binary', data: ev.data }, [ev.data]);
-              }
-            };
-            break;
-          }
-          case 'send_control':
-            sendControl(msg.control, msg.reason, msg.turn_id, msg.text);
-            break;
-          case 'send_audio':
-            // Binary audio frame from AudioWorklet -> forward to WS
-            if (wsReady()) ws.send(msg.data);
-            break;
-          case 'voice_detected':
-            lastVoiceAt = Date.now();
-            utteranceActive = true;
-            lastUtteranceEndAt = 0;
-            break;
-          case 'set_ai_loud':
-            // When AI is playing, prevent VAD from firing utterance_end
-            if (msg.value) lastVoiceAt = Date.now();
-            break;
-          case 'start':
-            running = true;
-            startVAD();
-            sendControl('start', null, msg.turn_id);
-            break;
-          case 'stop':
-            running = false;
-            stopVAD();
-            sendControl('stop', null, msg.turn_id);
-            if (ws) { ws.close(); ws = null; }
-            break;
-          case 'interrupt':
-            sendControl('interrupt', 'barge_in');
-            break;
-          case 'disconnect':
-            running = false;
-            stopVAD();
-            if (ws) { try { ws.close(); } catch(_) {} ws = null; }
-            break;
-        }
-      };
-    `;
-
-    // ── Create Worker ──────────────────────────────────────────────────
-    const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
-    const workerURL = URL.createObjectURL(workerBlob);
-    let ioWorker = null;
 
     // ── App State ──────────────────────────────────────────────────────
     const App = {
@@ -426,11 +619,17 @@
       workletNode: null,
       scriptNode: null,
       sinkNode: null,
+      configDrawer: null,
+      publicConfig: null,
+      configInfo: { tabs: [], fields: {} },
       sampleRateIn: 48000,
       pcmQueue: [],
       frameSamples16k: 320,
       voiceThreshold: 0.018,
       utteranceSilenceMs: 500,
+      bargeInThreshold: 0.08,
+      bargeInMinFrames: 5,
+      bargeInCooldownMs: 500,
       lastVoiceAt: 0,
       utteranceActive: false,
       lastInterruptAt: 0,
@@ -467,6 +666,8 @@
       statusText: document.getElementById('statusText'),
       versionText: document.getElementById('versionText'),
       chatArea: document.getElementById('chatArea'),
+      configBtn: document.getElementById('configBtn'),
+      configShell: document.getElementById('configShell'),
       debug: document.getElementById('debug'),
       debugToggle: document.getElementById('debugToggle'),
       debugPanel: document.getElementById('debugPanel'),
@@ -566,11 +767,68 @@
       el.debug.textContent += parts.join(' ') + '\n';
       el.debug.scrollTop = el.debug.scrollHeight;
     }
+
+    function syncWorkerConfig() {
+      sessionController.syncWorkerConfig();
+    }
+
+    function applyPublicConfig(config) {
+      applyChatFrontendConfig(App, config);
+      applyUIConfig(App.publicConfig);
+      syncWorkerConfig();
+    }
+
+    function applyUIConfig(config) {
+      const showDebugPanel = !!((((config || {}).app || {}).ui || {}).showDebugPanelByDefault);
+      if (showDebugPanel) {
+        el.debugPanel.classList.add('open');
+        el.debugPanel.style.height = savedDebugHeight + 'px';
+        document.getElementById('resizeHandle').classList.add('visible');
+        el.debugToggle.textContent = '▼ 调试日志';
+        return;
+      }
+      el.debugPanel.classList.remove('open');
+      el.debugPanel.style.height = '0';
+      document.getElementById('resizeHandle').classList.remove('visible');
+      el.debugToggle.textContent = '▶ 调试日志';
+    }
+
+    function setupConfigDrawer() {
+      if (App.configDrawer) {
+        App.configDrawer.setConfigInfo(App.configInfo);
+        App.configDrawer.setConfig(App.publicConfig);
+        return;
+      }
+      App.configDrawer = createConfigDrawer({
+        mount: el.configShell,
+        initialConfig: App.publicConfig,
+        configInfo: App.configInfo,
+        onConfigApplied: (config) => {
+          applyPublicConfig(config);
+        },
+        onDebug: appendDebug,
+      });
+    }
+
+    async function loadClientConfig() {
+      const [publicConfig, configInfo] = await Promise.all([
+        loadRuntimeConfig(),
+        loadConfigInfo(),
+      ]);
+      App.configInfo = configInfo || { tabs: [], fields: {} };
+      applyPublicConfig(publicConfig);
+      setupConfigDrawer();
+      if (App.configDrawer) {
+        App.configDrawer.setConfig(App.publicConfig);
+      }
+      appendDebug('INFO', 'System', null, null, 'runtime config loaded');
+    }
+
     async function loadVersion() {
       try {
         const resp = await fetch('/version', { cache: 'no-store' });
         if (!resp.ok) throw new Error(`status ${resp.status}`);
-        v = await resp.json();
+        const v = await resp.json();
         const backend = v.backend || 'unknown';
         const webui = v.webui || 'unknown';
         const s = `b${backend} ui${webui}`;
@@ -613,582 +871,55 @@
       }, 300);
     }
 
+    const chatStore = createChatStore({
+      app: App,
+      chatArea: el.chatArea,
+    });
+
+    const audioPlayback = createAudioPlayback({
+      app: App,
+      appendDebug,
+      flashIndicator,
+    });
+
+    const eventRouter = createEventRouter({
+      app: App,
+      chatStore,
+      audioPlayback,
+      setStatus,
+      flashIndicator,
+      appendDebug,
+    });
+
+    const sessionController = createSessionController({
+      app: App,
+      workerURL: './io-worker.js',
+      audioPlayback,
+      chatStore,
+      eventRouter,
+      setStatus,
+      setButtons,
+      appendDebug,
+      flashIndicator,
+      getWorkerConfig: () => buildWorkerConfig(App.publicConfig),
+    });
+
+    const audioCapture = createAudioCapture({
+      app: App,
+      audioPlayback,
+      workerSend: sessionController.workerSend,
+      setStatus,
+      appendDebug,
+    });
+
+    sessionController.bindAudioCapture(audioCapture);
+
     function setButtons(running) {
       el.startBtn.disabled = running;
       el.stopBtn.disabled = !running;
     }
 
-    function noteReplyTurn(turnId) {
-      if (!turnId) return;
-      if (turnId > App.activeTurnId) {
-        App.activeTurnId = turnId;
-      }
-    }
-
-    function isReplyPayloadType(type) {
-      return type === 'llm_delta' || type === 'llm_final' || type === 'tts_chunk';
-    }
-
-    function addChatMsg(role, text, turnId, isPartial = false, sessionEpoch = App.sessionEpoch) {
-      const div = document.createElement('div');
-      div.className = `msg ${role} ${isPartial ? 'partial' : ''}`;
-      div.dataset.turnId = turnId;
-      div.dataset.sessionEpoch = sessionEpoch;
-      div.textContent = text;
-      el.chatArea.appendChild(div);
-      el.chatArea.scrollTop = el.chatArea.scrollHeight;
-      const msg = { role, text, turnId, sessionEpoch, element: div, isPartial };
-      App.messages.push(msg);
-      return msg;
-    }
-
-    function findUserMsg(turnId, sessionEpoch = App.sessionEpoch) {
-      for (let i = App.messages.length - 1; i >= 0; i--) {
-        const m = App.messages[i];
-        if (m.role === 'user' && m.turnId === turnId && m.sessionEpoch === sessionEpoch) return m;
-      }
-      return null;
-    }
-
-    function updatePartialASR(text, turnId) {
-      if (!text) return;
-      let msg = findUserMsg(turnId);
-      if (!msg) {
-        msg = addChatMsg('user', text, turnId, true);
-      } else {
-        msg.text = text;
-        msg.element.textContent = text;
-        el.chatArea.scrollTop = el.chatArea.scrollHeight;
-      }
-    }
-
-    function finalizeASR(text, turnId) {
-      let msg = findUserMsg(turnId);
-      if (msg) {
-        msg.text = text;
-        msg.isPartial = false;
-        if (text) {
-          msg.element.textContent = text;
-        } else {
-          msg.element.remove();
-          App.messages = App.messages.filter(m => m !== msg);
-        }
-        msg.element.classList.remove('partial');
-      } else if (text) {
-        addChatMsg('user', text, turnId);
-      }
-    }
-
-    function appendAIDelta(text, turnId) {
-      if (!App.currentAIMsg || App.currentAIMsg.turnId !== turnId || App.currentAIMsg.sessionEpoch !== App.sessionEpoch) {
-        App.currentAIMsg = addChatMsg('ai', '', turnId);
-      }
-      App.currentAIMsg.text += text;
-      App.currentAIMsg.element.textContent = App.currentAIMsg.text;
-      el.chatArea.scrollTop = el.chatArea.scrollHeight;
-    }
-
-    function finalizeAI(turnId) {
-      if (App.currentAIMsg && App.currentAIMsg.turnId === turnId && App.currentAIMsg.sessionEpoch === App.sessionEpoch) {
-        App.currentAIMsg = null;
-      }
-    }
-
-    // ── Worker message handler (receives WS data from Worker) ──────────
-    function setupWorker() {
-      if (ioWorker) { ioWorker.terminate(); }
-      ioWorker = new Worker(workerURL);
-      ioWorker.onmessage = (e) => {
-        const msg = e.data;
-        if (!msg) return;
-        switch (msg.type) {
-          case 'ws_open':
-            appendDebug('INFO', 'Network', null, null, 'ws connected (via worker)');
-            break;
-          case 'ws_close':
-            appendDebug('WARN', 'Network', null, null, 'ws closed (via worker)');
-            if (App.running) stopAll('ws closed');
-            break;
-          case 'ws_error':
-            appendDebug('ERROR', 'Network', null, null, 'ws error (via worker)');
-            break;
-          case 'ws_text':
-            try { handleEvent(JSON.parse(msg.data)); } catch (_) { }
-            break;
-          case 'ws_binary':
-            handleAudioBinary(msg.data);
-            break;
-          case 'vad_utterance_end':
-            App.utteranceActive = false;
-            App.sustainedHighRmsCount = 0;
-
-            // Client-Driven Architecture: Explicitly command the backend to run LLM
-            let finalText = "";
-            let msgObj = findUserMsg(App.currentTurn);
-            if (msgObj) {
-              finalText = msgObj.text;
-              msgObj.isPartial = false;
-              msgObj.element.classList.remove('partial'); // finalize visual instantly
-            }
-            App.replyOnsetGuardUntil = Date.now() + App.replyOnsetGuardMs;
-            App.replyOnsetGuardTurn = App.currentTurn;
-            App.replyOnsetGuardLoggedTurn = 0;
-            workerSend({ type: 'send_control', control: 'trigger_llm', turn_id: App.currentTurn, text: finalText });
-
-            appendDebug('INFO', 'SessionControl', App.currentTurn, finalText, 'Trigger LLM explicitly (trigger_llm)');
-            break;
-        }
-      };
-    }
-
-    function workerSend(msg, transferables) {
-      if (ioWorker) {
-        if (msg.type === 'send_audio' || msg.type === 'send_control') {
-          flashIndicator('send');
-        }
-        ioWorker.postMessage(msg, transferables || []);
-      }
-    }
-
-    function handleEvent(msg) {
-      const type = msg.type;
-      if (!type) return;
-
-      // Status and error messages must ALWAYS be processed (never filtered by Turn-ID).
-      // They carry session-wide state changes (e.g., Listening after interrupt).
-      if (type === 'status') {
-        const v = msg.value || '';
-        if ((v === 'Thinking' || v === 'Speaking') && (msg.turn_id || 0) > 0) {
-          noteReplyTurn(msg.turn_id);
-        }
-        setStatus(v);
-        // Error status triggers error flash, otherwise receive flash
-        if (v === 'Error') flashIndicator('error');
-        else flashIndicator('receive');
-        appendDebug('INFO', 'AppState', msg.turn_id || 0, msg.detail || '', `Status update: ${v}`);
-        return;
-      }
-      if (type === 'error') {
-        setStatus('Error');
-        flashIndicator('error');
-        appendDebug('ERROR', 'AppState', msg.turn_id || 0, null, `code=${msg.code || ''} message=${msg.message || ''}`);
-        return;
-      }
-      if (type === 'tts_warn') {
-        flashIndicator('receive');
-        const seq = msg.seq ? ` seq=${msg.seq}` : '';
-        appendDebug('WARN', 'TTSBackend', msg.turn_id || 0, msg.text || null, `code=${msg.code || 'tts_warn'}${seq} message=${msg.message || 'tts segment warning'}`);
-        return;
-      }
-
-      // Backend confirms utterance_end had no ASR text — roll back activeTurnId
-      if (type === 'turn_nack') {
-        if ((msg.turn_id || 0) === App.replyOnsetGuardTurn) {
-          App.replyOnsetGuardUntil = 0;
-          App.replyOnsetGuardTurn = 0;
-          App.replyOnsetGuardLoggedTurn = 0;
-        }
-        appendDebug('WARN', 'SessionControl', msg.turn_id || 0, null, `turn_nack received, activeReply=${App.activeTurnId}`);
-        return;
-      }
-
-      // Turn-ID filter: The Iron Wall of Client-Driven Optimistic Locking
-      if (msg.turn_id && (type === 'asr_partial' || type === 'asr_final') && msg.turn_id !== App.currentTurn) {
-        appendDebug('DEBUG', 'Network', msg.turn_id, null, `Stale msg dropped: type=${type} (currentInput=${App.currentTurn})`);
-        return;
-      }
-
-      // Reply payloads follow the latest confirmed reply turn, not the latest onset turn.
-      if (msg.turn_id && isReplyPayloadType(type) && msg.turn_id < App.activeTurnId) {
-        appendDebug('DEBUG', 'Network', msg.turn_id, null, `Stale msg dropped: type=${type} (activeReply=${App.activeTurnId})`);
-        return;
-      }
-      if (msg.turn_id && isReplyPayloadType(type)) {
-        noteReplyTurn(msg.turn_id);
-      }
-
-      // Valid payload: flash network receipt
-      flashIndicator('receive');
-
-      if (type === 'asr_partial') { updatePartialASR(msg.text || '', msg.turn_id); return; }
-      if (type === 'asr_final') { finalizeASR(msg.text || '', msg.turn_id); return; }
-      if (type === 'llm_delta') { appendAIDelta(msg.text || '', msg.turn_id); return; }
-      if (type === 'llm_final') { finalizeAI(msg.turn_id); return; }
-      if (type === 'tts_chunk') { App.pendingChunkMeta.push(msg); return; }
-    }
-
-    function handleAudioBinary(buf) {
-      const meta = App.pendingChunkMeta.shift();
-      if (!meta) { appendDebug('WARN', 'FrontendAudio', null, null, 'binary arrived without tts_chunk metadata'); return; }
-      if (meta.turn_id < App.activeTurnId) {
-        appendDebug('DEBUG', 'FrontendAudio', meta.turn_id, null, `Stale TTS chunk dropped (active=${App.activeTurnId})`);
-        return;
-      }
-      flashIndicator('receive');
-      const format = (meta.format || 'audio/mpeg').toLowerCase();
-      App.playbackQueue.push({ format, data: buf, turnId: meta.turn_id, seq: meta.seq, epoch: App.playbackEpoch });
-      playNext();
-    }
-
-    // ── Playback (AudioContext — stays on main thread) ─────────────────
-    function ensurePlaybackContext() {
-      if (!App.audioCtx) App.audioCtx = new AudioContext();
-      return App.audioCtx;
-    }
-
-    async function ensurePCMWorkletLoaded(ctx) {
-      if (App.workletModuleCtx === ctx) return;
-      const code = `class PCMProcessor extends AudioWorkletProcessor {
-        process(inputs) { const i = inputs[0]; if (i && i[0]) this.port.postMessage(i[0]); return true; }
-      }
-      if (!globalThis.__pcmProcessorRegistered) {
-        registerProcessor('pcm-processor', PCMProcessor);
-        globalThis.__pcmProcessorRegistered = true;
-      }`;
-      const blobURL = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
-      try {
-        await ctx.audioWorklet.addModule(blobURL);
-        App.workletModuleCtx = ctx;
-      } finally {
-        URL.revokeObjectURL(blobURL);
-      }
-    }
-
-    function playNext() {
-      if (App.isPlaying) return;
-      let item = App.playbackQueue.shift();
-      while (item && item.epoch !== App.playbackEpoch) {
-        item = App.playbackQueue.shift();
-      }
-      if (!item) { App.isPlaying = false; return; }
-      App.isPlaying = true;
-      const ctx = ensurePlaybackContext();
-      if (ctx.state === 'suspended') {
-        ctx.resume().then(() => {
-          if (item.format.includes('pcm')) { playPCMItem(item); } else { playBlobItem(item); }
-        }).catch(() => { App.isPlaying = false; playNext(); });
-        return;
-      }
-      if (item.format.includes('pcm')) { playPCMItem(item); } else { playBlobItem(item); }
-    }
-
-    function playBlobItem(item) {
-      const ctx = ensurePlaybackContext();
-      const dataCopy = item.data.slice(0);
-      const epoch = item.epoch;
-      const successCb = (buffer) => {
-        if (epoch !== App.playbackEpoch) {
-          App.isPlaying = false;
-          playNext();
-          return;
-        }
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.connect(ctx.destination);
-        App.playingBufferSource = src;
-        src.onended = () => {
-          if (epoch !== App.playbackEpoch) return;
-          App.playingBufferSource = null;
-          App.isPlaying = false;
-          playNext();
-        };
-        src.start();
-      };
-      const errorCb = (err) => {
-        appendDebug('ERROR', 'FrontendAudio', item.turnId, null, 'decodeAudioData error: ' + (err ? (err.message || err) : 'unknown'));
-        App.isPlaying = false;
-        playNext();
-      };
-      try {
-        const promise = ctx.decodeAudioData(dataCopy, successCb, errorCb);
-        if (promise) promise.catch(errorCb);
-      } catch (e) { errorCb(e); }
-    }
-
-    function playPCMItem(item) {
-      const ctx = ensurePlaybackContext();
-      const epoch = item.epoch;
-      try {
-        if (epoch !== App.playbackEpoch) {
-          App.isPlaying = false;
-          playNext();
-          return;
-        }
-        let data = item.data;
-        if (data.byteLength % 2 !== 0) data = data.slice(0, data.byteLength - 1);
-        const raw = new Int16Array(data);
-        const buffer = ctx.createBuffer(1, raw.length, 24000);
-        const ch = buffer.getChannelData(0);
-        for (let i = 0; i < raw.length; i++) ch[i] = Math.max(-1, Math.min(1, raw[i] / 32768));
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.connect(ctx.destination);
-        App.playingBufferSource = src;
-        src.onended = () => {
-          if (epoch !== App.playbackEpoch) return;
-          App.playingBufferSource = null;
-          App.isPlaying = false;
-          playNext();
-        };
-        src.start();
-      } catch (err) {
-        appendDebug('ERROR', 'FrontendAudio', item.turnId, null, 'PCM format error: ' + err.message);
-        App.isPlaying = false;
-        playNext();
-      }
-    }
-
-    function stopPlayback() {
-      App.playbackEpoch++;
-      App.playbackQueue = [];
-      App.pendingChunkMeta = [];
-      App.isPlaying = false;
-      if (App.playingBufferSource) { try { App.playingBufferSource.stop(); } catch (_) { } App.playingBufferSource = null; }
-    }
-
-    function flushPreRollIntoQueue() {
-      for (const preFrame of App.preRollBuffer) {
-        for (let i = 0; i < preFrame.length; i++) App.pcmQueue.push(preFrame[i]);
-      }
-      App.preRollBuffer = [];
-    }
-
-    function pushPreRollFrame(int16) {
-      App.preRollBuffer.push(int16);
-      if (App.preRollBuffer.length > App.preRollMaxFrames) {
-        App.preRollBuffer.shift();
-      }
-    }
-
-    function queuePCMFrame(int16) {
-      for (let i = 0; i < int16.length; i++) App.pcmQueue.push(int16[i]);
-      while (App.pcmQueue.length >= App.frameSamples16k) {
-        const frame = new Int16Array(App.pcmQueue.splice(0, App.frameSamples16k));
-        workerSend({ type: 'send_audio', data: frame.buffer }, [frame.buffer]);
-      }
-    }
-
-    // ── Microphone capture ─────────────────────────────────────────────
-    async function startMic() {
-      if (App.mediaStream) return;
-      App.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      const ctx = ensurePlaybackContext();
-      await ctx.resume();
-      App.sampleRateIn = ctx.sampleRate;
-      App.sourceNode = ctx.createMediaStreamSource(App.mediaStream);
-      App.sinkNode = ctx.createGain();
-      App.sinkNode.gain.value = 0;
-      App.sinkNode.connect(ctx.destination);
-
-      let workletOk = false;
-      try {
-        await ensurePCMWorkletLoaded(ctx);
-        App.workletNode = new AudioWorkletNode(ctx, 'pcm-processor');
-        App.workletNode.port.onmessage = (e) => handleFloatChunk(e.data);
-        App.sourceNode.connect(App.workletNode);
-        App.workletNode.connect(App.sinkNode);
-        workletOk = true;
-        appendDebug('INFO', 'FrontendVAD', null, null, 'audio path: AudioWorklet');
-      } catch (err) {
-        appendDebug('WARN', 'FrontendVAD', null, null, `worklet fallback: ${err.message}`);
-      }
-      if (!workletOk) {
-        App.scriptNode = ctx.createScriptProcessor(4096, 1, 1);
-        App.scriptNode.onaudioprocess = (e) => handleFloatChunk(e.inputBuffer.getChannelData(0));
-        App.sourceNode.connect(App.scriptNode);
-        App.scriptNode.connect(App.sinkNode);
-      }
-    }
-
-    function stopMic() {
-      if (App.workletNode) {
-        try { App.workletNode.port.onmessage = null; } catch (_) { }
-        try { App.workletNode.disconnect(); } catch (_) { }
-        App.workletNode = null;
-      }
-      if (App.scriptNode) {
-        try { App.scriptNode.onaudioprocess = null; } catch (_) { }
-        try { App.scriptNode.disconnect(); } catch (_) { }
-        App.scriptNode = null;
-      }
-      if (App.sourceNode) { try { App.sourceNode.disconnect(); } catch (_) { } App.sourceNode = null; }
-      if (App.sinkNode) { try { App.sinkNode.disconnect(); } catch (_) { } App.sinkNode = null; }
-      if (App.mediaStream) { for (const t of App.mediaStream.getTracks()) t.stop(); App.mediaStream = null; }
-      App.pcmQueue = [];
-      App.preRollBuffer = [];
-      App.audioSending = false;
-      App.silentFramesSinceVoice = 0;
-      App.utteranceActive = false;
-      App.sustainedHighRmsCount = 0;
-      App.replyOnsetGuardUntil = 0;
-      App.replyOnsetGuardTurn = 0;
-      App.replyOnsetGuardLoggedTurn = 0;
-    }
-
-    // ── Audio processing (main thread) ─────────────────────────────────
-    // Handles: RMS calculation, barge-in detection, downsampling,
-    // forwarding PCM frames to Worker for WebSocket sending.
-    // VAD silence detection is handled by the Worker's setInterval.
-    function handleFloatChunk(floatChunk) {
-      let rms = 0;
-      for (let i = 0; i < floatChunk.length; i++) rms += floatChunk[i] * floatChunk[i];
-      rms = Math.sqrt(rms / Math.max(1, floatChunk.length));
-
-      const int16 = downsampleToPCM16(floatChunk, App.sampleRateIn, 16000);
-      const aiAudible = App.isPlaying || App.playbackQueue.length > 0;
-      const dynamicBargeThresh = 0.08;
-      const replyOnsetGuardActive = Date.now() < App.replyOnsetGuardUntil;
-
-      // Tell Worker about AI playback state so it can suppress VAD
-      workerSend({ type: 'set_ai_loud', value: aiAudible });
-
-      if (aiAudible) {
-        if (rms > dynamicBargeThresh) {
-          App.sustainedHighRmsCount++;
-          pushPreRollFrame(int16);
-        } else if (App.sustainedHighRmsCount > 0) {
-          App.sustainedHighRmsCount = Math.max(0, App.sustainedHighRmsCount - 1);
-        }
-
-        const canBargeIn = App.sustainedHighRmsCount >= 5;
-        if (canBargeIn) {
-          const now = Date.now();
-          if (now - App.lastInterruptAt > 500) {
-            App.lastInterruptAt = now;
-            App.currentTurn++;
-            App.activeTurnId = App.currentTurn;
-            stopPlayback();
-            App.backendState = 'Listening';
-            setStatus('Listening');
-            App.utteranceActive = true;
-            App.audioSending = true;
-            App.silentFramesSinceVoice = 0;
-            workerSend({ type: 'send_control', control: 'interrupt', reason: 'barge_in', turn_id: App.currentTurn });
-            workerSend({ type: 'voice_detected' });
-            flushPreRollIntoQueue();
-            queuePCMFrame(int16);
-            App.sustainedHighRmsCount = 0;
-            appendDebug('INFO', 'FrontendVAD', App.currentTurn, null, 'Barge-in committed (interrupt)');
-          }
-        }
-        return; // Drop microphone frame completely
-      }
-
-      const voiceDetected = rms > App.voiceThreshold;
-      if (voiceDetected) {
-        if (!App.utteranceActive && replyOnsetGuardActive) {
-          pushPreRollFrame(int16);
-          if (App.replyOnsetGuardLoggedTurn !== App.replyOnsetGuardTurn) {
-            App.replyOnsetGuardLoggedTurn = App.replyOnsetGuardTurn;
-            appendDebug('DEBUG', 'FrontendVAD', App.replyOnsetGuardTurn || App.currentTurn, null, 'Speech onset suppressed while awaiting reply');
-          }
-          return;
-        }
-        App.lastVoiceAt = Date.now();
-        if (!App.utteranceActive) {
-          App.currentTurn++;
-          workerSend({ type: 'send_control', control: 'start_listen', turn_id: App.currentTurn });
-          appendDebug('INFO', 'FrontendVAD', App.currentTurn, null, 'Speech onset detected (start_listen)');
-        }
-        App.utteranceActive = true;
-        workerSend({ type: 'voice_detected' });
-
-        // Voice detected: flush pre-roll buffer first (if not already sending)
-        if (!App.audioSending) {
-          App.audioSending = true;
-          flushPreRollIntoQueue();
-        }
-        App.silentFramesSinceVoice = 0;
-      } else {
-        App.silentFramesSinceVoice++;
-        if (App.audioSending && App.silentFramesSinceVoice > App.silentTailFrames) {
-          // Silence long enough: stop sending, switch to buffering
-          App.audioSending = false;
-          App.pcmQueue = [];
-        }
-      }
-
-      if (App.audioSending || App.utteranceActive) {
-        queuePCMFrame(int16);
-      } else {
-        // Silent: buffer frames for pre-roll
-        pushPreRollFrame(int16);
-      }
-    }
-
-    function downsampleToPCM16(float32, inRate, outRate) {
-      if (!float32 || float32.length === 0) return new Int16Array(0);
-      if (inRate <= outRate) {
-        const out = new Int16Array(float32.length);
-        for (let i = 0; i < float32.length; i++) { const s = Math.max(-1, Math.min(1, float32[i])); out[i] = s < 0 ? s * 32768 : s * 32767; }
-        return out;
-      }
-      const ratio = inRate / outRate;
-      const outLen = Math.floor(float32.length / ratio);
-      const out = new Int16Array(outLen);
-      for (let i = 0; i < outLen; i++) {
-        const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)] || 0));
-        out[i] = s < 0 ? s * 32768 : s * 32767;
-      }
-      return out;
-    }
-
     // ── Start / Stop ───────────────────────────────────────────────────
-    async function startAll() {
-      if (App.running) return;
-      try {
-        setupWorker();
-        // Connect WS via Worker
-        const wsUrl = `ws://${location.host}/ws`;
-        await new Promise((resolve, reject) => {
-          const handler = (e) => {
-            if (e.data.type === 'ws_open') { ioWorker.removeEventListener('message', handler); resolve(); }
-            if (e.data.type === 'ws_error') { ioWorker.removeEventListener('message', handler); reject(new Error('ws error')); }
-          };
-          ioWorker.addEventListener('message', handler);
-          workerSend({ type: 'connect', url: wsUrl });
-        });
-
-        await startMic();
-        App.running = true;
-        App.sessionEpoch++;
-        setButtons(true);
-        App.currentAIMsg = null;
-        App.currentPartialMsg = null;
-        App.pendingChunkMeta = [];
-        App.playbackQueue = [];
-        App.playbackEpoch = 0;
-        App.preRollBuffer = [];
-        App.audioSending = false;
-        App.utteranceActive = false;
-        App.silentFramesSinceVoice = 0;
-        App.sustainedHighRmsCount = 0;
-        App.replyOnsetGuardUntil = 0;
-        App.replyOnsetGuardTurn = 0;
-        App.replyOnsetGuardLoggedTurn = 0;
-        App.activeTurnId = 0;
-        App.currentTurn = 0;
-        workerSend({ type: 'start', turn_id: App.currentTurn });
-        setStatus('Connecting');
-        addChatMsg('system', '对话已开始，请说话...', 0);
-      } catch (err) {
-        appendDebug('ERROR', 'System', null, null, `start failed: ${err.message}`);
-        stopAll('start failed');
-      }
-    }
-
-    function stopAll(reason) {
-      workerSend({ type: 'stop', turn_id: App.currentTurn });
-      stopPlayback();
-      stopMic();
-      App.running = false;
-      setButtons(false);
-      setStatus('Idle');
-      if (reason) addChatMsg('system', `对话结束: ${reason}`, 0);
-    }
-
     // ── Visibility change: force AudioContext resume ────────────────────
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && App.running && App.audioCtx) {
@@ -1196,11 +927,22 @@
       }
     });
 
-    el.startBtn.addEventListener('click', () => startAll());
-    el.stopBtn.addEventListener('click', () => stopAll('手动停止'));
-    window.addEventListener('beforeunload', () => stopAll('page unload'));
+    el.startBtn.addEventListener('click', () => sessionController.startAll());
+    el.stopBtn.addEventListener('click', () => sessionController.stopAll('手动停止'));
+    el.configBtn.addEventListener('click', () => {
+      if (App.configDrawer) App.configDrawer.toggle();
+    });
+    window.addEventListener('beforeunload', () => sessionController.stopAll(''));
 
-    loadVersion();
+    async function initPage() {
+      await loadClientConfig();
+      await loadVersion();
+    }
+
+    initPage().catch((err) => {
+      appendDebug('ERROR', 'System', null, null, `init failed: ${err.message || err}`);
+      loadVersion();
+    });
   </script>
 </body>
 

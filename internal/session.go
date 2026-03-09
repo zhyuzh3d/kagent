@@ -13,18 +13,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	upstreamAudioQueueSize = 64
-	downstreamTTSQueueSize = 24
-)
-
 type Session struct {
-	conn     *websocket.Conn
-	cfg      *ModelConfig
-	asr      ASRClient
-	llm      LLMClient
-	tts      TTSClient
-	pipeline *TurnPipeline
+	conn          *websocket.Conn
+	cfg           *ModelConfig
+	runtimeConfig *RuntimeConfigManager
+	asr           ASRClient
+	llm           LLMClient
+	tts           TTSClient
+	pipeline      *TurnPipeline
 
 	stateMu sync.Mutex
 	state   string
@@ -65,21 +61,38 @@ type Session struct {
 	chatHistory []ChatMessage
 }
 
-func NewSession(conn *websocket.Conn, cfg *ModelConfig) *Session {
+func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) *Session {
 	activeCfg := cfg.ActiveChat()
-	s := &Session{
-		conn:       conn,
-		cfg:        cfg,
-		asr:        NewDoubaoASRClient(cfg.ASR),
-		llm:        NewDoubaoLLMClient(activeCfg),
-		tts:        NewDoubaoTTSClient(cfg.TTS),
-		state:      StateIdle,
-		audioIn:    make(chan []byte, upstreamAudioQueueSize),
-		control:    make(chan ControlMessage, 32),
-		ttsQueue:   make(chan TTSChunk, downstreamTTSQueueSize),
-		asrFinalCh: make(chan struct{}, 1),
+	publicCfg := defaultPublicConfig()
+	if runtimeConfig != nil {
+		publicCfg = runtimeConfig.Snapshot()
 	}
-	s.pipeline = NewTurnPipeline(s.llm, s.tts, TurnCallbacks{
+	audioQueueSize := publicCfg.Chat.Session.UpstreamAudioQueueSize
+	if audioQueueSize <= 0 {
+		audioQueueSize = defaultPublicConfig().Chat.Session.UpstreamAudioQueueSize
+	}
+	controlQueueSize := publicCfg.Chat.Session.ControlQueueSize
+	if controlQueueSize <= 0 {
+		controlQueueSize = defaultPublicConfig().Chat.Session.ControlQueueSize
+	}
+	ttsQueueSize := publicCfg.Chat.Session.DownstreamTTSQueueSize
+	if ttsQueueSize <= 0 {
+		ttsQueueSize = defaultPublicConfig().Chat.Session.DownstreamTTSQueueSize
+	}
+	s := &Session{
+		conn:          conn,
+		cfg:           cfg,
+		runtimeConfig: runtimeConfig,
+		asr:           NewDoubaoASRClient(cfg.ASR, runtimeConfig),
+		llm:           NewDoubaoLLMClient(activeCfg, runtimeConfig),
+		tts:           NewDoubaoTTSClient(cfg.TTS, runtimeConfig),
+		state:         StateIdle,
+		audioIn:       make(chan []byte, audioQueueSize),
+		control:       make(chan ControlMessage, controlQueueSize),
+		ttsQueue:      make(chan TTSChunk, ttsQueueSize),
+		asrFinalCh:    make(chan struct{}, 1),
+	}
+	s.pipeline = NewTurnPipeline(s.llm, s.tts, runtimeConfig, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {
 			s.setTurnState(turnID, state, detail)
 		},
@@ -228,7 +241,7 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		select {
 		case <-s.asrFinalCh:
 			Debugf("[Turn:%d] ASR final received for trigger_llm", tid)
-		case <-time.After(320 * time.Millisecond):
+		case <-time.After(s.triggerLLMWaitFinal()):
 			Warnf("[Turn:%d] ASR final wait timed out for trigger_llm; falling back", tid)
 		}
 
@@ -582,7 +595,7 @@ func (s *Session) enqueueTTS(chunk TTSChunk) error {
 	case s.ttsQueue <- chunk:
 		return nil
 	default:
-		return fmt.Errorf("tts queue full (%d)", downstreamTTSQueueSize)
+		return fmt.Errorf("tts queue full (%d)", cap(s.ttsQueue))
 	}
 }
 
@@ -657,11 +670,13 @@ func (s *Session) consumeLastASRText() string {
 	return out
 }
 
-const maxHistoryMessages = 20 // 10 rounds of user+assistant
-
 // trimHistory keeps only the last maxHistoryMessages messages.
 // Must be called with historyMu held.
 func (s *Session) trimHistory() {
+	maxHistoryMessages := s.publicConfig().Chat.Session.MaxHistoryMessages
+	if maxHistoryMessages <= 0 {
+		maxHistoryMessages = defaultPublicConfig().Chat.Session.MaxHistoryMessages
+	}
 	if len(s.chatHistory) > maxHistoryMessages {
 		s.chatHistory = s.chatHistory[len(s.chatHistory)-maxHistoryMessages:]
 	}
@@ -686,4 +701,19 @@ func (s *Session) getHistory() []ChatMessage {
 	out := make([]ChatMessage, len(s.chatHistory))
 	copy(out, s.chatHistory)
 	return out
+}
+
+func (s *Session) publicConfig() PublicConfig {
+	if s.runtimeConfig != nil {
+		return s.runtimeConfig.Snapshot()
+	}
+	return defaultPublicConfig()
+}
+
+func (s *Session) triggerLLMWaitFinal() time.Duration {
+	ms := s.publicConfig().Chat.Session.TriggerLLMWaitFinalMs
+	if ms <= 0 {
+		ms = defaultPublicConfig().Chat.Session.TriggerLLMWaitFinalMs
+	}
+	return time.Duration(ms) * time.Millisecond
 }

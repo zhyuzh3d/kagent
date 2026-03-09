@@ -2,6 +2,7 @@
 
 # Secrets / private local config (must not be committed)
 config/configx.json
+data/users/**/user_custom_config.json
 
 # Local build/runtime artifacts
 bin/
