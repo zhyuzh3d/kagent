@@ -13,7 +13,9 @@ const DEFAULT_PUBLIC_CONFIG = {
       replyOnsetGuardMs: 1200,
       preRollMaxFrames: 5,
       silentTailFrames: 50,
-      frameSamples16k: 320
+      frameSamples16k: 320,
+      initialHistorySize: 5,
+      pullHistorySize: 10
     }
   }
 };
@@ -72,6 +74,8 @@ export function applyChatFrontendConfig(app, config) {
   app.preRollMaxFrames = readNumber(frontend.preRollMaxFrames, app.preRollMaxFrames);
   app.silentTailFrames = readNumber(frontend.silentTailFrames, app.silentTailFrames);
   app.frameSamples16k = readNumber(frontend.frameSamples16k, app.frameSamples16k);
+  app.initialHistorySize = readNumber(frontend.initialHistorySize, app.initialHistorySize ?? 5);
+  app.pullHistorySize = readNumber(frontend.pullHistorySize, app.pullHistorySize ?? 10);
 }
 
 export function buildWorkerConfig(config) {

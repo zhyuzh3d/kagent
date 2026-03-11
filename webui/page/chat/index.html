@@ -160,13 +160,15 @@
     }
 
     .btn-ghost,
-    .btn-config {
+    .btn-config,
+    .btn-surface {
       background: transparent;
       color: var(--text);
       border: 1px solid var(--line);
     }
 
     .btn-config:hover:not(:disabled),
+    .btn-surface:hover:not(:disabled),
     .btn-ghost:hover:not(:disabled) {
       border-color: var(--accent2);
       color: var(--accent2);
@@ -333,6 +335,82 @@
 
     .config-shell.open .config-drawer {
       transform: translateX(0);
+    }
+
+    .surface-float-root {
+      position: fixed;
+      right: 18px;
+      bottom: 22px;
+      z-index: 18;
+      pointer-events: none;
+    }
+
+    .surface-float-panel {
+      width: min(380px, 88vw);
+      height: 280px;
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(18, 23, 37, 0.97), rgba(11, 16, 25, 0.97));
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      pointer-events: auto;
+    }
+
+    .surface-float-panel.open {
+      display: flex;
+    }
+
+    .surface-float-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(129, 140, 248, 0.2);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .surface-float-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent2);
+      flex: 1;
+    }
+
+    .surface-float-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .surface-float-actions button {
+      padding: 5px 8px;
+      font-size: 11px;
+      border-radius: 7px;
+      background: rgba(18, 25, 42, 0.95);
+      color: var(--text);
+      border: 1px solid rgba(129, 140, 248, 0.2);
+    }
+
+    .surface-float-body {
+      flex: 1;
+      background: #fff;
+    }
+
+    .surface-float-iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    .surface-float-status {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-top: 1px solid rgba(129, 140, 248, 0.16);
+      background: rgba(15, 20, 32, 0.72);
+      font-family: "SF Mono", monospace;
     }
 
     .config-drawer-head,
@@ -575,12 +653,14 @@
     <div id="statusDot" class="status-dot"></div>
     <div id="statusText" class="status-text">Idle</div>
     <button id="configBtn" class="btn-config">配置</button>
+    <button id="surfaceBtn" class="btn-surface">Surface</button>
     <button id="startBtn" class="btn-start">开始对话</button>
     <button id="stopBtn" class="btn-stop" disabled>停止</button>
   </div>
 
   <div id="chatArea" class="chat-area"></div>
   <div id="configShell" class="config-shell"></div>
+  <div id="surfaceFloatRoot" class="surface-float-root"></div>
 
   <div class="resize-handle" id="resizeHandle"></div>
   <div class="debug-toggle" id="debugToggle">▶ 调试日志</div>
@@ -591,11 +671,13 @@
   <script type="module">
     import { createAudioCapture } from './audio-capture.js';
     import { createAudioPlayback } from './audio-playback.js';
+    import { createChatActionEngine } from './action-engine.js';
     import { createChatStore } from './chat-store.js';
     import { loadRuntimeConfig, loadConfigInfo, applyChatFrontendConfig, buildWorkerConfig } from './config-store.js';
     import { createConfigDrawer } from './config-drawer.js';
     import { createEventRouter } from './event-router.js';
     import { createSessionController } from './session-controller.js';
+    import { createSurfaceBridge } from './surface-bridge.js';
 
     // ===================================================================
     // Architecture: Main Thread (UI + AudioContext + Playback)
@@ -667,7 +749,9 @@
       versionText: document.getElementById('versionText'),
       chatArea: document.getElementById('chatArea'),
       configBtn: document.getElementById('configBtn'),
+      surfaceBtn: document.getElementById('surfaceBtn'),
       configShell: document.getElementById('configShell'),
+      surfaceFloatRoot: document.getElementById('surfaceFloatRoot'),
       debug: document.getElementById('debug'),
       debugToggle: document.getElementById('debugToggle'),
       debugPanel: document.getElementById('debugPanel'),
@@ -876,6 +960,72 @@
       chatArea: el.chatArea,
     });
 
+    function reportActionRecord(payload) {
+      const p = payload && typeof payload === 'object' ? payload : {};
+      const turnId = Number.isFinite(p.turnId) ? p.turnId : (App.activeTurnId || App.currentTurn || 0);
+      const actionName = typeof p.actionName === 'string' ? p.actionName : '';
+      if (!actionName) return;
+      sessionController.workerSend({
+        type: 'send_control',
+        control: 'action_result',
+        reason: typeof p.category === 'string' && p.category ? p.category : 'dispatch',
+        turn_id: turnId,
+        text: typeof p.content === 'string' ? p.content : '',
+        extra: {
+          action_id: (typeof p.actionId === 'string' && p.actionId) ? p.actionId : `act-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+          action_name: actionName,
+          action_status: typeof p.status === 'string' && p.status ? p.status : 'unknown',
+          action_followup: typeof p.followup === 'string' && p.followup ? p.followup : 'none',
+          action_surface_id: typeof p.actionSurfaceID === 'string' && p.actionSurfaceID ? p.actionSurfaceID : 'counter',
+          action_manual_confirm: typeof p.manualConfirm === 'string' ? p.manualConfirm : '',
+          action_block_reason: typeof p.blockReason === 'string' ? p.blockReason : '',
+          action_args: p.args && typeof p.args === 'object' ? p.args : {},
+          action_result: p.result && typeof p.result === 'object' ? p.result : {},
+          action_effect: p.effect && typeof p.effect === 'object' ? p.effect : {},
+          action_state: p.state && typeof p.state === 'object' ? p.state : {},
+        },
+      });
+    }
+
+    function reportStateChange(payload) {
+      const p = payload && typeof payload === 'object' ? payload : {};
+      const turnId = Number.isFinite(p.turnId) ? p.turnId : (App.activeTurnId || App.currentTurn || 0);
+      const surfaceId = typeof p.surface_id === 'string' && p.surface_id ? p.surface_id : 'counter';
+      sessionController.workerSend({
+        type: 'send_control',
+        control: 'state_change',
+        turn_id: turnId,
+        extra: {
+          surface_id: surfaceId,
+          event_type: typeof p.event_type === 'string' ? p.event_type : 'state_change',
+          business_state: p.business_state && typeof p.business_state === 'object' ? p.business_state : {},
+          visible_text: typeof p.visible_text === 'string' ? p.visible_text : '',
+          status: typeof p.status === 'string' ? p.status : 'ready',
+          state_version: Number.isFinite(p.state_version) ? p.state_version : 0,
+          updated_at_ms: Number.isFinite(p.updated_at_ms) ? p.updated_at_ms : Date.now(),
+        },
+      });
+    }
+
+    const surfaceBridge = createSurfaceBridge({
+      root: el.surfaceFloatRoot,
+      surfaceURL: '/surface/demo-counter.html',
+      appendDebug,
+      onSurfaceEvent: (evt) => {
+        const turnId = App.activeTurnId || App.currentTurn || 0;
+        actionEngine.handleSurfaceEffect(turnId, evt);
+      },
+    });
+
+    const actionEngine = createChatActionEngine({
+      chatStore,
+      surfaceBridge,
+      appendDebug,
+      appendSystem: (text) => chatStore.addChatMsg('system', text, 0),
+      reportActionRecord,
+      reportStateChange,
+    });
+
     const audioPlayback = createAudioPlayback({
       app: App,
       appendDebug,
@@ -889,6 +1039,12 @@
       setStatus,
       flashIndicator,
       appendDebug,
+      onLLMDelta: ({ turnId, text }) => actionEngine.handleAssistantDelta(turnId, text || ''),
+      onLLMFinal: ({ turnId, text }) => {
+        actionEngine.handleAssistantFinal(turnId, text || '').catch((err) => {
+          appendDebug('ERROR', 'ActionEngine', turnId, null, `handleAssistantFinal failed: ${err.message || err}`);
+        });
+      },
     });
 
     const sessionController = createSessionController({
@@ -910,6 +1066,9 @@
       workerSend: sessionController.workerSend,
       setStatus,
       appendDebug,
+      onBargeIn: (interruptedTurnId) => {
+        sessionController.finalizeUtterance(interruptedTurnId);
+      },
     });
 
     sessionController.bindAudioCapture(audioCapture);
@@ -932,11 +1091,15 @@
     el.configBtn.addEventListener('click', () => {
       if (App.configDrawer) App.configDrawer.toggle();
     });
+    el.surfaceBtn.addEventListener('click', () => {
+      surfaceBridge.toggleVisible();
+    });
     window.addEventListener('beforeunload', () => sessionController.stopAll(''));
 
     async function initPage() {
       await loadClientConfig();
       await loadVersion();
+      await sessionController.initWorkerConnection();
     }
 
     initPage().catch((err) => {

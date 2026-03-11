@@ -36,23 +36,29 @@ export function createSessionController(options) {
     workerSend({ type: "config", config });
   }
 
-  function handleVadUtteranceEnd() {
+  function finalizeUtterance(turnId) {
     if (!app.running) return;
-    app.utteranceActive = false;
-    app.sustainedHighRmsCount = 0;
 
     let finalText = "";
-    const msgObj = chatStore.findUserMsg(app.currentTurn);
+    const msgObj = chatStore.findUserMsg(turnId);
     if (msgObj) {
       finalText = msgObj.text;
       msgObj.isPartial = false;
       msgObj.element.classList.remove("partial");
     }
+    workerSend({ type: "send_control", control: "trigger_llm", turn_id: turnId, text: finalText });
+    appendDebug("INFO", "SessionControl", turnId, finalText, "Trigger LLM explicitly (trigger_llm)");
+  }
+
+  function handleVadUtteranceEnd() {
+    if (!app.running) return;
+    app.utteranceActive = false;
+    app.sustainedHighRmsCount = 0;
     app.replyOnsetGuardUntil = Date.now() + app.replyOnsetGuardMs;
     app.replyOnsetGuardTurn = app.currentTurn;
     app.replyOnsetGuardLoggedTurn = 0;
-    workerSend({ type: "send_control", control: "trigger_llm", turn_id: app.currentTurn, text: finalText });
-    appendDebug("INFO", "SessionControl", app.currentTurn, finalText, "Trigger LLM explicitly (trigger_llm)");
+
+    finalizeUtterance(app.currentTurn);
   }
 
   function setupWorker() {
@@ -67,7 +73,11 @@ export function createSessionController(options) {
       if (!msg) return;
       switch (msg.type) {
         case "ws_open":
-          appendDebug("INFO", "Network", null, null, "ws connected (via worker)");
+          const limit = (app.publicConfig && app.publicConfig.chat && app.publicConfig.chat.session && app.publicConfig.chat.session.maxHistoryMessages) || app.initialHistorySize || 20;
+          appendDebug("INFO", "Network", null, null, `ws connected (via worker), fetching history sliding window limit=${limit}`);
+          if (limit > 0) {
+            workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, cursor: 0 } });
+          }
           break;
         case "ws_close":
           appendDebug("WARN", "Network", null, null, "ws closed (via worker)");
@@ -158,10 +168,22 @@ export function createSessionController(options) {
     app.currentTurn = 0;
   }
 
+  async function initWorkerConnection() {
+    if (ioWorker) return;
+    setupWorker();
+    try {
+      await connectWorkerWS();
+    } catch (err) {
+      appendDebug("ERROR", "System", null, null, `ws initial connect failed: ${err.message}`);
+    }
+  }
+
   async function startAll() {
     if (app.running) return;
     try {
-      setupWorker();
+      if (!ioWorker) {
+        setupWorker();
+      }
       await connectWorkerWS();
       if (!audioCapture) {
         throw new Error("audio capture not bound");
@@ -185,7 +207,6 @@ export function createSessionController(options) {
     if (audioCapture) {
       audioCapture.stopMic();
     }
-    teardownWorker();
     app.running = false;
     setButtons(false);
     setStatus("Idle");
@@ -201,5 +222,7 @@ export function createSessionController(options) {
     stopAll,
     syncWorkerConfig,
     workerSend,
+    finalizeUtterance,
+    initWorkerConnection,
   };
 }

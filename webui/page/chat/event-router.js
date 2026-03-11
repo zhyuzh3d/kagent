@@ -6,11 +6,22 @@ export function createEventRouter(options) {
     setStatus,
     flashIndicator,
     appendDebug,
+    onLLMDelta,
+    onLLMFinal,
   } = options;
+
+  function syncCurrentTurn(msg) {
+    const turnId = Number(msg && msg.turn_id);
+    if (!Number.isFinite(turnId) || turnId <= 0) return;
+    if (turnId > app.currentTurn) {
+      app.currentTurn = turnId;
+    }
+  }
 
   function handleEvent(msg) {
     const type = msg.type;
     if (!type) return;
+    syncCurrentTurn(msg);
 
     if (type === "status") {
       const value = msg.value || "";
@@ -48,6 +59,11 @@ export function createEventRouter(options) {
       return;
     }
 
+    if (type === "history_sync") {
+      chatStore.handleHistorySync(msg.messages || [], msg.has_more);
+      return;
+    }
+
     if (msg.turn_id && (type === "asr_partial" || type === "asr_final") && msg.turn_id !== app.currentTurn) {
       appendDebug("DEBUG", "Network", msg.turn_id, null, `Stale msg dropped: type=${type} (currentInput=${app.currentTurn})`);
       return;
@@ -73,10 +89,31 @@ export function createEventRouter(options) {
       return;
     }
     if (type === "llm_delta") {
+      if (typeof onLLMDelta === "function") {
+        const handled = onLLMDelta({
+          turnId: msg.turn_id,
+          text: msg.text || "",
+          message: msg,
+        });
+        if (handled && handled.handled) {
+          if (typeof handled.content === "string") {
+            chatStore.setAIMsgText(msg.turn_id, handled.content);
+          }
+          return;
+        }
+      }
       chatStore.appendAIDelta(msg.text || "", msg.turn_id);
       return;
     }
     if (type === "llm_final") {
+      const finalText = (typeof msg.text === "string" && msg.text) ? msg.text : chatStore.getAIMsgText(msg.turn_id);
+      if (typeof onLLMFinal === "function") {
+        onLLMFinal({
+          turnId: msg.turn_id,
+          text: finalText,
+          message: msg,
+        });
+      }
       chatStore.finalizeAI(msg.turn_id);
       return;
     }

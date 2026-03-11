@@ -1,41 +1,4 @@
-=== DEPLOY id=52604eab-0ce9-4746-b9bf-1b5d33940785 ts=2026-03-09 18:12:33 CST backend=26030901 pid=? ===
-=== DEPLOY id=52604eab-0ce9-4746-b9bf-1b5d33940785 ts=2026-03-09 18:12:33 CST backend=26030901 pid=39275 started ===
-2026-03-09 18:12:34.643 [INFO] [System:45] kagent version backend=26030901 webui=26030901
-2026-03-09 18:12:34.643 [INFO] [System:160] kagent T0 server listening on http://127.0.0.1:18080
-2026-03-09 18:12:39.465 [INFO] [SessionManager:277] [Turn:1] -> VAD listening started
-2026-03-09 18:12:42.166 [WARN] [SessionManager:245] [Turn:1] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:12:42.166 [INFO] [SessionManager:257] [Turn:1] "我准备去吃饭喽" -> LLM Triggered
-2026-03-09 18:12:44.266 [INFO] [SessionManager:277] [Turn:2] -> VAD listening started
-2026-03-09 18:12:45.165 [WARN] [SessionManager:245] [Turn:2] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:12:47.584 [INFO] [AudioPipeline:90] [Turn:1] "哇，祝你吃饭香喷喷呀..." -> TTS start sending...
-2026-03-09 18:12:50.293 [INFO] [AudioPipeline:165] [Turn:1] -> TTS finished sending
-2026-03-09 18:12:53.887 [INFO] [SessionManager:277] [Turn:3] -> VAD listening started
-2026-03-09 18:12:57.364 [WARN] [SessionManager:245] [Turn:3] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:12:57.365 [INFO] [SessionManager:257] [Turn:3] "我着不着急关你屁事啊..." -> LLM Triggered
-2026-03-09 18:13:03.187 [INFO] [AudioPipeline:90] [Turn:3] "哎呀，对不起呀，我太..." -> TTS start sending...
-2026-03-09 18:13:03.187 [INFO] [AudioPipeline:165] [Turn:3] -> TTS finished sending
-2026-03-09 18:13:10.073 [INFO] [SessionManager:277] [Turn:4] -> VAD listening started
-2026-03-09 18:13:12.248 [INFO] [SessionManager:334] [Turn:4] "好的那你跟我一起去吃..." -> ASR final
-2026-03-09 18:13:12.249 [INFO] [SessionManager:257] [Turn:4] "好的那你跟我一起去吃..." -> LLM Triggered
-2026-03-09 18:13:16.033 [INFO] [AudioPipeline:90] [Turn:4] "哈哈，我可没法真的陪..." -> TTS start sending...
-2026-03-09 18:13:16.034 [INFO] [AudioPipeline:165] [Turn:4] -> TTS finished sending
-2026-03-09 18:13:21.225 [INFO] [SessionManager:277] [Turn:5] -> VAD listening started
-2026-03-09 18:13:25.257 [INFO] [SessionManager:334] [Turn:5] "你可以假装你有个实体..." -> ASR final
-2026-03-09 18:13:25.259 [INFO] [SessionManager:257] [Turn:5] "你可以假装你有个实体..." -> LLM Triggered
-2026-03-09 18:13:29.564 [INFO] [AudioPipeline:90] [Turn:5] "哈哈，那我就假装坐在..." -> TTS start sending...
-2026-03-09 18:13:29.565 [INFO] [AudioPipeline:165] [Turn:5] -> TTS finished sending
-2026-03-09 18:13:36.815 [INFO] [SessionManager:277] [Turn:6] -> VAD listening started
-2026-03-09 18:13:38.477 [INFO] [SessionManager:334] [Turn:6] "你不吃两口了？" -> ASR final
-2026-03-09 18:13:38.478 [INFO] [SessionManager:257] [Turn:6] "你不吃两口了？" -> LLM Triggered
-2026-03-09 18:13:43.080 [INFO] [AudioPipeline:90] [Turn:6] "哈哈，我虽然没法真吃..." -> TTS start sending...
-2026-03-09 18:13:43.080 [INFO] [AudioPipeline:165] [Turn:6] -> TTS finished sending
-2026-03-09 18:13:53.599 [INFO] [SessionManager:277] [Turn:7] -> VAD listening started
-2026-03-09 18:13:54.467 [WARN] [SessionManager:245] [Turn:7] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:13:55.615 [INFO] [SessionManager:277] [Turn:8] -> VAD listening started
-2026-03-09 18:13:58.664 [WARN] [SessionManager:245] [Turn:8] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:13:58.665 [INFO] [SessionManager:257] [Turn:8] "你说说看呢" -> LLM Triggered
-2026-03-09 18:14:03.691 [INFO] [AudioPipeline:90] [Turn:8] "哈哈，那我就假装用筷..." -> TTS start sending...
-2026-03-09 18:14:03.692 [INFO] [AudioPipeline:165] [Turn:8] -> TTS finished sending
-2026-03-09 18:14:13.523 [INFO] [SessionManager:277] [Turn:9] -> VAD listening started
-2026-03-09 18:14:14.366 [WARN] [SessionManager:245] [Turn:9] ASR final wait timed out for trigger_llm; falling back
-2026-03-09 18:14:14.804 [INFO] [SessionManager:277] [Turn:10] -> VAD listening started
+=== DEPLOY id=e966b6b8-f957-4ade-82d1-586ae57f0766 ts=2026-03-11 13:57:59 CST backend=26030902 pid=? ===
+=== DEPLOY id=e966b6b8-f957-4ade-82d1-586ae57f0766 ts=2026-03-11 13:57:59 CST backend=26030902 pid=44419 started ===
+2026-03-11 13:57:59.716 [INFO] [System:60] kagent version backend=26030902 webui=26030902
+2026-03-11 13:57:59.716 [INFO] [System:175] kagent T0 server listening on http://127.0.0.1:18080

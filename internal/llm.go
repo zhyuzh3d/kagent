@@ -12,10 +12,22 @@ import (
 	"time"
 )
 
+const chatSurfaceActionPromptSuffix = "" +
+	"当你需要读取或控制 counter surface 时，请返回 JSON（可放在纯 JSON 或 JSON 代码块中）：\n" +
+	"{\"content\":\"给用户显示的文本\",\"action\":{\"id\":\"可选\",\"name\":\"surface.get_state|surface.call.counter.set_count|surface.call.counter.increment|surface.call.counter.reset\",\"args\":{\"surface_id\":\"counter\",\"count\":number,\"step\":number},\"followup\":\"none|report\"}}\n" +
+	"说明：followup 仅允许 none/report；如果 action 后还需要基于结果继续推理，用 report。\n" +
+	"如果不需要动作，保持普通自然文本回复即可。"
+
+const continuationUserPrompt = "请基于最新的 action_report 继续推理并回复用户。"
+
 // ChatMessage represents a single message in the conversation history.
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	MessageID   string `json:"message_id,omitempty"`
+	Role        string `json:"role"`
+	Content     string `json:"content"`
+	MessageType string `json:"message_type,omitempty"`
+	Visibility  string `json:"visibility,omitempty"`
+	CreatedAtMS int64  `json:"created_at_ms,omitempty"`
 }
 
 type LLMClient interface {
@@ -36,22 +48,10 @@ func NewDoubaoLLMClient(cfg ChatConfig, runtimeConfig *RuntimeConfigManager) *Do
 
 func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error) {
 	chatCfg := c.chatConfig()
-	// Build the input array: system + history + current user message
-	inputArr := make([]map[string]any, 0, len(history)+2)
-	inputArr = append(inputArr, map[string]any{
-		"role":    "system",
-		"content": chatCfg.LLM.SystemPrompt,
-	})
-	for _, m := range history {
-		inputArr = append(inputArr, map[string]any{
-			"role":    m.Role,
-			"content": m.Content,
-		})
-	}
-	inputArr = append(inputArr, map[string]any{
-		"role":    "user",
-		"content": input,
-	})
+	systemPrompt := buildChatSystemPrompt(chatCfg.LLM.SystemPrompt)
+	// Build the input array: system + history + user input.
+	// Some providers require the final message role to be `user`.
+	inputArr := buildLLMInputMessages(systemPrompt, history, input)
 
 	reqBody := map[string]any{
 		"model":  c.cfg.Model,
@@ -91,6 +91,59 @@ func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []Ch
 		return parseLLMSSE(ctx, resp.Body, onDelta)
 	}
 	return parseLLMNonStream(resp.Body)
+}
+
+func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input string) []map[string]any {
+	inputArr := make([]map[string]any, 0, len(history)+3)
+	inputArr = append(inputArr, map[string]any{
+		"role":    "system",
+		"content": systemPrompt,
+	})
+	for _, m := range history {
+		content := strings.TrimSpace(m.Content)
+		if content == "" {
+			continue
+		}
+		inputArr = append(inputArr, map[string]any{
+			"role":    mapProviderRole(m.Role),
+			"content": content,
+		})
+	}
+	cleanInput := strings.TrimSpace(input)
+	if cleanInput != "" {
+		inputArr = append(inputArr, map[string]any{
+			"role":    "user",
+			"content": cleanInput,
+		})
+		return inputArr
+	}
+	lastRole := ""
+	if len(inputArr) > 0 {
+		if v, ok := inputArr[len(inputArr)-1]["role"].(string); ok {
+			lastRole = strings.ToLower(strings.TrimSpace(v))
+		}
+	}
+	if lastRole != "user" {
+		inputArr = append(inputArr, map[string]any{
+			"role":    "user",
+			"content": continuationUserPrompt,
+		})
+	}
+	return inputArr
+}
+
+func buildChatSystemPrompt(base string) string {
+	clean := strings.TrimSpace(base)
+	if clean == "" {
+		return strings.TrimSpace(chatSurfaceActionPromptSuffix)
+	}
+	lower := strings.ToLower(clean)
+	if strings.Contains(lower, "surface.call.counter.") &&
+		strings.Contains(lower, "surface.get_state") &&
+		strings.Contains(lower, "followup") {
+		return clean
+	}
+	return clean + "\n\n" + strings.TrimSpace(chatSurfaceActionPromptSuffix)
 }
 
 func (c *DoubaoLLMClient) chatConfig() ChatPublicConfig {

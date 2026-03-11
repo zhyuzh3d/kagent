@@ -24,12 +24,33 @@ function updateConfig(next) {
   }
 }
 
-function sendControl(type, reason, turnId, text) {
+function sendControl(type, reason, turnId, text, extra) {
   if (!wsReady()) return;
   const payload = { type };
   if (reason) payload.reason = reason;
   if (turnId) payload.turn_id = turnId;
   if (text) payload.text = text;
+  if (extra && typeof extra === "object") {
+    if (extra.action_id) payload.action_id = extra.action_id;
+    if (extra.action_name) payload.action_name = extra.action_name;
+    if (extra.action_status) payload.action_status = extra.action_status;
+    if (extra.action_followup) payload.action_followup = extra.action_followup;
+    if (extra.action_surface_id) payload.action_surface_id = extra.action_surface_id;
+    if (extra.action_manual_confirm) payload.action_manual_confirm = extra.action_manual_confirm;
+    if (extra.action_block_reason) payload.action_block_reason = extra.action_block_reason;
+    if (extra.action_args && typeof extra.action_args === "object") payload.action_args = extra.action_args;
+    if (extra.action_result && typeof extra.action_result === "object") payload.action_result = extra.action_result;
+    if (extra.action_effect && typeof extra.action_effect === "object") payload.action_effect = extra.action_effect;
+    if (extra.action_state && typeof extra.action_state === "object") payload.action_state = extra.action_state;
+    if (extra.surface_id) payload.surface_id = extra.surface_id;
+    if (extra.event_type) payload.event_type = extra.event_type;
+    if (extra.business_state && typeof extra.business_state === "object") payload.business_state = extra.business_state;
+    if (typeof extra.visible_text === "string") payload.visible_text = extra.visible_text;
+    if (typeof extra.status === "string") payload.status = extra.status;
+    if (Number.isFinite(extra.state_version)) payload.state_version = extra.state_version;
+    if (Number.isFinite(extra.limit)) payload.limit = extra.limit;
+    if (Number.isFinite(extra.cursor)) payload.cursor = extra.cursor;
+  }
   ws.send(JSON.stringify(payload));
 }
 
@@ -55,7 +76,7 @@ function stopVAD() {
   utteranceActive = false;
 }
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
   const msg = e.data;
   if (!msg || !msg.type) return;
 
@@ -64,6 +85,13 @@ self.onmessage = function(e) {
       updateConfig(msg.config);
       break;
     case "connect":
+      if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+        self.postMessage({ type: "ws_open" });
+        return;
+      }
+      if (ws) {
+        try { ws.close(); } catch (_) { }
+      }
       ws = new WebSocket(msg.url);
       ws.binaryType = "arraybuffer";
       ws.onopen = () => self.postMessage({ type: "ws_open" });
@@ -78,7 +106,7 @@ self.onmessage = function(e) {
       };
       break;
     case "send_control":
-      sendControl(msg.control, msg.reason, msg.turn_id, msg.text);
+      sendControl(msg.control, msg.reason, msg.turn_id, msg.text, msg.extra);
       break;
     case "send_audio":
       if (wsReady()) ws.send(msg.data);
@@ -100,10 +128,6 @@ self.onmessage = function(e) {
       running = false;
       stopVAD();
       sendControl("stop", null, msg.turn_id);
-      if (ws) {
-        ws.close();
-        ws = null;
-      }
       break;
     case "interrupt":
       sendControl("interrupt", "barge_in");
@@ -112,7 +136,7 @@ self.onmessage = function(e) {
       running = false;
       stopVAD();
       if (ws) {
-        try { ws.close(); } catch (_) {}
+        try { ws.close(); } catch (_) { }
         ws = null;
       }
       break;

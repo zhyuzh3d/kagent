@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unsafe Permission Demo</title>
+  <script id="surface-manifest" type="application/json">
+    {
+      "surface_id": "unsafe-demo",
+      "title": "Unsafe Permission Demo",
+      "description": "用于验证加载前 sandbox 扩权确认",
+      "permissions": {
+        "sandbox": ["allow-same-origin"],
+        "allow": []
+      },
+      "actions": [
+        {
+          "name": "ping",
+          "description": "返回当前时间戳",
+          "args_schema": {}
+        }
+      ]
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "SF Pro Text", "Segoe UI", sans-serif;
+      background: linear-gradient(160deg, #fff7ed, #fee2e2);
+      color: #7f1d1d;
+    }
+
+    .box {
+      background: #fff;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 8px 20px rgba(127, 29, 29, 0.18);
+      width: min(88vw, 320px);
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .text {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="box">
+    <div class="title">Unsafe Sandbox Token Demo</div>
+    <div class="text">该 Surface 在 manifest 中声明了 `allow-same-origin`，用于测试 Main Surface 的加载前权限确认流程。</div>
+  </div>
+</body>
+
+</html>

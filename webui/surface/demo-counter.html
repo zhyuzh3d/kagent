@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Counter Surface</title>
+  <script id="surface-manifest" type="application/json">
+    {
+      "surface_id": "counter",
+      "title": "Counter Surface",
+      "description": "可被 Main Surface 远程调用的计数器 demo",
+      "permissions": {
+        "sandbox": [],
+        "allow": []
+      },
+      "capabilities": {
+        "get_state": true
+      },
+      "actions": [
+        {
+          "name": "get_state",
+          "description": "读取当前计数器状态",
+          "args_schema": {}
+        },
+        {
+          "name": "set_count",
+          "description": "设置计数器到指定值",
+          "args_schema": {
+            "count": "number"
+          }
+        },
+        {
+          "name": "increment",
+          "description": "按 step 增加计数器",
+          "args_schema": {
+            "step": "number"
+          }
+        },
+        {
+          "name": "reset",
+          "description": "清零计数器",
+          "args_schema": {}
+        }
+      ]
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "Segoe UI", "PingFang SC", sans-serif;
+      background: linear-gradient(160deg, #f8fafc, #dbeafe);
+      color: #0f172a;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+
+    .card {
+      width: min(92vw, 360px);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+      padding: 14px;
+      text-align: center;
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .count {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1;
+      margin: 12px 0;
+      color: #1d4ed8;
+    }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #334155;
+      min-height: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="title">Counter Surface</div>
+    <div id="countValue" class="count">0</div>
+    <div class="btns">
+      <button id="incBtn">+1</button>
+      <button id="decBtn">-1</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div id="metaText" class="meta">等待 Main Surface 握手...</div>
+  </div>
+
+  <script>
+    let count = 0;
+    let stateVersion = 0;
+    let surfacePort = null;
+    let surfaceID = "counter";
+    let sessionToken = "";
+
+    const countEl = document.getElementById("countValue");
+    const metaEl = document.getElementById("metaText");
+
+    function render() {
+      countEl.textContent = String(count);
+    }
+
+    function businessState() {
+      return { count };
+    }
+
+    function visibleText() {
+      return String(count);
+    }
+
+    function snapshot(eventType) {
+      return {
+        type: "state_change",
+        surface_id: surfaceID,
+        event_type: eventType || "state_change",
+        business_state: businessState(),
+        visible_text: visibleText(),
+        status: "ready",
+        state_version: stateVersion,
+        updated_at_ms: Date.now(),
+      };
+    }
+
+    function postToMain(msg) {
+      if (!surfacePort) return;
+      try {
+        surfacePort.postMessage(msg);
+      } catch (_) {
+      }
+    }
+
+    function emitStateChange(eventType) {
+      stateVersion += 1;
+      postToMain(snapshot(eventType));
+    }
+
+    function emitActionResult(action, status, result, errorText) {
+      const payload = {
+        type: "action_result",
+        action_id: action && action.id ? action.id : "",
+        action_name: action && action.name ? action.name : "",
+        status: status || "ok",
+        result: result && typeof result === "object" ? result : {},
+        error: errorText || "",
+        surface_id: surfaceID,
+        business_state: businessState(),
+        visible_text: visibleText(),
+        state_version: stateVersion,
+        updated_at_ms: Date.now(),
+      };
+      postToMain(payload);
+    }
+
+    function applyActionCall(action) {
+      if (!action || typeof action !== "object") return;
+      const name = typeof action.name === "string" ? action.name : "";
+      const args = action.args && typeof action.args === "object" ? action.args : {};
+
+      if (name === "get_state") {
+        emitActionResult(action, "ok", { from_surface: true });
+        return;
+      }
+
+      if (name === "set_count") {
+        if (!Number.isFinite(args.count)) {
+          emitActionResult(action, "fail", {}, "count must be a number");
+          return;
+        }
+        count = Math.floor(args.count);
+        render();
+        emitStateChange("action_call.set_count");
+        emitActionResult(action, "ok", { changed: true });
+        return;
+      }
+
+      if (name === "increment") {
+        const step = Number.isFinite(args.step) ? args.step : 1;
+        count += step;
+        render();
+        emitStateChange("action_call.increment");
+        emitActionResult(action, "ok", { changed: true });
+        return;
+      }
+
+      if (name === "reset") {
+        count = 0;
+        render();
+        emitStateChange("action_call.reset");
+        emitActionResult(action, "ok", { changed: true });
+        return;
+      }
+
+      emitActionResult(action, "fail", {}, `unknown action: ${name}`);
+    }
+
+    function onMainMessage(msg) {
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === "action_call") {
+        applyActionCall(msg.action || {});
+      } else if (msg.type === "ping") {
+        postToMain({ type: "surface_pong", ts: Date.now() });
+      }
+    }
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "surface_connect") return;
+      const port = event.ports && event.ports[0];
+      if (!port) return;
+      surfaceID = data.surface_id || "counter";
+      sessionToken = data.session_token || "";
+      surfacePort = port;
+      surfacePort.onmessage = (ev) => onMainMessage(ev.data);
+      surfacePort.start();
+      metaEl.textContent = `已连接: ${surfaceID}`;
+      postToMain({
+        type: "surface_ready",
+        surface_id: surfaceID,
+        session_token: sessionToken,
+        capabilities: { get_state: true },
+        state: snapshot("init.ready"),
+      });
+      emitStateChange("init.connected");
+    });
+
+    setInterval(() => {
+      postToMain({
+        type: "surface_heartbeat",
+        ts: Date.now(),
+      });
+    }, 5000);
+
+    document.getElementById("incBtn").addEventListener("click", () => {
+      count += 1;
+      render();
+      emitStateChange("local_click.inc");
+    });
+
+    document.getElementById("decBtn").addEventListener("click", () => {
+      count -= 1;
+      render();
+      emitStateChange("local_click.dec");
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      count = 0;
+      render();
+      emitStateChange("local_click.reset");
+    });
+
+    render();
+  </script>
+</body>
+
+</html>

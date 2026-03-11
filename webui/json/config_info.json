@@ -90,6 +90,38 @@
       "scope": "r",
       "applyHint": "建议从新 thread 生效。当前实现中会在后续裁剪历史时逐步体现。"
     },
+    "chat.frontend.initialHistorySize": {
+      "tab": "chat",
+      "group": "上下文",
+      "label": "初始加载历史",
+      "description": "前端进房初始拉取的历史条数。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "条",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "recommended": 5,
+      "scope": "f",
+      "applyHint": "刷新页面或重连后生效。"
+    },
+    "chat.frontend.pullHistorySize": {
+      "tab": "chat",
+      "group": "上下文",
+      "label": "动态拉取长段",
+      "description": "上划时单次获取长历史的条数。",
+      "show": true,
+      "editable": true,
+      "control": "number",
+      "unit": "条",
+      "min": 1,
+      "max": 50,
+      "step": 1,
+      "recommended": 10,
+      "scope": "f",
+      "applyHint": "下次拉取即生效。"
+    },
     "chat.asr.endWindowSize": {
       "tab": "chat",
       "group": "识别",

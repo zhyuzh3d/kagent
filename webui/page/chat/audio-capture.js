@@ -74,6 +74,9 @@ export function createAudioCapture(options) {
         const now = Date.now();
         if (now - app.lastInterruptAt > app.bargeInCooldownMs) {
           app.lastInterruptAt = now;
+          if (app.utteranceActive && typeof onBargeIn === "function") {
+            onBargeIn(app.currentTurn);
+          }
           app.currentTurn++;
           app.activeTurnId = app.currentTurn;
           audioPlayback.stopPlayback();
@@ -88,7 +91,6 @@ export function createAudioCapture(options) {
           queuePCMFrame(int16);
           app.sustainedHighRmsCount = 0;
           appendDebug("INFO", "FrontendVAD", app.currentTurn, null, "Barge-in committed (interrupt)");
-          if (typeof onBargeIn === "function") onBargeIn();
         }
       }
       return;
@@ -168,21 +170,21 @@ export function createAudioCapture(options) {
 
   function stopMic() {
     if (app.workletNode) {
-      try { app.workletNode.port.onmessage = null; } catch (_) {}
-      try { app.workletNode.disconnect(); } catch (_) {}
+      try { app.workletNode.port.onmessage = null; } catch (_) { }
+      try { app.workletNode.disconnect(); } catch (_) { }
       app.workletNode = null;
     }
     if (app.scriptNode) {
-      try { app.scriptNode.onaudioprocess = null; } catch (_) {}
-      try { app.scriptNode.disconnect(); } catch (_) {}
+      try { app.scriptNode.onaudioprocess = null; } catch (_) { }
+      try { app.scriptNode.disconnect(); } catch (_) { }
       app.scriptNode = null;
     }
     if (app.sourceNode) {
-      try { app.sourceNode.disconnect(); } catch (_) {}
+      try { app.sourceNode.disconnect(); } catch (_) { }
       app.sourceNode = null;
     }
     if (app.sinkNode) {
-      try { app.sinkNode.disconnect(); } catch (_) {}
+      try { app.sinkNode.disconnect(); } catch (_) { }
       app.sinkNode = null;
     }
     if (app.mediaStream) {

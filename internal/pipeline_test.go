@@ -173,3 +173,51 @@ func TestTurnPipelineFailsIfNoAudioProduced(t *testing.T) {
 		t.Fatalf("expected error when all tts segments fail")
 	}
 }
+
+func TestLLMEnvelopeContentPreview(t *testing.T) {
+	found, complete, value := extractLLMEnvelopeContentPreview(`{"content":"你好，世界。","action":{"name":"x"}}`)
+	if !found || !complete || value != "你好，世界。" {
+		t.Fatalf("unexpected parse result found=%v complete=%v value=%q", found, complete, value)
+	}
+
+	found, complete, value = extractLLMEnvelopeContentPreview("```json\n{\"content\":\"abc\"}\n```")
+	if !found || !complete || value != "abc" {
+		t.Fatalf("unexpected fenced parse result found=%v complete=%v value=%q", found, complete, value)
+	}
+}
+
+func TestLLMContentProjectorJSONEnvelope(t *testing.T) {
+	projector := newLLMContentProjector()
+	d1 := projector.Push(`{"content":"你好，`)
+	d2 := projector.Push(`世界。","action":{"name":"surface.call.counter.set_count","args":{"count":5}}}`)
+	if d1 != "你好，" {
+		t.Fatalf("unexpected first projected delta: %q", d1)
+	}
+	if d2 != "世界。" {
+		t.Fatalf("unexpected second projected delta: %q", d2)
+	}
+}
+
+func TestTurnPipelineJSONEnvelopeTTSContentOnly(t *testing.T) {
+	tts := &selectiveFakeTTS{failOn: map[string]error{}}
+	p := NewTurnPipeline(&fakeLLM{
+		deltas: []string{
+			`{"content":"请把数字改成 42。","action":{"name":"surface.call.counter.set_count","args":{"count":42}}}`,
+		},
+	}, tts, nil, TurnCallbacks{
+		OnStatus: func(turnID uint64, state string, detail string) {},
+		OnEvent:  func(evt EventMessage) {},
+		OnChunk: func(chunk TTSChunk) error {
+			return nil
+		},
+	})
+	if err := p.RunTurn(context.Background(), 7, "set counter", nil); err != nil {
+		t.Fatalf("run turn failed: %v", err)
+	}
+	if len(tts.calls) != 1 {
+		t.Fatalf("unexpected tts call size: %#v", tts.calls)
+	}
+	if got := tts.calls[0]; got != "请把数字改成 42。" {
+		t.Fatalf("tts should receive content only, got=%q", got)
+	}
+}
