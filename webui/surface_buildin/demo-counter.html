@@ -8,6 +8,8 @@
   <script id="surface-manifest" type="application/json">
     {
       "surface_id": "counter",
+      "surface_type": "app",
+      "surface_version": "1",
       "title": "Counter Surface",
       "description": "可被 Main Surface 远程调用的计数器 demo",
       "permissions": {
@@ -122,6 +124,8 @@
     let stateVersion = 0;
     let surfacePort = null;
     let surfaceID = "counter";
+    let surfaceType = "app";
+    let surfaceVersion = "1";
     let sessionToken = "";
 
     const countEl = document.getElementById("countValue");
@@ -143,6 +147,8 @@
       return {
         type: "state_change",
         surface_id: surfaceID,
+        surface_type: surfaceType,
+        surface_version: surfaceVersion,
         event_type: eventType || "state_change",
         business_state: businessState(),
         visible_text: visibleText(),
@@ -174,6 +180,8 @@
         result: result && typeof result === "object" ? result : {},
         error: errorText || "",
         surface_id: surfaceID,
+        surface_type: surfaceType,
+        surface_version: surfaceVersion,
         business_state: businessState(),
         visible_text: visibleText(),
         state_version: stateVersion,
@@ -239,6 +247,8 @@
       const port = event.ports && event.ports[0];
       if (!port) return;
       surfaceID = data.surface_id || "counter";
+      surfaceType = data.surface_type || surfaceType;
+      surfaceVersion = data.surface_version || surfaceVersion;
       sessionToken = data.session_token || "";
       surfacePort = port;
       surfacePort.onmessage = (ev) => onMainMessage(ev.data);

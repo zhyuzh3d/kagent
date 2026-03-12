@@ -243,3 +243,83 @@
   - 修复旧 turn `partial` 气泡在 stale 场景下无法收口的问题
   - 补一轮浏览器侧真实语音链路回归，重点验证空 turn、barge-in、连续快说和配置抽屉实时预览
   - 视需要继续收敛 `index.html` 的页面装配层和说明文档中的模块边界
+
+## [2026-03-12 15:40 CST] 修复 Operation 日志 I/O 性能瓶颈
+- 时间范围：2026-03-12 15:32 CST -> 2026-03-12 15:40 CST
+- 主要变更：
+  - 重构 `internal/operation_log.go`，将 `AppendOperationLog` 变更为 `OperationLogger` 结构体，支持按用户和日期保持文件句柄常驻打开，替换了前一版本每次写入高频调用 `os.OpenFile` 和 `f.Close` 的实现。
+  - 调整 `internal/session.go`，在初始化 `Session` 时挂载挂载 `opsLogger`，并在 `cleanup` 时统一关闭底层文件流。
+- 关键文件/模块：
+  - `internal/operation_log.go`
+  - `internal/session.go`
+- 开发结果：
+  - 成功：成功将 Operation 日志的 IO 消耗从“每条开关一次”降低为“按日持流”。项目通过了 `go build` 静态编译验证。
+- 经验与结论：
+  - 有效实践：过程日志这种“低价值高吞吐”数据的核心诉求就是不要拖慢主业务系统，持流长宽并延缓 Close 能有效降低磁盘句柄频繁创建的损耗。
+  - 存在风险：如果应用发生非预期 Crash，可能导致部分在 Buffer 中的最后几行日志未 flush 到磁盘。对于过程操作日志这是可接受的权衡。
+- 下一步：
+  - 前面“提取机制预留表”由于当前无抽取场景，仍作空转。继续按照主线观察前端多实例切换的需求时机。
+
+## [2026-03-12 15:43 CST] 剔除空对讲(turn_nack)的消息落盘
+- 时间范围：2026-03-12 15:40 CST -> 2026-03-12 15:43 CST
+- 主要变更：
+  - 更新 `internal/session.go` 中的 `trigger_llm` 以及无声结束逻辑：当遇到没有有效语音输入的空回合（返回 `turn_nack`）时，仅通过 WebSocket (`sendEvent`) 将事件同步给前端页面进行状态恢复，不再调用 `s.appendHistoryMessage` 进行 `messages` 数据库落盘。
+- 关键文件/模块：
+  - `internal/session.go`
+- 开发结果：
+  - 成功：成功移除了 `turn_nack` 这个高频且无价值的消息类型的入库行为。
+- 经验与结论：
+  - 架构收益：用户在实际使用 VAD 时，不可避免产生各种环境噪音导致的“空触发”，屏蔽这批垃圾数据入库能避免 DB 快速膨胀和污染查询分析面板。仅在 WebSocket 维持一致性用于前端解挂是最佳平衡。
+- 下一步：
+  - 继续观察是否有其他由前端发起但对后台持久化无意义的过渡状态数据可以被剔除。
+
+## [2026-03-12 16:35 CST] 前端全接管 Action 并在闭合时不响应业务
+- 时间范围：2026-03-12 16:24 CST -> 2026-03-12 16:35 CST
+- 主要变更：
+  - 修改 `webui/page/chat/surface-bridge.js` 逻辑，在面板关闭时主动断除 `stateCache`，并向 EventRouter 推送 `event_type="surface_closed" / status="closed"` 的事件。
+  - 拦截组件自动调用 `setVisible(true)` 强行在背景唤起窗口的动作，将其重构为“当组件处于非可见状态时，接收外部动作请求直接打回 `{ ok: false, reason: "surface_closed" }` 予以拒绝”。
+  - 将所有针对 Surface Action (例如 `surface.get_state`) 的响应权彻底下放到前端执行和校验，后端保持瘦持久层定位，只做记录与分发中转。
+- 关键文件/模块：
+  - `webui/page/chat/surface-bridge.js`
+- 开发结果：
+  - 成功：修复了“幽灵面板（已经被用户手动关闭，却还能被 AI 检测到甚至将其召唤出）”这个典型的死缓存 Bug。系统可以精确报告“已被关闭”，促使 AI 改口解释不能看面板了。
+- 经验与结论：
+  - 有效实践：“彻头彻尾的客户端驱动（Client-Driven）模式”。UI 在哪，状态与仲裁就在哪，后端不要使用缓存给大模型发过期报告，容易引发不可逆的状态分裂。
+- 下一步：
+  - 基于彻底解耦的 Client-Driven 协议扩展对 `hostops` (后台无声宿主操作) 的支持验证等机制。
+
+## [2026-03-12 16:36 CST] 数据库 Schema 升级：动态 ID 与日历字段支持
+- 时间范围：2026-03-12 16:30 CST -> 2026-03-12 16:36 CST
+- 主要变更：
+  - 重构 `internal/sqlite_store.go`，移除原有的 `default` 等硬编码静态 ID。采用 `app.newRequestID()` 动态生成唯一的十六进制 ID 作为 `user_id`, `project_id`, `thread_id`，从而支持前端自由修改项目或会话名称而不会导致主键碰撞或业务逻辑崩溃。
+  - 增强 `projects` 和 `threads` 的数据表 Schema，强制新增并补齐了 `created_at_local_weekday`（星期）和 `created_at_local_lunar`（农历）字段的存储。
+  - 在 `needsSchemaReset()` 中加入了针对旧版 `projects` 表缺失 `created_at_local_lunar` 字段的自动重置触发逻辑，系统启动时会自动抹除旧的不兼容数据重新建库。
+- 关键文件/模块：
+  - `internal/sqlite_store.go`
+  - `data/*.db` (本地执行了清理重置)
+- 开发结果：
+  - 成功：数据库结构已成功升级，新系统完全采用动态生成的全局唯一 Hex ID 进行主键绑定，所有的消息现在都能正确保存农历与星期的信息。
+- 经验与结论：
+  - 有效实践：单用户场景下，采用 “应用初次启动时从数据表检索，不存在则生成唯一种子 UUID 进行持久化” 的方案极大提高了系统的鲁棒性，彻底剥离了展示名称与底层数据身份的强耦合关系。
+- 下一步：
+  - 视后续功能需求，可以考虑在全量历史消息回溯或日志面板上直接渲染展示详细的星期与农历数据。
+
+## [2026-03-12 22:05 CST] 文档对齐：DB 主库与 Surface Action 协议
+- 时间范围：2026-03-12 16:36 CST -> 2026-03-12 22:05 CST
+- 主要变更：
+  - 对齐项目说明 `doc/_instruction.md` 的 4.4 数据与存储：明确 `data/kagent.db` 为默认主库、启动时清理 legacy `chat_state.db* / action_records.jsonl`，并补充 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 的 operation 分桶现状。
+  - 在项目说明中补齐 Surface 打开/关闭的 action 协议约定（`get_surfaces/open_surface/close_surface` 且 `followup=report`），避免文档与实际 ActionEngine/LLM 提示词脱节。
+  - 同步术语表与待确认事项：将 `message_uid/kagent.db/operation/surface_type/surface_version` 的定义切换为“现状可核验”，并将 `summary/memory/file ref` 明确为“预留表待接线”。
+- 关键文件/模块：
+  - `doc/_instruction.md`
+  - `plan/260312-db-*.md`
+  - `main.go`
+  - `internal/sqlite_store.go`
+  - `internal/operation_log.go`
+  - `internal/storage_reset.go`
+- 开发结果：
+  - 成功：项目说明中关于主库路径、legacy 清理与 ops 分桶的描述与当前代码/落盘现状一致。
+- 经验与结论：
+  - 有效实践：用 `plan/` 里的规划与复盘作为“意图来源”，再以代码与可核验落盘路径作为“事实来源”更新 `doc/_instruction.md`，可以显著降低文档漂移。
+- 下一步：
+  - 若要启用 `thread_summaries/memories/files/file_refs` 的真实产出链路，需明确写入触发点（LLM/前端/后端）与消费面板，并定义哪些进入 `messages`，哪些只进入 `ops`。

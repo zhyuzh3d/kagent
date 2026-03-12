@@ -3,6 +3,10 @@
 ## 1. 项目概览
 `kagent` 是一个单机运行的实时语音对话 MVP：浏览器页面通过 WebSocket 与 Go 服务通信，形成 `ASR -> LLM -> TTS` 的单会话闭环。
 
+运行环境约定（会话确认）：
+- 目标设备：近 5 年内、内存 8GB 或以上。
+- 不考虑过老/低配设备的兼容性优化。
+
 当前真实状态（基于 2026-03-09 代码扫描、运行验证与本轮会话核验）：
 1. 后端主链路已经稳定在“单会话状态机 + 每个输入 turn 独立 ASR + 流式 LLM + 句级 TTS backlog 拼组”这一结构上。
 2. 前端聊天页已从单个大脚本拆为多个运行模块，`index.html` 主要承担页面装配和事件绑定。
@@ -108,19 +112,63 @@ kagent/                                              # 仓库根目录
 4. 前端通过 `GET /api/config` 读取，通过 `PUT /api/config` 保存。
 5. 左侧配置抽屉只展示 `webui/json/config_info.json` 里声明过的字段。
 
+### 4.4 数据与存储（现状与规划约定）
+按数据价值与访问模式分层存储，避免把“高吞吐低价值”的过程日志拖慢高价值查询与迁移。
+
+#### 4.4.1 当前落盘现状（可核验）
+1. JSON 配置文件：
+- 全局公开默认配置：`config/config.json`
+- 私密接入配置：`config/configx.json`（不入库）
+- 用户覆盖配置：运行时路径约定为 `data/users/<user_id>/user_custom_config.json`（当前默认 user 为 `default`）
+
+2. SQLite 主库（高价值数据）：`data/kagent.db`
+- 默认通过 `--sqlite-path` 指定（当前默认值就是 `data/kagent.db`）。
+- 负责存储（已建表）：`users/projects/threads/messages`、`surface_states`、`thread_summaries`、`memories`、`files`、`file_refs`。
+- 启动时会清理 legacy 文件：`data/users/*/chat_state.db*` 与 `data/users/*/action_records.jsonl`（避免旧数据污染新 schema）。
+
+3. 低价值高吞吐过程日志（operation，按用户按日分桶）：
+- 路径约定：`data/users/<user_id>/ops/<YYYYMMDD>.jsonl`
+- 用途：记录 action report、surface state_change 等“过程类”事件，避免污染主消息流与高价值查询。
+
+#### 4.4.2 演进约定（部分已落地）
+1. 三种存储方式（落盘形态约定）：
+- JSON 文件存配置：全局 config + 每用户 override（不进入 SQLite）。
+- 单一 SQLite 高价值库：`data/kagent.db`（已落地为默认主库）。
+- 低价值高吞吐日志：operation 等过程数据以“按用户、按天分桶”的 JSONL 形式落在 `data/users/<user_id>/ops/` 下（已落地；当前未实现自动压缩归档）。
+
+2. 高价值数据主链条（概念模型）：
+- `app -> user -> project -> thread -> message`
+- summary 与 memory：summary 为 thread 级一对一；memory 为从 thread 抽取的记录，间接归属 project（可冗余保存 `project_id` 便于聚合查询）。
+- message 唯一性：不依赖 `turn_id`。库内使用自增 `id` 作为查询游标，同时保留 `message_uid` 作为跨系统稳定标识。
+
+3. action 与 operation 的边界与执行模型（前端接管 Action）：
+- **全客户端驱动 (Client-Driven) 架构模式**：采用“前端胖客户端 (Rich Client) + 后端瘦持久层 (Thin Server)”的原则。所有 Surface 和业务状态的生命周期（如打开、关闭）由前端主导并告知后端。所有的 `action_call`（如 `surface.get_state` 或操作 UI）必须下发到前端执行，由前端统一出具 `action_report`。后端不应拦截读库代办业务，仅负责 WebSocket 中转分发和持久化（写入 `messages` 数据流和持久化缓存库）。
+- action：用户与主 AI 在 surface 上的真实互动动作记录，直接进入 message 数据流并写入高价值库。
+- operation：AI 系统在后台默默执行的任务过程记录（如大模型思考链路、宿主 API 调用等），不进入 message 聊天流，只落入过程分桶日志用于溯源与训练。
+- Surface 打开/关闭的动作协议约定（对齐前端 ActionEngine 与 LLM 提示词）：
+  - 打开：先 `get_surfaces`（需 `followup=report`）拿列表，再命中目标时 `open_surface(target)`（需 `followup=report`）；未命中则直接回复找不到且不发动作。
+  - 关闭：直接 `close_surface(target)`（需 `followup=report`），由前端执行并回传 report 再驱动 LLM 继续回复。
+
+4. surface state（跨 project/thread 复用）：
+- 当前落盘：`surface_states` 以 `(user_id, surface_id)` 为主键持久化快照，包含 `surface_type/surface_version/state_version/status/visible_text/business_state_json` 等字段。
+- `surface_id` 约定为每用户维度全局唯一，用于跨 thread/project 复用 surface state。
+- `surface_version` 用于 surface 升级后的 state 兼容与迁移判定；`surface_type` 用于分类（例如 `app`/`game`/`plan`）。
+
 ## 5. 最近关键变更摘要
 1. 对话页完成模块化拆分，`index.html` 从大脚本收敛为装配层。
 2. 新增公开配置与用户覆盖配置机制，前端可通过配置抽屉读取和保存部分运行参数。
 3. 会话停止和页面卸载时增加了 Worker 与音频链路的清理，避免旧连接和旧状态残留。
+4. 默认主库已切换为 `data/kagent.db`，并在启动时清理 legacy `chat_state.db*`；operation 过程日志以 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 按日分桶落盘。
 
 ## 6. 项目术语表
 | 术语 | 定义（本项目语境） | 来源文件 | 状态 |
 | --- | --- | --- | --- |
 | `app` | 整个本地软件实例级别的范围，例如全局 UI 或默认行为。 | `config/config.json`, `webui/json/config_info.json` | active |
 | `chat` | 一次“开始对话”到“停止”的完整实时对话范围。比单个 turn 大，比 app 小。 | `config/config.json`, `webui/page/chat/index.html` | active |
-| `thread` | 话题边界。当前实现里只有一个 thread 概念，没有多话题并存。 | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json` | active |
+| `thread` | 对话线/话题边界。当前实现默认只有一个 thread（`chat-default`）；规划为每个 project 下可有多个 thread。 | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json`, `main.go` | active |
 | `turn` | 一轮用户输入加对应 AI 回复，对应前后端都在使用的 `turn_id` 语义。 | `internal/session.go`, `webui/page/chat/chat-store.js` | active |
 | `message` | turn 内更细的消息单位，通常指聊天区里的单条用户或 AI 气泡。 | `webui/page/chat/chat-store.js` | active |
+| `message_uid` | message 的跨系统稳定标识（现状：`messages.message_uid` 唯一约束；同时使用自增 `id` 作为查询游标）。 | `internal/sqlite_store.go` | active |
 | `抢话` / `barge-in` | AI 正在说话时，用户再次开口并打断当前回复。 | `internal/session.go`, `webui/page/chat/audio-capture.js` | active |
 | `空 turn` | 前端推进了 turn，但后端最终没有拿到有效文本，通常会收到 `turn_nack`。 | `internal/session.go`, `webui/page/chat/event-router.js` | active |
 | `partial 气泡` | 前端收到 `asr_partial` 后显示的斜体用户气泡，表示这句还没正式收口。 | `webui/page/chat/chat-store.js` | active |
@@ -130,16 +178,33 @@ kagent/                                              # 仓库根目录
 | `用户覆盖配置` | 用户保存的个性化配置覆盖项，只记录相对公开默认配置的差异。 | `internal/runtime_config.go`, `main.go` | active |
 | `配置抽屉` | 聊天页左侧的运行时配置面板，用于调节部分体验参数。 | `webui/page/chat/config-drawer.js`, `webui/json/config_info.json` | active |
 | `mtrca` | 前端配置字段上的生效层级提示标签，分别代表 `message / turn / thread / chat / app`。 | `webui/json/config_info.json` | active |
+| `kagent.db` | 单一 SQLite 高价值库（现状）：默认路径为 `data/kagent.db`，可通过 `--sqlite-path` 指定。 | `main.go`, `internal/sqlite_store.go`, `internal/storage_reset.go` | active |
+| `project` | 用户侧长期容器（规划）：管理目标、上下文、文件集合、记忆集合等；包含多个 thread。 | `doc/_instruction.md` | active |
+| `summary` | thread 级概要（预留表）：每个 thread 仅一条（可被增量更新），用于上下文压缩与快速回忆。 | `internal/sqlite_store.go` | active |
+| `memory` | 记忆条目（预留表）：从某个 thread 抽取出的可复用事实/偏好/结论等，间接归属 project。 | `internal/sqlite_store.go` | active |
+| `file ref` | 文件引用关系（预留表）：结构化数据到文件资产的引用索引，只存链接/索引信息，不存二进制内容。 | `internal/sqlite_store.go` | active |
+| `surface_id` | surface 的标识。当前协议与数据流中以 `surface_id` 引用具体 surface；规划约束为每用户维度全局唯一，用于持久化 surface state。 | `internal/protocol.go`, `doc/_instruction.md` | active |
+| `surface_type` | surface 类型（现状：随 surface state 持久化；用于分类与路由），例如 `app`/`game`/`plan`。 | `internal/sqlite_store.go`, `internal/session.go` | active |
+| `surface_version` | surface 版本号（现状：随 surface state 持久化；用于升级后的 state 兼容与迁移判定）。 | `internal/sqlite_store.go`, `internal/session.go` | active |
+| `action` | 高价值互动动作记录：用户与主 AI 真实交互产生的动作事件。按照**客户端驱动架构**，由前端直接负责并出具 report。直接进入 message 数据流持久化。 | `internal/session.go`, `doc/_instruction.md` | active |
+| `operation` | 低价值高吞吐操作日志（现状）：过程事件不进入 message 流，按用户按日分桶写入 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 用于溯源。 | `internal/operation_log.go`, `internal/session.go` | active |
+| `inputops` | operation 的一种（规划）：UI 输入层操作序列，例如鼠标点击、键盘输入、后台窗体挪动等。 | `doc/_instruction.md` | active |
+| `hostops` | operation/action 协作类（规划）：前端因需要宿主（Go 运行时）底层能力而通过 API 调用后端的宿主操作。对于此场景，依然由前端驱动触发和合并 report 投递入消息流，后端只提供 API 实现而不干预消息组装。 | `doc/_instruction.md` | active |
+| `huddle` | operation 的一种（规划）：butler/worker 等 AI 角色之间的后台讨论、协作过程记录。 | `doc/_instruction.md` | active |
+| `butler agent` | 主智能体角色（规划）：对用户负责，编排 worker agents 与工具调用，产出对用户可理解的结果。 | `doc/_instruction.md` | active |
+| `worker agents` | 工作智能体角色（规划）：按 butler 分派执行子任务，过程中由前端或后台串联各节点。 | `doc/_instruction.md` | active |
 
 ## 7. 待确认事项
 1. 旧 turn 的 partial 气泡在被新 turn 顶掉后，是否采用“允许旧 `asr_final` 收口 + superseded fallback”双层策略；当前还未正式修复。
 2. 配置抽屉后续开放给用户的字段范围仍需继续收敛，不宜把全部公开配置都暴露为可编辑项。
 3. 目前主要验证仍是 Go 测试、构建和前端模块语法检查，浏览器侧真实语音回归还需要继续补。
+4. `thread_summaries/memories/files/file_refs` 当前已建表但尚无稳定写入/读取链路，需要明确触发点与 UI/LLM 的使用场景后再补齐。
 
 ## 8. 文档更新时间与信息来源
-- 更新时间：2026-03-09 18:16 CST
+- 更新时间：2026-03-12 22:05 CST
 - 信息来源：
   - 仓库实时扫描（目录与文件内容）
   - 当前工作区代码核验（`main.go`、`internal/*.go`、`webui/page/chat/*.js`）
-  - 本轮会话中的用户确认（`chat`、`mtrca`、单机版软件前提、术语边界要求）
+  - `plan/260312-db-*.md`（存储机制与 schema 变更的规划/复盘记录）
+  - 本轮架构会话确认（彻底的 Client-Driven 驱动架构：后端瘦持久层，前端胖客户端接管所有 action_call；建立 `hostops` 的协同约束。）
   - 本地验证（`go test ./...`、`go build -buildvcs=false ./...`、前端模块语法检查）

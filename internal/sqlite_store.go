@@ -13,12 +13,13 @@ import (
 )
 
 type SQLiteStore struct {
-	db     *sql.DB
-	userID string
-	chatID string
+	db        *sql.DB
+	userID    string
+	projectID string
+	threadID  string
 }
 
-func NewSQLiteStore(path string, userID string, chatID string) (*SQLiteStore, error) {
+func NewSQLiteStore(path string, userID string, projectID string, threadID string) (*SQLiteStore, error) {
 	cleanPath := strings.TrimSpace(path)
 	if cleanPath == "" {
 		return nil, fmt.Errorf("sqlite path is empty")
@@ -34,9 +35,7 @@ func NewSQLiteStore(path string, userID string, chatID string) (*SQLiteStore, er
 	db.SetMaxOpenConns(1)
 
 	s := &SQLiteStore{
-		db:     db,
-		userID: firstNonEmpty(userID, "default"),
-		chatID: firstNonEmpty(chatID, "chat-default"),
+		db: db,
 	}
 	if err := s.init(); err != nil {
 		_ = db.Close()
@@ -56,95 +55,316 @@ func (s *SQLiteStore) init() error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("sqlite store not initialized")
 	}
-	stmts := []string{
+	baseStmts := []string{
 		"PRAGMA journal_mode=WAL",
 		"PRAGMA foreign_keys=ON",
+	}
+	for _, stmt := range baseStmts {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return fmt.Errorf("sqlite init failed: %w", err)
+		}
+	}
+
+	reset, err := s.needsSchemaReset()
+	if err != nil {
+		return err
+	}
+	if reset {
+		if err := s.resetSchema(); err != nil {
+			return err
+		}
+	}
+
+	schemaStmts := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			user_id TEXT PRIMARY KEY,
 			created_at_ms INTEGER NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS chats (
-			chat_id TEXT PRIMARY KEY,
+		`CREATE TABLE IF NOT EXISTS projects (
+			project_id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
+			title TEXT NOT NULL DEFAULT '',
 			created_at_ms INTEGER NOT NULL,
+			last_active_at_ms INTEGER NOT NULL,
+			created_at_local_weekday TEXT NOT NULL DEFAULT '',
+			created_at_local_lunar TEXT NOT NULL DEFAULT '',
 			FOREIGN KEY(user_id) REFERENCES users(user_id)
 		)`,
-		`CREATE TABLE IF NOT EXISTS messages (
-			message_id TEXT PRIMARY KEY,
+		`CREATE TABLE IF NOT EXISTS threads (
+			thread_id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
-			chat_id TEXT NOT NULL,
-			turn_id INTEGER NOT NULL,
-			role_internal TEXT NOT NULL,
-			role_provider TEXT NOT NULL,
-			message_type TEXT NOT NULL,
-			content_text TEXT NOT NULL,
-			visibility TEXT NOT NULL,
-			meta_json TEXT NOT NULL DEFAULT '{}',
-			created_at_ms INTEGER NOT NULL
+			project_id TEXT NOT NULL,
+			title TEXT NOT NULL DEFAULT '',
+			created_at_ms INTEGER NOT NULL,
+			last_active_at_ms INTEGER NOT NULL,
+			created_at_local_weekday TEXT NOT NULL DEFAULT '',
+			created_at_local_lunar TEXT NOT NULL DEFAULT '',
+			FOREIGN KEY(user_id) REFERENCES users(user_id),
+			FOREIGN KEY(project_id) REFERENCES projects(project_id)
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_messages_chat_created
-			ON messages(user_id, chat_id, created_at_ms)`,
-		`CREATE TABLE IF NOT EXISTS action_calls (
-			action_id TEXT PRIMARY KEY,
-			user_id TEXT NOT NULL,
-			chat_id TEXT NOT NULL,
-			turn_id INTEGER NOT NULL,
-			surface_id TEXT NOT NULL,
-			action_name TEXT NOT NULL,
-			followup TEXT NOT NULL,
-			args_json TEXT NOT NULL DEFAULT '{}',
-			status TEXT NOT NULL,
-			manual_confirm TEXT NOT NULL DEFAULT '',
-			block_reason TEXT NOT NULL DEFAULT '',
-			created_at_ms INTEGER NOT NULL
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_action_calls_chat_created
-			ON action_calls(user_id, chat_id, created_at_ms)`,
-		`CREATE TABLE IF NOT EXISTS action_reports (
-			report_id TEXT PRIMARY KEY,
-			message_id TEXT NOT NULL,
-			action_id TEXT NOT NULL,
-			user_id TEXT NOT NULL,
-			chat_id TEXT NOT NULL,
-			turn_id INTEGER NOT NULL,
-			origin TEXT NOT NULL,
-			surface_id TEXT NOT NULL,
-			result_summary TEXT NOT NULL,
-			effect_summary TEXT NOT NULL,
-			business_state_json TEXT NOT NULL DEFAULT '{}',
-			followup TEXT NOT NULL,
-			status TEXT NOT NULL,
-			manual_confirm TEXT NOT NULL DEFAULT '',
-			block_reason TEXT NOT NULL DEFAULT '',
-			created_at_ms INTEGER NOT NULL
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_action_reports_chat_created
-			ON action_reports(user_id, chat_id, created_at_ms)`,
 		`CREATE TABLE IF NOT EXISTS surface_states (
 			user_id TEXT NOT NULL,
-			chat_id TEXT NOT NULL,
 			surface_id TEXT NOT NULL,
+			surface_type TEXT NOT NULL DEFAULT 'app',
+			surface_version TEXT NOT NULL DEFAULT '1',
 			state_version INTEGER NOT NULL,
 			business_state_json TEXT NOT NULL DEFAULT '{}',
 			visible_text TEXT NOT NULL DEFAULT '',
 			status TEXT NOT NULL DEFAULT '',
 			updated_at_ms INTEGER NOT NULL,
-			PRIMARY KEY(user_id, chat_id, surface_id)
+			PRIMARY KEY(user_id, surface_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS thread_summaries (
+			user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			thread_id TEXT NOT NULL,
+			summary_version TEXT NOT NULL DEFAULT '1',
+			content TEXT NOT NULL DEFAULT '',
+			updated_at_ms INTEGER NOT NULL,
+			PRIMARY KEY(user_id, thread_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS memories (
+			memory_id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			thread_id TEXT NOT NULL,
+			memory_version TEXT NOT NULL DEFAULT '1',
+			content TEXT NOT NULL DEFAULT '',
+			confidence REAL NOT NULL DEFAULT 0,
+			created_at_ms INTEGER NOT NULL,
+			source_message_uid TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS files (
+			file_id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			uri_or_path TEXT NOT NULL,
+			sha256 TEXT NOT NULL DEFAULT '',
+			mime_type TEXT NOT NULL DEFAULT '',
+			size_bytes INTEGER NOT NULL DEFAULT 0,
+			created_at_ms INTEGER NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS file_refs (
+			ref_id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			file_id TEXT NOT NULL,
+			ref_type TEXT NOT NULL,
+			ref_key TEXT NOT NULL,
+			created_at_ms INTEGER NOT NULL,
+			FOREIGN KEY(file_id) REFERENCES files(file_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			message_uid TEXT NOT NULL UNIQUE,
+			user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			thread_id TEXT NOT NULL,
+			turn_id INTEGER NOT NULL,
+			seq INTEGER NOT NULL,
+			created_at_ms INTEGER NOT NULL,
+			created_at_iso TEXT NOT NULL,
+			created_at_local_ymdhms TEXT NOT NULL,
+			created_at_local_weekday TEXT NOT NULL,
+			created_at_local_lunar TEXT NOT NULL,
+			role TEXT NOT NULL,
+			category TEXT NOT NULL,
+			type TEXT NOT NULL,
+			content TEXT NOT NULL,
+			payload_schema_version INTEGER NOT NULL,
+			payload_json TEXT NOT NULL,
+			completion_status TEXT NOT NULL DEFAULT '',
+			interrupt TEXT NOT NULL DEFAULT '',
+			interrupt_at_ms INTEGER NOT NULL DEFAULT 0,
+			partial_text TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(user_id, project_id, thread_id, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_anchor_id ON messages(user_id, project_id, thread_id, category, type, id DESC)`,
 	}
-	for _, stmt := range stmts {
+	for _, stmt := range schemaStmts {
 		if _, err := s.db.Exec(stmt); err != nil {
-			return fmt.Errorf("sqlite init failed: %w", err)
+			return fmt.Errorf("sqlite schema init failed: %w", err)
 		}
 	}
-	now := time.Now().UnixMilli()
+
+	return s.initDefaultIDs()
+}
+
+func (s *SQLiteStore) initDefaultIDs() error {
+	var uid string
+	err := s.db.QueryRow(`SELECT user_id FROM users LIMIT 1`).Scan(&uid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.userID = "usr-" + newRequestID()
+		} else {
+			return err
+		}
+	} else {
+		s.userID = uid
+	}
+
+	var pid string
+	err = s.db.QueryRow(`SELECT project_id FROM projects LIMIT 1`).Scan(&pid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.projectID = "prj-" + newRequestID()
+		} else {
+			return err
+		}
+	} else {
+		s.projectID = pid
+	}
+
+	var tid string
+	err = s.db.QueryRow(`SELECT thread_id FROM threads LIMIT 1`).Scan(&tid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.threadID = "thd-" + newRequestID()
+		} else {
+			return err
+		}
+	} else {
+		s.threadID = tid
+	}
+
+	now := nowMS()
+	semFields := buildSemanticTimeFields(now)
+
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, s.userID, now); err != nil {
 		return fmt.Errorf("insert default user failed: %w", err)
 	}
-	if _, err := s.db.Exec(`INSERT OR IGNORE INTO chats(chat_id, user_id, created_at_ms) VALUES(?, ?, ?)`, s.chatID, s.userID, now); err != nil {
-		return fmt.Errorf("insert default chat failed: %w", err)
+	if _, err := s.db.Exec(`
+		INSERT OR IGNORE INTO projects(project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar)
+		VALUES(?, ?, ?, ?, ?, ?, ?)
+	`, s.projectID, s.userID, "default", now, now, semFields.LocalWeekday, semFields.LocalLunar); err != nil {
+		return fmt.Errorf("insert default project failed: %w", err)
+	}
+	if _, err := s.db.Exec(`
+		INSERT OR IGNORE INTO threads(thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+	`, s.threadID, s.userID, s.projectID, "chat-default", now, now, semFields.LocalWeekday, semFields.LocalLunar); err != nil {
+		return fmt.Errorf("insert default thread failed: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteStore) needsSchemaReset() (bool, error) {
+	if s == nil || s.db == nil {
+		return false, nil
+	}
+	chatsExists, err := s.tableExists("chats")
+	if err != nil {
+		return false, err
+	}
+	if chatsExists {
+		return true, nil
+	}
+
+	msgExists, msgCols, err := s.tableColumns("messages")
+	if err != nil {
+		return false, err
+	}
+	if msgExists {
+		required := []string{"id", "message_uid", "project_id", "thread_id"}
+		if msgCols["chat_id"] {
+			return true, nil
+		}
+		for _, name := range required {
+			if !msgCols[name] {
+				return true, nil
+			}
+		}
+	}
+
+	stateExists, stateCols, err := s.tableColumns("surface_states")
+	if err != nil {
+		return false, err
+	}
+	if stateExists {
+		required := []string{"surface_type", "surface_version"}
+		if stateCols["chat_id"] {
+			return true, nil
+		}
+		for _, name := range required {
+			if !stateCols[name] {
+				return true, nil
+			}
+		}
+	}
+
+	projExists, projCols, err := s.tableColumns("projects")
+	if err != nil {
+		return false, err
+	}
+	if projExists && !projCols["created_at_local_lunar"] {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (s *SQLiteStore) resetSchema() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	dropStmts := []string{
+		`DROP TABLE IF EXISTS messages`,
+		`DROP TABLE IF EXISTS surface_states`,
+		`DROP TABLE IF EXISTS threads`,
+		`DROP TABLE IF EXISTS projects`,
+		`DROP TABLE IF EXISTS chats`,
+		`DROP TABLE IF EXISTS users`,
+	}
+	for _, stmt := range dropStmts {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return fmt.Errorf("drop legacy schema failed: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *SQLiteStore) tableExists(name string) (bool, error) {
+	if s == nil || s.db == nil {
+		return false, nil
+	}
+	var actual string
+	err := s.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, name).Scan(&actual)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("query sqlite_master: %w", err)
+	}
+	return true, nil
+}
+
+func (s *SQLiteStore) tableColumns(name string) (bool, map[string]bool, error) {
+	exists, err := s.tableExists(name)
+	if err != nil {
+		return false, nil, err
+	}
+	if !exists {
+		return false, nil, nil
+	}
+	rows, err := s.db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, name))
+	if err != nil {
+		return true, nil, fmt.Errorf("pragma table_info(%s): %w", name, err)
+	}
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var (
+			cid       int
+			colName   string
+			colType   string
+			notNull   int
+			defaultV  sql.NullString
+			primaryID int
+		)
+		if err := rows.Scan(&cid, &colName, &colType, &notNull, &defaultV, &primaryID); err != nil {
+			return true, nil, fmt.Errorf("scan table_info(%s): %w", name, err)
+		}
+		cols[colName] = true
+	}
+	return true, cols, nil
 }
 
 func (s *SQLiteStore) UpsertSurfaceState(state SurfaceState) error {
@@ -158,21 +378,25 @@ func (s *SQLiteStore) UpsertSurfaceState(state SurfaceState) error {
 	if state.UpdatedAtMS <= 0 {
 		state.UpdatedAtMS = time.Now().UnixMilli()
 	}
+	state.SurfaceType = firstNonEmpty(strings.TrimSpace(state.SurfaceType), "app")
+	state.SurfaceVersion = firstNonEmpty(strings.TrimSpace(state.SurfaceVersion), "1")
 	bsJSON, err := json.Marshal(nonNilMap(state.BusinessState))
 	if err != nil {
 		return fmt.Errorf("marshal business_state: %w", err)
 	}
 	_, err = s.db.Exec(`
 		INSERT INTO surface_states(
-			user_id, chat_id, surface_id, state_version, business_state_json, visible_text, status, updated_at_ms
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(user_id, chat_id, surface_id) DO UPDATE SET
+			user_id, surface_id, surface_type, surface_version, state_version, business_state_json, visible_text, status, updated_at_ms
+		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(user_id, surface_id) DO UPDATE SET
+			surface_type = excluded.surface_type,
+			surface_version = excluded.surface_version,
 			state_version = excluded.state_version,
 			business_state_json = excluded.business_state_json,
 			visible_text = excluded.visible_text,
 			status = excluded.status,
 			updated_at_ms = excluded.updated_at_ms
-	`, s.userID, s.chatID, surfaceID, state.StateVersion, string(bsJSON), strings.TrimSpace(state.VisibleText), strings.TrimSpace(state.Status), state.UpdatedAtMS)
+	`, s.userID, surfaceID, state.SurfaceType, state.SurfaceVersion, state.StateVersion, string(bsJSON), strings.TrimSpace(state.VisibleText), strings.TrimSpace(state.Status), state.UpdatedAtMS)
 	if err != nil {
 		return fmt.Errorf("upsert surface state: %w", err)
 	}
@@ -188,10 +412,19 @@ func (s *SQLiteStore) LoadSurfaceState(surfaceID string) (SurfaceState, bool, er
 		stateJSON string
 	)
 	err := s.db.QueryRow(`
-		SELECT surface_id, state_version, business_state_json, visible_text, status, updated_at_ms
+		SELECT surface_id, surface_type, surface_version, state_version, business_state_json, visible_text, status, updated_at_ms
 		FROM surface_states
-		WHERE user_id=? AND chat_id=? AND surface_id=?
-	`, s.userID, s.chatID, strings.TrimSpace(surfaceID)).Scan(&state.SurfaceID, &state.StateVersion, &stateJSON, &state.VisibleText, &state.Status, &state.UpdatedAtMS)
+		WHERE user_id=? AND surface_id=?
+	`, s.userID, strings.TrimSpace(surfaceID)).Scan(
+		&state.SurfaceID,
+		&state.SurfaceType,
+		&state.SurfaceVersion,
+		&state.StateVersion,
+		&stateJSON,
+		&state.VisibleText,
+		&state.Status,
+		&state.UpdatedAtMS,
+	)
 	if err == sql.ErrNoRows {
 		return SurfaceState{}, false, nil
 	}
@@ -202,176 +435,301 @@ func (s *SQLiteStore) LoadSurfaceState(surfaceID string) (SurfaceState, bool, er
 	return state, true, nil
 }
 
-func (s *SQLiteStore) AppendMessage(msg ChatMessage, turnID uint64, roleInternal string, messageType string, visibility string, meta map[string]any) (string, error) {
+func (s *SQLiteStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 	if s == nil || s.db == nil {
-		return "", nil
+		return msg, nil
 	}
-	content := strings.TrimSpace(msg.Content)
-	if content == "" {
-		return "", nil
+	payload := map[string]any{}
+	if strings.TrimSpace(msg.PayloadJSON) != "" {
+		_ = json.Unmarshal([]byte(msg.PayloadJSON), &payload)
 	}
-	messageID := firstNonEmpty(strings.TrimSpace(msg.MessageID), "msg-"+newRequestID())
-	metaJSON, err := json.Marshal(nonNilMap(meta))
+	entry, err := BuildMessage(MessageWrite{
+		MessageID:            msg.MessageID,
+		TurnID:               msg.TurnID,
+		Seq:                  msg.Seq,
+		Role:                 msg.Role,
+		Category:             msg.Category,
+		MessageType:          msg.MessageType,
+		Content:              msg.Content,
+		PayloadSchemaVersion: msg.PayloadSchemaVersion,
+		Payload:              payload,
+		PayloadJSON:          msg.PayloadJSON,
+		CreatedAtMS:          msg.CreatedAtMS,
+		CompletionStatus:     msg.CompletionStatus,
+		Interrupt:            msg.Interrupt,
+		InterruptAtMS:        msg.InterruptAtMS,
+		PartialText:          msg.PartialText,
+	})
 	if err != nil {
-		return "", fmt.Errorf("marshal message meta: %w", err)
+		return ChatMessage{}, err
 	}
-	createdAt := msg.CreatedAtMS
-	if createdAt <= 0 {
-		createdAt = time.Now().UnixMilli()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return ChatMessage{}, fmt.Errorf("begin append message: %w", err)
 	}
-	role := firstNonEmpty(roleInternal, msg.Role, "assistant")
-	if _, err := s.db.Exec(`
-		INSERT OR REPLACE INTO messages(
-			message_id, user_id, chat_id, turn_id, role_internal, role_provider,
-			message_type, content_text, visibility, meta_json, created_at_ms
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, messageID, s.userID, s.chatID, turnID, role, mapProviderRole(role), firstNonEmpty(messageType, "chat"), content, firstNonEmpty(visibility, "visible"), string(metaJSON), createdAt); err != nil {
-		return "", fmt.Errorf("append message: %w", err)
+	defer tx.Rollback()
+	entry.Seq, err = s.nextSeq(tx)
+	if err != nil {
+		return ChatMessage{}, err
 	}
-	return messageID, nil
+	res, err := tx.Exec(`
+		INSERT INTO messages(
+			message_uid, user_id, project_id, thread_id, turn_id, seq,
+			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
+			role, category, type, content, payload_schema_version, payload_json,
+			completion_status, interrupt, interrupt_at_ms, partial_text
+		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		entry.MessageID,
+		s.userID,
+		s.projectID,
+		s.threadID,
+		entry.TurnID,
+		entry.Seq,
+		entry.CreatedAtMS,
+		entry.CreatedAtISO,
+		entry.CreatedAtLocalYMDHMS,
+		entry.CreatedAtLocalWeekday,
+		entry.CreatedAtLocalLunar,
+		entry.Role,
+		entry.Category,
+		entry.MessageType,
+		entry.Content,
+		entry.PayloadSchemaVersion,
+		entry.PayloadJSON,
+		entry.CompletionStatus,
+		entry.Interrupt,
+		entry.InterruptAtMS,
+		entry.PartialText,
+	)
+	if err != nil {
+		return ChatMessage{}, fmt.Errorf("insert message failed: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return ChatMessage{}, fmt.Errorf("commit append message: %w", err)
+	}
+	storeID, _ := res.LastInsertId()
+	entry.StoreID = storeID
+	entry.ProjectID = s.projectID
+	entry.ThreadID = s.threadID
+	return entry, nil
 }
 
 func (s *SQLiteStore) AppendActionCall(call ActionCall, status string, manualConfirm string, blockReason string) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	actionID := firstNonEmpty(call.ActionID, "act-"+newRequestID())
-	argsJSON, err := json.Marshal(nonNilMap(call.Args))
-	if err != nil {
-		return fmt.Errorf("marshal action args: %w", err)
-	}
-	createdAt := call.RequestedAt
-	if createdAt <= 0 {
-		createdAt = time.Now().UnixMilli()
-	}
-	_, err = s.db.Exec(`
-		INSERT OR REPLACE INTO action_calls(
-			action_id, user_id, chat_id, turn_id, surface_id, action_name,
-			followup, args_json, status, manual_confirm, block_reason, created_at_ms
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, actionID, s.userID, s.chatID, call.TurnID, strings.TrimSpace(call.SurfaceID), strings.TrimSpace(call.ActionName), normalizeFollowup(call.Followup), string(argsJSON), firstNonEmpty(status, "unknown"), strings.TrimSpace(manualConfirm), strings.TrimSpace(blockReason), createdAt)
-	if err != nil {
-		return fmt.Errorf("append action call: %w", err)
-	}
-	return nil
+	_, err := s.AppendMessage(ChatMessage{
+		TurnID:      call.TurnID,
+		Role:        RoleObserver,
+		Category:    CategoryAIAction,
+		MessageType: TypeActionCall,
+		PayloadJSON: mustJSON(map[string]any{
+			"action_id":      firstNonEmpty(call.ActionID, "act-"+newRequestID()),
+			"action_name":    call.ActionName,
+			"name":           call.ActionName,
+			"surface_id":     call.SurfaceID,
+			"followup":       normalizeFollowup(call.Followup),
+			"args":           clonePayloadMap(call.Args),
+			"status":         firstNonEmpty(status, "unknown"),
+			"manual_confirm": strings.TrimSpace(manualConfirm),
+			"block_reason":   strings.TrimSpace(blockReason),
+		}),
+		CreatedAtMS: call.RequestedAt,
+	})
+	return err
 }
 
-func (s *SQLiteStore) AppendActionReport(report ActionReport, messageID string) error {
+func (s *SQLiteStore) AppendActionReport(report ActionReport, _ string) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	reportID := firstNonEmpty(strings.TrimSpace(report.ReportID), "rep-"+newRequestID())
-	msgID := firstNonEmpty(strings.TrimSpace(messageID), "msg-"+newRequestID())
-	createdAt := report.CreatedAtMS
-	if createdAt <= 0 {
-		createdAt = time.Now().UnixMilli()
+	_, err := s.AppendMessage(ChatMessage{
+		TurnID:      report.TurnID,
+		Role:        RoleObserver,
+		Category:    CategoryAIAction,
+		MessageType: TypeActionReport,
+		Content:     formatActionReportText(report),
+		PayloadJSON: mustJSON(map[string]any{
+			"report_id":       report.ReportID,
+			"origin":          report.Origin,
+			"action_id":       report.ActionID,
+			"action_name":     report.ActionName,
+			"name":            report.ActionName,
+			"surface_id":      report.SurfaceID,
+			"surface_type":    report.SurfaceType,
+			"surface_version": report.SurfaceVersion,
+			"followup":        normalizeFollowup(report.Followup),
+			"status":          report.Status,
+			"result_summary":  report.ResultSummary,
+			"effect_summary":  report.EffectSummary,
+			"business_state":  clonePayloadMap(report.BusinessState),
+			"manual_confirm":  report.ManualConfirm,
+			"block_reason":    report.BlockReason,
+		}),
+		CreatedAtMS: report.CreatedAtMS,
+	})
+	return err
+}
+
+func (s *SQLiteStore) nextSeq(tx *sql.Tx) (int64, error) {
+	var seq int64
+	if err := tx.QueryRow(`
+		SELECT COALESCE(MAX(seq), 0) + 1
+		FROM messages
+		WHERE user_id=? AND project_id=? AND thread_id=?
+	`, s.userID, s.projectID, s.threadID).Scan(&seq); err != nil {
+		return 0, fmt.Errorf("query next seq failed: %w", err)
 	}
-	stateJSON, err := json.Marshal(nonNilMap(report.BusinessState))
+	return seq, nil
+}
+
+func (s *SQLiteStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([]ChatMessage, error) {
+	if s == nil || s.db == nil {
+		return nil, nil
+	}
+	if anchorLimit <= 0 {
+		anchorLimit = 20
+	}
+	if totalLimit <= 0 {
+		totalLimit = maxInt(anchorLimit*4, 64)
+	}
+
+	anchors := make([]int64, 0, anchorLimit)
+	rows, err := s.db.Query(`
+		SELECT id
+		FROM messages
+		WHERE user_id=? AND project_id=? AND thread_id=? AND category=? AND type IN (?, ?)
+		ORDER BY id DESC
+		LIMIT ?
+	`, s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, anchorLimit)
 	if err != nil {
-		return fmt.Errorf("marshal report business_state: %w", err)
+		return nil, fmt.Errorf("load anchor window failed: %w", err)
 	}
-	_, err = s.db.Exec(`
-		INSERT OR REPLACE INTO action_reports(
-			report_id, message_id, action_id, user_id, chat_id, turn_id,
-			origin, surface_id, result_summary, effect_summary, business_state_json,
-			followup, status, manual_confirm, block_reason, created_at_ms
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, reportID, msgID, strings.TrimSpace(report.ActionID), s.userID, s.chatID, report.TurnID, firstNonEmpty(report.Origin, "action_callback"), strings.TrimSpace(report.SurfaceID), strings.TrimSpace(report.ResultSummary), strings.TrimSpace(report.EffectSummary), string(stateJSON), normalizeFollowup(report.Followup), firstNonEmpty(report.Status, "unknown"), strings.TrimSpace(report.ManualConfirm), strings.TrimSpace(report.BlockReason), createdAt)
-	if err != nil {
-		return fmt.Errorf("append action report: %w", err)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan anchor window failed: %w", err)
+		}
+		anchors = append(anchors, id)
 	}
-	return nil
+	rows.Close()
+	if len(anchors) == 0 {
+		return nil, nil
+	}
+	anchorID := anchors[len(anchors)-1]
+	var count int
+	if err := s.db.QueryRow(`
+		SELECT COUNT(1)
+		FROM messages
+		WHERE user_id=? AND project_id=? AND thread_id=? AND id >= ?
+	`, s.userID, s.projectID, s.threadID, anchorID).Scan(&count); err != nil {
+		return nil, fmt.Errorf("count session window failed: %w", err)
+	}
+	if count > totalLimit {
+		return s.loadByQuery(`
+			SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+				created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
+				completion_status, interrupt, interrupt_at_ms, partial_text
+			FROM messages
+			WHERE user_id=? AND project_id=? AND thread_id=?
+			ORDER BY id DESC
+			LIMIT ?
+		`, []any{s.userID, s.projectID, s.threadID, totalLimit}, true)
+	}
+	return s.loadByQuery(`
+		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
+			completion_status, interrupt, interrupt_at_ms, partial_text
+		FROM messages
+		WHERE user_id=? AND project_id=? AND thread_id=? AND id >= ?
+		ORDER BY id ASC
+	`, []any{s.userID, s.projectID, s.threadID, anchorID}, false)
 }
 
 func (s *SQLiteStore) LoadRecentContext(limit int) ([]ChatMessage, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	return s.LoadSessionWindow(limit, maxInt(limit*4, 64))
+}
+
+func (s *SQLiteStore) LoadContextBefore(beforeID int64, limit int) ([]ChatMessage, bool, error) {
 	if s == nil || s.db == nil {
-		return nil, nil
+		return nil, false, nil
 	}
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := s.db.Query(`
-		SELECT message_id, role_internal, content_text, message_type, visibility, created_at_ms
+	args := []any{s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, limit + 1}
+	query := `
+		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
+			completion_status, interrupt, interrupt_at_ms, partial_text
 		FROM messages
-		WHERE user_id=? AND chat_id=?
-		ORDER BY created_at_ms DESC
-		LIMIT ?
-	`, s.userID, s.chatID, limit)
+		WHERE user_id=? AND project_id=? AND thread_id=? AND category=? AND type IN (?, ?)
+	`
+	if beforeID > 0 {
+		query += ` AND id < ?`
+		args = []any{s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, beforeID, limit + 1}
+	}
+	query += ` ORDER BY id DESC LIMIT ?`
+	messages, err := s.loadByQuery(query, args, true)
 	if err != nil {
-		return nil, fmt.Errorf("load context: %w", err)
+		return nil, false, err
 	}
-	defer rows.Close()
-	out := make([]ChatMessage, 0, limit)
-	for rows.Next() {
-		var m ChatMessage
-		if err := rows.Scan(&m.MessageID, &m.Role, &m.Content, &m.MessageType, &m.Visibility, &m.CreatedAtMS); err != nil {
-			return nil, fmt.Errorf("scan context: %w", err)
-		}
-		out = append(out, m)
+	hasMore := false
+	if len(messages) > limit {
+		hasMore = true
+		messages = messages[len(messages)-limit:]
 	}
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
-	}
-	return out, nil
+	return messages, hasMore, nil
 }
 
-func (s *SQLiteStore) LoadContextBefore(cursor int64, limit int) ([]ChatMessage, error) {
-	if s == nil || s.db == nil {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = 20
-	}
-
-	var rows *sql.Rows
-	var err error
-	if cursor <= 0 {
-		rows, err = s.db.Query(`
-			SELECT message_id, role_internal, content_text, message_type, visibility, created_at_ms
-			FROM messages
-			WHERE user_id=? AND chat_id=?
-			ORDER BY created_at_ms DESC
-			LIMIT ?
-		`, s.userID, s.chatID, limit)
-	} else {
-		rows, err = s.db.Query(`
-			SELECT message_id, role_internal, content_text, message_type, visibility, created_at_ms
-			FROM messages
-			WHERE user_id=? AND chat_id=? AND created_at_ms < ?
-			ORDER BY created_at_ms DESC
-			LIMIT ?
-		`, s.userID, s.chatID, cursor, limit)
-	}
-
+func (s *SQLiteStore) loadByQuery(query string, args []any, reverse bool) ([]ChatMessage, error) {
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("load context before: %w", err)
+		return nil, fmt.Errorf("load messages failed: %w", err)
 	}
 	defer rows.Close()
-	out := make([]ChatMessage, 0, limit)
+	out := make([]ChatMessage, 0, 32)
 	for rows.Next() {
-		var m ChatMessage
-		if err := rows.Scan(&m.MessageID, &m.Role, &m.Content, &m.MessageType, &m.Visibility, &m.CreatedAtMS); err != nil {
-			return nil, fmt.Errorf("scan context before: %w", err)
+		var msg ChatMessage
+		if err := rows.Scan(
+			&msg.StoreID,
+			&msg.MessageID,
+			&msg.ProjectID,
+			&msg.ThreadID,
+			&msg.TurnID,
+			&msg.Seq,
+			&msg.Role,
+			&msg.Category,
+			&msg.MessageType,
+			&msg.Content,
+			&msg.PayloadSchemaVersion,
+			&msg.PayloadJSON,
+			&msg.CreatedAtMS,
+			&msg.CreatedAtISO,
+			&msg.CreatedAtLocalYMDHMS,
+			&msg.CreatedAtLocalWeekday,
+			&msg.CreatedAtLocalLunar,
+			&msg.CompletionStatus,
+			&msg.Interrupt,
+			&msg.InterruptAtMS,
+			&msg.PartialText,
+		); err != nil {
+			return nil, fmt.Errorf("scan messages failed: %w", err)
 		}
-		out = append(out, m)
+		msg.Visibility = messageVisibility(msg.Role, msg.Category, msg.MessageType)
+		out = append(out, msg)
 	}
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
+	if reverse {
+		for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+			out[i], out[j] = out[j], out[i]
+		}
 	}
 	return out, nil
-}
-
-func mapProviderRole(roleInternal string) string {
-	switch strings.ToLower(strings.TrimSpace(roleInternal)) {
-	case "observer":
-		return "assistant"
-	case "system_internal":
-		return "system"
-	case "user", "assistant", "system":
-		return strings.ToLower(strings.TrimSpace(roleInternal))
-	default:
-		return "assistant"
-	}
 }
 
 func nonNilMap(in map[string]any) map[string]any {
@@ -386,4 +744,11 @@ func normalizeFollowup(v string) string {
 		return "report"
 	}
 	return "none"
+}
+
+func maxInt(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -22,7 +22,7 @@ export function createChatStore(options) {
     jumpModeActive = false;
     jumpBtn.style.display = "none";
     clearForJump();
-    app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: (app.pullHistorySize || 10) * 5, cursor: 0 } });
+    app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: (app.pullHistorySize || 10) * 5, before_id: 0 } });
   });
 
   chatArea.addEventListener("scroll", () => {
@@ -35,8 +35,8 @@ export function createChatStore(options) {
       app.historyLoadingEl.style.cssText = "text-align:center; padding:10px; color:var(--muted); font-size:12px;";
       chatArea.prepend(app.historyLoadingEl);
 
-      const cursor = getOldestCursor();
-      app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: app.pullHistorySize || 10, cursor } });
+      const beforeID = getOldestBeforeID();
+      app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: app.pullHistorySize || 10, before_id: beforeID } });
     }
 
     // 2. Hide jump button if scrolled to bottom
@@ -207,14 +207,14 @@ export function createChatStore(options) {
       const div = document.createElement("div");
       div.className = `msg ${m.role}`;
       div.dataset.msgId = m.message_id || "";
-      div.dataset.ts = m.created_at_ms || 0;
+      div.dataset.storeId = m.store_id || 0;
       div.textContent = m.content;
       fragment.appendChild(div);
       batch.push({
         role: m.role,
         text: m.content,
         msgId: m.message_id,
-        ts: m.created_at_ms,
+        storeId: m.store_id,
         turnId: 0,
         sessionEpoch: 0,
         element: div,
@@ -248,9 +248,9 @@ export function createChatStore(options) {
     }
   }
 
-  function getOldestCursor() {
+  function getOldestBeforeID() {
     for (const msg of app.messages) {
-      if (msg.ts > 0) return msg.ts;
+      if (msg.storeId > 0) return msg.storeId;
     }
     return 0;
   }
@@ -284,7 +284,7 @@ export function createChatStore(options) {
     removeAIMsg,
     finalizeAI,
     handleHistorySync,
-    getOldestCursor,
+    getOldestBeforeID,
     clearForJump,
   };
 }

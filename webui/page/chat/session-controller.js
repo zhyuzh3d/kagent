@@ -15,6 +15,7 @@ export function createSessionController(options) {
   let ioWorker = null;
   let audioCapture = null;
   let stopping = false;
+  let pageCloseBound = false;
 
   function bindAudioCapture(nextAudioCapture) {
     audioCapture = nextAudioCapture;
@@ -76,7 +77,7 @@ export function createSessionController(options) {
           const limit = (app.publicConfig && app.publicConfig.chat && app.publicConfig.chat.session && app.publicConfig.chat.session.maxHistoryMessages) || app.initialHistorySize || 20;
           appendDebug("INFO", "Network", null, null, `ws connected (via worker), fetching history sliding window limit=${limit}`);
           if (limit > 0) {
-            workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, cursor: 0 } });
+            workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, before_id: 0 } });
           }
           break;
         case "ws_close":
@@ -100,6 +101,14 @@ export function createSessionController(options) {
           break;
       }
     };
+  }
+
+  function bindPageCloseSignal() {
+    if (pageCloseBound) return;
+    pageCloseBound = true;
+    window.addEventListener("pagehide", () => {
+      workerSend({ type: "send_control", control: "page_close", turn_id: app.currentTurn || 0 });
+    });
   }
 
   async function connectWorkerWS() {
@@ -170,6 +179,7 @@ export function createSessionController(options) {
 
   async function initWorkerConnection() {
     if (ioWorker) return;
+    bindPageCloseSignal();
     setupWorker();
     try {
       await connectWorkerWS();

@@ -890,6 +890,9 @@
         onConfigApplied: (config) => {
           applyPublicConfig(config);
         },
+        onConfigSaved: (payload) => {
+          reportConfigChange(payload);
+        },
         onDebug: appendDebug,
       });
     }
@@ -977,6 +980,8 @@
           action_status: typeof p.status === 'string' && p.status ? p.status : 'unknown',
           action_followup: typeof p.followup === 'string' && p.followup ? p.followup : 'none',
           action_surface_id: typeof p.actionSurfaceID === 'string' && p.actionSurfaceID ? p.actionSurfaceID : 'counter',
+          surface_type: typeof p.actionSurfaceType === 'string' && p.actionSurfaceType ? p.actionSurfaceType : 'app',
+          surface_version: typeof p.actionSurfaceVersion === 'string' && p.actionSurfaceVersion ? p.actionSurfaceVersion : '1',
           action_manual_confirm: typeof p.manualConfirm === 'string' ? p.manualConfirm : '',
           action_block_reason: typeof p.blockReason === 'string' ? p.blockReason : '',
           action_args: p.args && typeof p.args === 'object' ? p.args : {},
@@ -997,12 +1002,28 @@
         turn_id: turnId,
         extra: {
           surface_id: surfaceId,
+          surface_type: typeof p.surface_type === 'string' && p.surface_type ? p.surface_type : 'app',
+          surface_version: typeof p.surface_version === 'string' && p.surface_version ? p.surface_version : '1',
           event_type: typeof p.event_type === 'string' ? p.event_type : 'state_change',
           business_state: p.business_state && typeof p.business_state === 'object' ? p.business_state : {},
           visible_text: typeof p.visible_text === 'string' ? p.visible_text : '',
           status: typeof p.status === 'string' ? p.status : 'ready',
           state_version: Number.isFinite(p.state_version) ? p.state_version : 0,
           updated_at_ms: Number.isFinite(p.updated_at_ms) ? p.updated_at_ms : Date.now(),
+        },
+      });
+    }
+
+    function reportConfigChange(payload) {
+      const p = payload && typeof payload === 'object' ? payload : {};
+      sessionController.workerSend({
+        type: 'send_control',
+        control: 'config_change',
+        turn_id: App.activeTurnId || App.currentTurn || 0,
+        extra: {
+          config_source: typeof p.source === 'string' && p.source ? p.source : 'config_drawer',
+          config_changed_paths: Array.isArray(p.changedPaths) ? p.changedPaths : [],
+          config_snapshot: p.config && typeof p.config === 'object' ? p.config : {},
         },
       });
     }

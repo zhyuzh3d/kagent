@@ -31,12 +31,31 @@ function formatValue(value) {
   return String(value);
 }
 
+function collectChangedPaths(prev, next, prefix = "", out = []) {
+  if (prev === next) return out;
+  const prevIsObj = prev && typeof prev === "object" && !Array.isArray(prev);
+  const nextIsObj = next && typeof next === "object" && !Array.isArray(next);
+  if (!prevIsObj || !nextIsObj) {
+    if (JSON.stringify(prev) !== JSON.stringify(next)) {
+      out.push(prefix || "(root)");
+    }
+    return out;
+  }
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  for (const key of keys) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    collectChangedPaths(prev[key], next[key], path, out);
+  }
+  return out;
+}
+
 export function createConfigDrawer(options) {
   const {
     mount,
     initialConfig,
     configInfo,
     onConfigApplied,
+    onConfigSaved,
     onDebug,
   } = options;
 
@@ -285,11 +304,19 @@ export function createConfigDrawer(options) {
     setStatus("正在保存配置...", "pending");
     render();
     try {
+      const previousEffective = cloneConfig(state.effectiveConfig);
       const effective = await saveRuntimeConfig(state.draftConfig);
       state.effectiveConfig = cloneConfig(effective);
       state.draftConfig = cloneConfig(effective);
       state.dirty = false;
       emitConfigApplied();
+      if (typeof onConfigSaved === "function") {
+        onConfigSaved({
+          source: "config_drawer",
+          changedPaths: collectChangedPaths(previousEffective, effective),
+          config: cloneConfig(effective),
+        });
+      }
       setStatus("配置已保存。", "success");
       if (typeof onDebug === "function") {
         onDebug("INFO", "ConfigPanel", null, null, "runtime config saved");

@@ -13,22 +13,17 @@ import (
 )
 
 const chatSurfaceActionPromptSuffix = "" +
-	"当你需要读取或控制 counter surface 时，请返回 JSON（可放在纯 JSON 或 JSON 代码块中）：\n" +
-	"{\"content\":\"给用户显示的文本\",\"action\":{\"id\":\"可选\",\"name\":\"surface.get_state|surface.call.counter.set_count|surface.call.counter.increment|surface.call.counter.reset\",\"args\":{\"surface_id\":\"counter\",\"count\":number,\"step\":number},\"followup\":\"none|report\"}}\n" +
-	"说明：followup 仅允许 none/report；如果 action 后还需要基于结果继续推理，用 report。\n" +
-	"如果不需要动作，保持普通自然文本回复即可。"
+	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.counter.set_count、surface.call.counter.increment、surface.call.counter.reset。\n" +
+	"当你需要动作时，必须只输出 JSON（可以是纯 JSON 或 ```json 代码块），不能在 JSON 外再输出任何解释文字。\n" +
+	"格式：{\"content\":\"给用户看的自然语言\",\"action\":{\"id\":\"可选\",\"name\":\"动作名\",\"args\":{\"target\":\"counter\",\"surface_id\":\"counter\",\"count\":number,\"step\":number},\"followup\":\"none|report\"}}\n" +
+	"硬性约束：content 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/[action_report]/ai_action.call 等协议字段片段。\n" +
+	"流程约束：\n" +
+	"1) 用户要求打开某个 surface：先调用 get_surfaces 且 followup=report；拿到列表后若命中目标再调用 open_surface(target) 且 followup=report；若不存在则直接回复找不到且不发动作。\n" +
+	"2) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
+	"3) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
+	"如果不需要动作，输出普通自然文本即可，不要伪造动作执行结果。"
 
-const continuationUserPrompt = "请基于最新的 action_report 继续推理并回复用户。"
-
-// ChatMessage represents a single message in the conversation history.
-type ChatMessage struct {
-	MessageID   string `json:"message_id,omitempty"`
-	Role        string `json:"role"`
-	Content     string `json:"content"`
-	MessageType string `json:"message_type,omitempty"`
-	Visibility  string `json:"visibility,omitempty"`
-	CreatedAtMS int64  `json:"created_at_ms,omitempty"`
-}
+const continuationUserPrompt = "请基于最新的 action_report 继续推理并回复用户。只输出用户可读结论，禁止复述协议字段或 [action_report] 原文。"
 
 type LLMClient interface {
 	Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error)
@@ -100,7 +95,10 @@ func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input str
 		"content": systemPrompt,
 	})
 	for _, m := range history {
-		content := strings.TrimSpace(m.Content)
+		if !shouldIncludeInLLMHistory(m) {
+			continue
+		}
+		content := strings.TrimSpace(semanticPromptContent(m))
 		if content == "" {
 			continue
 		}
@@ -132,18 +130,36 @@ func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input str
 	return inputArr
 }
 
+func shouldIncludeInLLMHistory(msg ChatMessage) bool {
+	if strings.TrimSpace(msg.Content) == "" {
+		return false
+	}
+	if msg.Category == CategoryAIAction && msg.MessageType == TypeActionCall {
+		return false
+	}
+	return true
+}
+
 func buildChatSystemPrompt(base string) string {
 	clean := strings.TrimSpace(base)
 	if clean == "" {
 		return strings.TrimSpace(chatSurfaceActionPromptSuffix)
 	}
-	lower := strings.ToLower(clean)
-	if strings.Contains(lower, "surface.call.counter.") &&
-		strings.Contains(lower, "surface.get_state") &&
-		strings.Contains(lower, "followup") {
+	if hasSurfaceActionHints(clean) {
 		return clean
 	}
 	return clean + "\n\n" + strings.TrimSpace(chatSurfaceActionPromptSuffix)
+}
+
+func hasSurfaceActionHints(prompt string) bool {
+	lower := strings.ToLower(strings.TrimSpace(prompt))
+	if lower == "" {
+		return false
+	}
+	return strings.Contains(lower, "get_surfaces") &&
+		strings.Contains(lower, "open_surface") &&
+		strings.Contains(lower, "close_surface") &&
+		strings.Contains(lower, "followup")
 }
 
 func (c *DoubaoLLMClient) chatConfig() ChatPublicConfig {

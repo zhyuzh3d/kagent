@@ -20,6 +20,8 @@ export function normalizeManifest(raw, sourceURL) {
   const actions = actionsRaw.map(normalizeAction).filter(Boolean);
   return {
     surface_id: typeof data.surface_id === "string" ? data.surface_id.trim() : "",
+    surface_type: typeof data.surface_type === "string" ? data.surface_type.trim() : "",
+    surface_version: typeof data.surface_version === "string" ? data.surface_version.trim() : "",
     title: typeof data.title === "string" ? data.title.trim() : "",
     description: typeof data.description === "string" ? data.description.trim() : "",
     permissions: {

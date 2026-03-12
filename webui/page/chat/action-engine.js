@@ -112,6 +112,15 @@ function normalizeAction(rawAction, payload) {
     ["surface.call.counter.get_state", "surface.get_state"],
     ["counter.get_state", "surface.get_state"],
     ["get_state", "surface.get_state"],
+    ["get_surfaces", "get_surfaces"],
+    ["surface.get_surfaces", "get_surfaces"],
+    ["surface.list", "get_surfaces"],
+    ["open_surface", "open_surface"],
+    ["surface.open_surface", "open_surface"],
+    ["surface.open", "open_surface"],
+    ["close_surface", "close_surface"],
+    ["surface.close_surface", "close_surface"],
+    ["surface.close", "close_surface"],
     ["surface.call.counter.set_count", "surface.call.counter.set_count"],
     ["counter.set_count", "surface.call.counter.set_count"],
     ["set_count", "surface.call.counter.set_count"],
@@ -133,6 +142,19 @@ function normalizeAction(rawAction, payload) {
     args: {},
   };
 
+  if (canonical === "get_surfaces") {
+    normalized.followup = "report";
+    normalized.args = {};
+    return normalized;
+  }
+  if (canonical === "open_surface" || canonical === "close_surface") {
+    normalized.followup = "report";
+    const target = typeof args.target === "string" && args.target.trim()
+      ? args.target.trim()
+      : (typeof args.surface_id === "string" && args.surface_id.trim() ? args.surface_id.trim() : "counter");
+    normalized.args = { target };
+    return normalized;
+  }
   if (canonical === "surface.call.counter.set_count") {
     if (!Number.isFinite(args.count)) return null;
     normalized.args = { count: Math.floor(args.count) };
@@ -148,9 +170,26 @@ function normalizeAction(rawAction, payload) {
     return normalized;
   }
   normalized.args = {
-    surface_id: typeof args.surface_id === "string" && args.surface_id ? args.surface_id : "counter",
+    surface_id: typeof args.surface_id === "string" && args.surface_id.trim()
+      ? args.surface_id.trim()
+      : (typeof args.target === "string" && args.target.trim() ? args.target.trim() : "counter"),
   };
   return normalized;
+}
+
+function inferActionSurfaceID(actionName, args, fallback = "counter") {
+  const action = typeof actionName === "string" ? actionName : "";
+  const payload = args && typeof args === "object" ? args : {};
+  if (typeof payload.surface_id === "string" && payload.surface_id.trim()) {
+    return payload.surface_id.trim();
+  }
+  if (typeof payload.target === "string" && payload.target.trim()) {
+    return payload.target.trim();
+  }
+  if (action === "get_surfaces") {
+    return "surface_registry";
+  }
+  return fallback;
 }
 
 function stableObjectString(value) {
@@ -173,10 +212,10 @@ function pickActionObject(payload) {
 export function createChatActionEngine(options) {
   const chatStore = options.chatStore;
   const surfaceBridge = options.surfaceBridge;
-  const appendDebug = typeof options.appendDebug === "function" ? options.appendDebug : () => {};
-  const appendSystem = typeof options.appendSystem === "function" ? options.appendSystem : () => {};
-  const reportActionRecord = typeof options.reportActionRecord === "function" ? options.reportActionRecord : () => {};
-  const reportStateChange = typeof options.reportStateChange === "function" ? options.reportStateChange : () => {};
+  const appendDebug = typeof options.appendDebug === "function" ? options.appendDebug : () => { };
+  const appendSystem = typeof options.appendSystem === "function" ? options.appendSystem : () => { };
+  const reportActionRecord = typeof options.reportActionRecord === "function" ? options.reportActionRecord : () => { };
+  const reportStateChange = typeof options.reportStateChange === "function" ? options.reportStateChange : () => { };
 
   const streamStates = new Map();
   const actionRateWindow = [];
@@ -278,6 +317,7 @@ export function createChatActionEngine(options) {
   async function executeAction(turnId, action, contentText) {
     const blockReason = evaluateActionGuard(action);
     let manualConfirm = "";
+    const targetSurfaceID = inferActionSurfaceID(action.name, action.args);
     inflightActions += 1;
     const concurrentHint = inflightActions;
     if (blockReason) {
@@ -289,7 +329,9 @@ export function createChatActionEngine(options) {
           actionId: action.id,
           category: "dispatch",
           actionName: action.name,
-          actionSurfaceID: "counter",
+          actionSurfaceID: targetSurfaceID,
+          actionSurfaceType: "app",
+          actionSurfaceVersion: "1",
           status: "cancelled",
           followup: action.followup,
           content: contentText,
@@ -316,7 +358,9 @@ export function createChatActionEngine(options) {
           actionId: action.id,
           category: "dispatch",
           actionName: action.name,
-          actionSurfaceID: result && result.surface_id ? result.surface_id : "counter",
+          actionSurfaceID: result && result.surface_id ? result.surface_id : targetSurfaceID,
+          actionSurfaceType: result && typeof result.surface_type === "string" ? result.surface_type : "app",
+          actionSurfaceVersion: result && typeof result.surface_version === "string" ? result.surface_version : "1",
           status: "fail",
           followup: action.followup,
           content: contentText,
@@ -338,7 +382,9 @@ export function createChatActionEngine(options) {
         actionId: action.id,
         category: "dispatch",
         actionName: action.name,
-        actionSurfaceID: result.surface_id || "counter",
+        actionSurfaceID: result.surface_id || targetSurfaceID,
+        actionSurfaceType: typeof result.surface_type === "string" ? result.surface_type : "app",
+        actionSurfaceVersion: typeof result.surface_version === "string" ? result.surface_version : "1",
         status: result.status || "ok",
         followup: action.followup,
         content: contentText,
@@ -388,7 +434,9 @@ export function createChatActionEngine(options) {
         actionId: typeof rawAction.id === "string" ? rawAction.id : "",
         category: "dispatch",
         actionName: typeof rawAction.name === "string" ? rawAction.name : "invalid_action",
-        actionSurfaceID: "counter",
+        actionSurfaceID: inferActionSurfaceID(typeof rawAction.name === "string" ? rawAction.name : "", rawAction && typeof rawAction.args === "object" ? rawAction.args : {}),
+        actionSurfaceType: "app",
+        actionSurfaceVersion: "1",
         status: "fail",
         followup: normalizeFollowup(rawAction.followup || payload.followup),
         content,
@@ -410,11 +458,13 @@ export function createChatActionEngine(options) {
 
   function handleSurfaceEffect(turnId, evt) {
     if (!evt || typeof evt !== "object") return;
-    if (evt.type === "state_change" && evt.payload && typeof evt.payload === "object") {
+    if ((evt.type === "state_change" || evt.type === "surface_open") && evt.payload && typeof evt.payload === "object") {
       reportStateChange({
         turnId,
         surface_id: evt.surface_id || "counter",
-        event_type: evt.payload.event_type || "state_change",
+        surface_type: typeof evt.payload.surface_type === "string" ? evt.payload.surface_type : "app",
+        surface_version: typeof evt.payload.surface_version === "string" ? evt.payload.surface_version : "1",
+        event_type: evt.payload.event_type || (evt.type === "surface_open" ? "surface_open" : "state_change"),
         business_state: evt.payload.business_state && typeof evt.payload.business_state === "object" ? evt.payload.business_state : {},
         visible_text: typeof evt.payload.visible_text === "string" ? evt.payload.visible_text : "",
         status: typeof evt.payload.status === "string" ? evt.payload.status : "ready",

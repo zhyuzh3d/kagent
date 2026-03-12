@@ -20,6 +20,15 @@ function createPanel(root) {
 function normalizeActionName(rawName) {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   const aliases = new Map([
+    ["get_surfaces", "get_surfaces"],
+    ["surface.get_surfaces", "get_surfaces"],
+    ["surface.list", "get_surfaces"],
+    ["open_surface", "open_surface"],
+    ["surface.open_surface", "open_surface"],
+    ["surface.open", "open_surface"],
+    ["close_surface", "close_surface"],
+    ["surface.close_surface", "close_surface"],
+    ["surface.close", "close_surface"],
     ["surface.get_state", "get_state"],
     ["surface.call.counter.get_state", "get_state"],
     ["counter.get_state", "get_state"],
@@ -49,10 +58,16 @@ function toSurfaceAction(action) {
   };
 }
 
+const DEFAULT_SURFACE_META = {
+  id: "counter",
+  type: "app",
+  version: "1",
+};
+
 export function createSurfaceBridge(options) {
   const root = options.root;
-  const appendDebug = typeof options.appendDebug === "function" ? options.appendDebug : () => {};
-  const onSurfaceEvent = typeof options.onSurfaceEvent === "function" ? options.onSurfaceEvent : () => {};
+  const appendDebug = typeof options.appendDebug === "function" ? options.appendDebug : () => { };
+  const onSurfaceEvent = typeof options.onSurfaceEvent === "function" ? options.onSurfaceEvent : () => { };
   const surfaceURL = options.surfaceURL || "/surface/demo-counter.html";
 
   let panel = null;
@@ -70,6 +85,7 @@ export function createSurfaceBridge(options) {
   const capabilityCache = new Map();
   const pendingActions = [];
   const actionWaiters = new Map();
+  const readyWaiters = [];
 
   function setStatus(text) {
     if (statusEl) statusEl.textContent = text;
@@ -89,6 +105,8 @@ export function createSurfaceBridge(options) {
     const current = stateCache.get(surfaceId) || {};
     const next = {
       surface_id: surfaceId,
+      surface_type: typeof payload.surface_type === "string" ? payload.surface_type : (current.surface_type || DEFAULT_SURFACE_META.type),
+      surface_version: typeof payload.surface_version === "string" ? payload.surface_version : (current.surface_version || DEFAULT_SURFACE_META.version),
       event_type: typeof payload.event_type === "string" ? payload.event_type : (current.event_type || "state_change"),
       business_state: payload.business_state && typeof payload.business_state === "object" ? payload.business_state : (current.business_state || {}),
       visible_text: typeof payload.visible_text === "string" ? payload.visible_text : (current.visible_text || ""),
@@ -123,6 +141,90 @@ export function createSurfaceBridge(options) {
     actionWaiters.delete(actionId);
     clearTimeout(waiter.timer);
     waiter.resolve({ ok: false, reason: reason || "action_failed" });
+  }
+
+  function flushReadyWaiters(readyNow) {
+    while (readyWaiters.length > 0) {
+      const waiter = readyWaiters.shift();
+      if (!waiter) continue;
+      clearTimeout(waiter.timer);
+      waiter.resolve(!!readyNow);
+    }
+  }
+
+  function waitForReady(timeoutMs = 3500) {
+    if (ready) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        for (let i = 0; i < readyWaiters.length; i += 1) {
+          if (readyWaiters[i] && readyWaiters[i].resolve === resolve) {
+            readyWaiters.splice(i, 1);
+            break;
+          }
+        }
+        resolve(ready);
+      }, timeoutMs);
+      readyWaiters.push({ resolve, timer });
+    });
+  }
+
+  function resolveTargetSurfaceID(args) {
+    const payload = args && typeof args === "object" ? args : {};
+    const target = typeof payload.target === "string" && payload.target.trim()
+      ? payload.target.trim()
+      : (typeof payload.surface_id === "string" && payload.surface_id.trim() ? payload.surface_id.trim() : DEFAULT_SURFACE_META.id);
+    return target;
+  }
+
+  function snapshotSurfaceDescriptor() {
+    const cached = stateCache.get(DEFAULT_SURFACE_META.id) || null;
+    const caps = capabilityCache.get(DEFAULT_SURFACE_META.id) || {};
+    return {
+      surface_id: DEFAULT_SURFACE_META.id,
+      surface_type: DEFAULT_SURFACE_META.type,
+      surface_version: DEFAULT_SURFACE_META.version,
+      status: visible ? (cached && cached.status ? cached.status : (ready ? "ready" : "opening")) : "closed",
+      visible,
+      ready,
+      capabilities: {
+        get_state: !!caps.get_state,
+      },
+      state_version: cached && Number.isFinite(cached.state_version) ? cached.state_version : 0,
+      business_state: cached && cached.business_state && typeof cached.business_state === "object" ? cached.business_state : {},
+      visible_text: cached && typeof cached.visible_text === "string" ? cached.visible_text : "",
+    };
+  }
+
+  function closeSurfacePanel(triggerReason) {
+    const wasVisible = visible;
+    setVisible(false);
+    for (const actionID of Array.from(actionWaiters.keys())) {
+      rejectAction(actionID, "surface_closed");
+    }
+    while (pendingActions.length > 0) {
+      const item = pendingActions.shift();
+      if (item && typeof item.resolve === "function") {
+        item.resolve({ ok: false, reason: "surface_closed" });
+      }
+    }
+    const current = stateCache.get(DEFAULT_SURFACE_META.id) || {};
+    const nextVersion = Number.isFinite(current.state_version) ? current.state_version + 1 : 0;
+    const closedState = {
+      surface_id: DEFAULT_SURFACE_META.id,
+      surface_type: DEFAULT_SURFACE_META.type,
+      surface_version: DEFAULT_SURFACE_META.version,
+      event_type: "surface_closed",
+      business_state: {},
+      visible_text: "",
+      status: "closed",
+      state_version: nextVersion,
+      updated_at_ms: Date.now(),
+    };
+    stateCache.set(DEFAULT_SURFACE_META.id, closedState);
+    emitStateChange(closedState);
+    flushReadyWaiters(false);
+    appendDebug("INFO", "SurfaceCounter", null, null, `surface closed: ${triggerReason || "manual"}`);
+    return { wasVisible, closedState };
   }
 
   function postActionCall(surfaceAction, resolve) {
@@ -176,21 +278,29 @@ export function createSurfaceBridge(options) {
       if (msg.type === "surface_ready") {
         ready = true;
         setStatus("ready");
-        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : "counter";
+        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : DEFAULT_SURFACE_META.id;
         const caps = msg.capabilities && typeof msg.capabilities === "object" ? msg.capabilities : {};
         capabilityCache.set(surfaceId, {
           get_state: !!caps.get_state,
         });
         if (msg.state && typeof msg.state === "object") {
           const state = cacheStateFromMessage(surfaceId, msg.state);
-          emitStateChange(state);
+          onSurfaceEvent({
+            type: "surface_open",
+            surface_id: surfaceId,
+            payload: {
+              ...(state || {}),
+              event_type: "surface_open",
+            },
+          });
         }
+        flushReadyWaiters(true);
         flushPendingActions();
         return;
       }
 
       if (msg.type === "state_change") {
-        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : "counter";
+        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : DEFAULT_SURFACE_META.id;
         const state = cacheStateFromMessage(surfaceId, msg);
         appendDebug("INFO", "SurfaceCounter", null, JSON.stringify(state.business_state || {}), "state_change");
         emitStateChange(state);
@@ -199,8 +309,10 @@ export function createSurfaceBridge(options) {
 
       if (msg.type === "action_result") {
         const actionId = typeof msg.action_id === "string" ? msg.action_id : "";
-        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : "counter";
+        const surfaceId = typeof msg.surface_id === "string" ? msg.surface_id : DEFAULT_SURFACE_META.id;
         const state = cacheStateFromMessage(surfaceId, {
+          surface_type: msg.surface_type,
+          surface_version: msg.surface_version,
           business_state: msg.business_state,
           visible_text: msg.visible_text,
           status: typeof msg.status === "string" ? msg.status : "ready",
@@ -215,6 +327,8 @@ export function createSurfaceBridge(options) {
           action_id: actionId,
           action_name: typeof msg.action_name === "string" ? msg.action_name : "",
           surface_id: surfaceId,
+          surface_type: state ? state.surface_type : DEFAULT_SURFACE_META.type,
+          surface_version: state ? state.surface_version : DEFAULT_SURFACE_META.version,
           result: msg.result && typeof msg.result === "object" ? msg.result : {},
           business_state: state ? state.business_state : {},
           state_version: state ? state.state_version : 0,
@@ -243,7 +357,9 @@ export function createSurfaceBridge(options) {
       iframe.contentWindow.postMessage(
         {
           type: "surface_connect",
-          surface_id: "counter",
+          surface_id: DEFAULT_SURFACE_META.id,
+          surface_type: DEFAULT_SURFACE_META.type,
+          surface_version: DEFAULT_SURFACE_META.version,
           session_token: sessionToken,
         },
         "*",
@@ -282,7 +398,7 @@ export function createSurfaceBridge(options) {
       ensureIframe(true);
     });
     panel.querySelector('[data-act="close"]').addEventListener("click", () => {
-      setVisible(false);
+      closeSurfacePanel("user_click");
     });
     freezeBtn.addEventListener("click", () => {
       frozen = !frozen;
@@ -292,8 +408,14 @@ export function createSurfaceBridge(options) {
   }
 
   function setVisible(nextVisible) {
-    ensurePanel();
-    visible = !!nextVisible;
+    const willOpen = !!nextVisible;
+    if (willOpen) {
+      ensurePanel();
+    } else if (!panel) {
+      visible = false;
+      return;
+    }
+    visible = willOpen;
     panel.classList.toggle("open", visible);
     if (visible) {
       ensureIframe(false);
@@ -305,26 +427,136 @@ export function createSurfaceBridge(options) {
   }
 
   function dispatchAction(action) {
-    if (!visible) {
-      setVisible(true);
-    }
-    if (frozen) {
-      return Promise.resolve({ ok: false, reason: "surface frozen" });
-    }
     const surfaceAction = toSurfaceAction(action);
     if (!surfaceAction) {
       return Promise.resolve({ ok: false, reason: "invalid action" });
     }
 
+    if (surfaceAction.name === "get_surfaces") {
+      const descriptor = snapshotSurfaceDescriptor();
+      return Promise.resolve({
+        ok: true,
+        status: "ok",
+        action_id: surfaceAction.id,
+        action_name: "get_surfaces",
+        surface_id: "surface_registry",
+        surface_type: "meta",
+        surface_version: "1",
+        result: { total: 1, surfaces: [descriptor] },
+        business_state: {},
+        state_version: descriptor.state_version || 0,
+        effect: {
+          source: "surface.registry",
+          surfaces: [descriptor],
+        },
+      });
+    }
+
+    if (surfaceAction.name === "open_surface") {
+      const target = resolveTargetSurfaceID(surfaceAction.args);
+      if (target !== DEFAULT_SURFACE_META.id) {
+        return Promise.resolve({ ok: false, reason: `surface_not_found:${target}` });
+      }
+      if (visible) {
+        const descriptor = snapshotSurfaceDescriptor();
+        return Promise.resolve({
+          ok: true,
+          status: "ok",
+          action_id: surfaceAction.id,
+          action_name: "open_surface",
+          surface_id: DEFAULT_SURFACE_META.id,
+          surface_type: DEFAULT_SURFACE_META.type,
+          surface_version: DEFAULT_SURFACE_META.version,
+          result: { opened: false, already_open: true, surface: descriptor },
+          business_state: descriptor.business_state || {},
+          state_version: descriptor.state_version || 0,
+          effect: {
+            source: "surface.open.noop",
+            business_state: descriptor.business_state || {},
+            visible_text: descriptor.visible_text || "",
+          },
+        });
+      }
+      setVisible(true);
+      return waitForReady(3500).then((openedReady) => {
+        const descriptor = snapshotSurfaceDescriptor();
+        if (!openedReady && !ready) {
+          return {
+            ok: false,
+            reason: "surface_open_timeout",
+            surface_id: DEFAULT_SURFACE_META.id,
+            surface_type: DEFAULT_SURFACE_META.type,
+            surface_version: DEFAULT_SURFACE_META.version,
+            effect: {
+              source: "surface.open.timeout",
+              business_state: descriptor.business_state || {},
+              visible_text: descriptor.visible_text || "",
+            },
+          };
+        }
+        return {
+          ok: true,
+          status: "ok",
+          action_id: surfaceAction.id,
+          action_name: "open_surface",
+          surface_id: DEFAULT_SURFACE_META.id,
+          surface_type: DEFAULT_SURFACE_META.type,
+          surface_version: DEFAULT_SURFACE_META.version,
+          result: { opened: true, ready: !!openedReady, surface: descriptor },
+          business_state: descriptor.business_state || {},
+          state_version: descriptor.state_version || 0,
+          effect: {
+            source: "surface.open",
+            business_state: descriptor.business_state || {},
+            visible_text: descriptor.visible_text || "",
+          },
+        };
+      });
+    }
+
+    if (surfaceAction.name === "close_surface") {
+      const target = resolveTargetSurfaceID(surfaceAction.args);
+      if (target !== DEFAULT_SURFACE_META.id) {
+        return Promise.resolve({ ok: false, reason: `surface_not_found:${target}` });
+      }
+      const closed = closeSurfacePanel("ai_action");
+      return Promise.resolve({
+        ok: true,
+        status: "ok",
+        action_id: surfaceAction.id,
+        action_name: "close_surface",
+        surface_id: DEFAULT_SURFACE_META.id,
+        surface_type: DEFAULT_SURFACE_META.type,
+        surface_version: DEFAULT_SURFACE_META.version,
+        result: { closed: true, already_closed: !closed.wasVisible },
+        business_state: {},
+        state_version: closed.closedState.state_version || 0,
+        effect: {
+          source: "surface.close",
+          business_state: {},
+          visible_text: "",
+        },
+      });
+    }
+
+    if (!visible) {
+      return Promise.resolve({ ok: false, reason: "surface_closed" });
+    }
+    if (frozen) {
+      return Promise.resolve({ ok: false, reason: "surface frozen" });
+    }
+
     if (surfaceAction.name === "get_state") {
-      const cached = stateCache.get("counter");
+      const cached = stateCache.get(DEFAULT_SURFACE_META.id);
       if (cached) {
         return Promise.resolve({
           ok: true,
           status: "ok",
           action_id: surfaceAction.id,
           action_name: "surface.get_state",
-          surface_id: "counter",
+          surface_id: DEFAULT_SURFACE_META.id,
+          surface_type: cached.surface_type || DEFAULT_SURFACE_META.type,
+          surface_version: cached.surface_version || DEFAULT_SURFACE_META.version,
           result: { from_cache: true },
           business_state: cached.business_state || {},
           state_version: cached.state_version || 0,
@@ -342,11 +574,11 @@ export function createSurfaceBridge(options) {
     });
   }
 
-  function getCachedState(surfaceId = "counter") {
+  function getCachedState(surfaceId = DEFAULT_SURFACE_META.id) {
     return stateCache.get(surfaceId) || null;
   }
 
-  function hasCapability(surfaceId = "counter", capability = "get_state") {
+  function hasCapability(surfaceId = DEFAULT_SURFACE_META.id, capability = "get_state") {
     const caps = capabilityCache.get(surfaceId);
     if (!caps) return false;
     return !!caps[capability];

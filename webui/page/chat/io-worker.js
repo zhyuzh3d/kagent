@@ -43,12 +43,18 @@ function sendControl(type, reason, turnId, text, extra) {
     if (extra.action_effect && typeof extra.action_effect === "object") payload.action_effect = extra.action_effect;
     if (extra.action_state && typeof extra.action_state === "object") payload.action_state = extra.action_state;
     if (extra.surface_id) payload.surface_id = extra.surface_id;
+    if (extra.surface_type) payload.surface_type = extra.surface_type;
+    if (extra.surface_version) payload.surface_version = extra.surface_version;
     if (extra.event_type) payload.event_type = extra.event_type;
     if (extra.business_state && typeof extra.business_state === "object") payload.business_state = extra.business_state;
     if (typeof extra.visible_text === "string") payload.visible_text = extra.visible_text;
     if (typeof extra.status === "string") payload.status = extra.status;
     if (Number.isFinite(extra.state_version)) payload.state_version = extra.state_version;
+    if (typeof extra.config_source === "string") payload.config_source = extra.config_source;
+    if (Array.isArray(extra.config_changed_paths)) payload.config_changed_paths = extra.config_changed_paths;
+    if (extra.config_snapshot && typeof extra.config_snapshot === "object") payload.config_snapshot = extra.config_snapshot;
     if (Number.isFinite(extra.limit)) payload.limit = extra.limit;
+    if (Number.isFinite(extra.before_id)) payload.before_id = extra.before_id;
     if (Number.isFinite(extra.cursor)) payload.cursor = extra.cursor;
   }
   ws.send(JSON.stringify(payload));

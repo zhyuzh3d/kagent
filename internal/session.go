@@ -18,12 +18,12 @@ type Session struct {
 	conn          *websocket.Conn
 	cfg           *ModelConfig
 	runtimeConfig *RuntimeConfigManager
-	actionRecords *ActionRecordStore
 	sqliteStore   *SQLiteStore
 	asr           ASRClient
 	llm           LLMClient
 	tts           TTSClient
 	pipeline      *TurnPipeline
+	opsLogger     *OperationLogger
 
 	stateMu sync.Mutex
 	state   string
@@ -63,6 +63,13 @@ type Session struct {
 	historyMu   sync.Mutex
 	chatHistory []ChatMessage
 
+	draftMu            sync.Mutex
+	assistantDrafts    map[uint64]string
+	assistantFinalized map[uint64]struct{}
+
+	interruptMu   sync.Mutex
+	turnInterrupt map[uint64]string
+
 	actionMu              sync.Mutex
 	userTurnActive        bool
 	continuationRunning   bool
@@ -73,7 +80,7 @@ type Session struct {
 	actionDedup           map[string]int64
 }
 
-func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, actionRecords *ActionRecordStore, sqliteStore *SQLiteStore) *Session {
+func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, sqliteStore *SQLiteStore) *Session {
 	activeCfg := cfg.ActiveChat()
 	publicCfg := defaultPublicConfig()
 	if runtimeConfig != nil {
@@ -92,29 +99,34 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 		ttsQueueSize = defaultPublicConfig().Chat.Session.DownstreamTTSQueueSize
 	}
 	s := &Session{
-		conn:          conn,
-		cfg:           cfg,
-		runtimeConfig: runtimeConfig,
-		actionRecords: actionRecords,
-		sqliteStore:   sqliteStore,
-		asr:           NewDoubaoASRClient(cfg.ASR, runtimeConfig),
-		llm:           NewDoubaoLLMClient(activeCfg, runtimeConfig),
-		tts:           NewDoubaoTTSClient(cfg.TTS, runtimeConfig),
-		state:         StateIdle,
-		audioIn:       make(chan []byte, audioQueueSize),
-		control:       make(chan ControlMessage, controlQueueSize),
-		ttsQueue:      make(chan TTSChunk, ttsQueueSize),
-		asrFinalCh:    make(chan struct{}, 1),
-		actionDedup:   map[string]int64{},
+		conn:               conn,
+		cfg:                cfg,
+		runtimeConfig:      runtimeConfig,
+		sqliteStore:        sqliteStore,
+		asr:                NewDoubaoASRClient(cfg.ASR, runtimeConfig),
+		llm:                NewDoubaoLLMClient(activeCfg, runtimeConfig),
+		tts:                NewDoubaoTTSClient(cfg.TTS, runtimeConfig),
+		state:              StateIdle,
+		audioIn:            make(chan []byte, audioQueueSize),
+		control:            make(chan ControlMessage, controlQueueSize),
+		ttsQueue:           make(chan TTSChunk, ttsQueueSize),
+		asrFinalCh:         make(chan struct{}, 1),
+		actionDedup:        map[string]int64{},
+		assistantDrafts:    map[uint64]string{},
+		assistantFinalized: map[uint64]struct{}{},
+		turnInterrupt:      map[uint64]string{},
+		opsLogger:          NewOperationLogger(sqliteStore.userID),
 	}
 	s.pipeline = NewTurnPipeline(s.llm, s.tts, runtimeConfig, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {
 			s.setTurnState(turnID, state, detail)
 		},
 		OnEvent: func(evt EventMessage) {
-			// Capture assistant final response for multi-turn context
-			if evt.Type == "llm_final" && evt.Text != "" {
-				s.appendAssistantHistory(evt.Text, evt.TurnID)
+			if evt.Type == "llm_delta" {
+				s.appendAssistantDraft(evt.TurnID, evt.Text)
+			}
+			if evt.Type == "llm_final" {
+				s.finalizeAssistantMessage(evt.TurnID, evt.Text, CompletionStatusComplete, InterruptNone, 0)
 			}
 			if err := s.sendEvent(evt); err != nil {
 				Errorf("send event failed: %v", err)
@@ -213,6 +225,14 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		}
 		s.started.Store(true)
 		s.setUserTurnActive(false)
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleSystem,
+			Category:    CategoryPhase,
+			MessageType: TypeConvoStart,
+			PayloadJSON: `{"reason":"start"}`,
+			CreatedAtMS: nowMS(),
+		})
 
 		tid := s.adoptTurnID(ctrl.TurnID)
 		s.startASRTurn(tid) // Start the initial ASR connection for this session
@@ -220,6 +240,14 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		s.setState(StateListening, "microphone streaming")
 	case "stop":
 		s.cancelASR()
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleSystem,
+			Category:    CategoryPhase,
+			MessageType: TypeConvoStop,
+			PayloadJSON: `{"reason":"stop"}`,
+			CreatedAtMS: nowMS(),
+		})
 		s.stopAll()
 		s.setUserTurnActive(false)
 		s.setState(StateIdle, "stopped")
@@ -230,7 +258,7 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			s.lastInterruptTurnID = tid
 		}
 
-		s.interruptTurn()
+		s.interruptTurnWithReason(InterruptVAD)
 		s.cancelASR()
 
 		// Optional: if client sends start_listen explicitly, we don't need to start here.
@@ -273,6 +301,7 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 			return
 		}
 		_ = s.sendEvent(EventMessage{Type: "turn_nack", TsMS: nowMS(), TurnID: tid})
+		Infof("[Turn:%d] turn_nack sent to frontend, skipped DB persistence", tid)
 		s.setState(StateListening, "no speech detected")
 		s.tryStartContinuation()
 	case "start_listen":
@@ -280,7 +309,7 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		tid := s.adoptTurnID(ctrl.TurnID)
 		Infof("[Turn:%d] -> VAD listening started", tid)
 		if shouldInterruptOnStartListen(s.getState()) {
-			s.interruptTurn()
+			s.interruptTurnWithReason(InterruptVAD)
 		}
 		s.setUserTurnActive(true)
 		s.cancelASR()
@@ -308,6 +337,17 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		s.handleActionResult(ctrl)
 	case "state_change":
 		s.handleStateChange(ctrl)
+	case "page_close":
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleSystem,
+			Category:    CategoryPhase,
+			MessageType: TypePageClose,
+			PayloadJSON: fmt.Sprintf(`{"reason":%q}`, strings.TrimSpace(ctrl.Reason)),
+			CreatedAtMS: nowMS(),
+		})
+	case "config_change":
+		s.handleConfigChange(ctrl)
 	case "fetch_history":
 		s.handleFetchHistory(ctrl)
 	default:
@@ -327,15 +367,18 @@ func (s *Session) handleFetchHistory(ctrl ControlMessage) {
 	if limit > 50 {
 		limit = 50
 	}
+	beforeID := ctrl.BeforeID
+	if beforeID <= 0 {
+		beforeID = ctrl.Cursor
+	}
 
-	Debugf("received fetch_history: cursor=%d, limit=%d", ctrl.Cursor, limit)
-	history, err := s.sqliteStore.LoadContextBefore(ctrl.Cursor, limit)
+	Debugf("received fetch_history: before_id=%d cursor=%d limit=%d", beforeID, ctrl.Cursor, limit)
+	history, hasMore, err := s.sqliteStore.LoadContextBefore(beforeID, limit)
 	if err != nil {
 		Errorf("fetch history failed: %v", err)
 		return
 	}
 
-	hasMore := len(history) == limit
 	Debugf("fetch_history returning %d messages, hasMore=%v", len(history), hasMore)
 
 	evt := EventMessage{
@@ -410,6 +453,9 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 func (s *Session) interruptTurnLocked() {
 	s.turnMu.Lock()
 	if s.turnCancel != nil {
+		if s.lastStartedTurnID > 0 {
+			s.recordTurnInterrupt(s.lastStartedTurnID, InterruptVAD)
+		}
 		s.turnCancel()
 		s.turnCancel = nil
 	}
@@ -441,7 +487,7 @@ func (s *Session) maybeInterruptForRecognizedSpeech(turnID uint64, text string) 
 		return
 	}
 	Infof("[Turn:%d] %q -> Interrupt active response after confirmed user speech", turnID, Snippet(text))
-	s.interruptTurn()
+	s.interruptTurnWithReason(InterruptVAD)
 }
 
 func (s *Session) adoptTurnID(proposed uint64) uint64 {
@@ -533,7 +579,7 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	s.lastStartedTurnID = targetTurnID
 	s.turnMu.Unlock()
 
-	s.interruptTurn()
+	s.interruptTurnWithReason(InterruptOther)
 	// Removed s.turnID.Add(1) - TurnID is now incremented upon receiving the first ASREventPartial for a new utterance
 	ctx, cancel := context.WithCancel(s.rootCtx)
 	s.turnMu.Lock()
@@ -542,22 +588,28 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	history := s.getHistory()
 
 	s.appendHistoryMessage(ChatMessage{
-		Role:        "user",
+		TurnID:      targetTurnID,
+		Role:        RoleUser,
+		Category:    CategoryChat,
+		MessageType: TypeUserMessage,
 		Content:     clean,
-		MessageType: "chat",
-		Visibility:  "visible",
+		PayloadJSON: fmt.Sprintf(`{"text":%q,"origin":"user_turn"}`, clean),
 		CreatedAtMS: nowMS(),
-	}, targetTurnID, map[string]any{
-		"origin": "user_turn",
 	})
 
 	s.setState(StateThinking, "ai is thinking")
 	go func(turnID uint64, input string, hist []ChatMessage) {
 		err := s.pipeline.RunTurn(ctx, turnID, input, hist)
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if errors.Is(err, context.Canceled) {
+			s.finalizeAssistantMessage(turnID, "", CompletionStatusInterrupted, s.consumeTurnInterrupt(turnID), 0)
+			return
+		}
+		if err != nil {
+			s.finalizeAssistantMessage(turnID, "", CompletionStatusError, InterruptOther, 0)
 			Errorf("[Turn:%d] turn failed: %v", turnID, err)
 			s.emitError(turnID, "turn_failed", err.Error(), true)
 			s.setTurnState(turnID, StateError, "turn failed")
+			return
 		}
 		if ctx.Err() == nil {
 			s.setTurnState(turnID, StateListening, "ready for next utterance")
@@ -566,10 +618,13 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	}(targetTurnID, clean, history)
 }
 
-func (s *Session) interruptTurn() {
+func (s *Session) interruptTurnWithReason(reason string) {
 	s.turnMu.Lock()
 	defer s.turnMu.Unlock()
 	if s.turnCancel != nil {
+		if s.lastStartedTurnID > 0 {
+			s.recordTurnInterrupt(s.lastStartedTurnID, reason)
+		}
 		s.turnCancel()
 		s.turnCancel = nil
 	}
@@ -577,7 +632,7 @@ func (s *Session) interruptTurn() {
 }
 
 func (s *Session) stopAll() {
-	s.interruptTurn()
+	s.interruptTurnWithReason(InterruptManual)
 	s.started.Store(false)
 	s.actionMu.Lock()
 	s.userTurnActive = false
@@ -603,6 +658,9 @@ func (s *Session) cleanup() {
 		s.rootCancel()
 	}
 	_ = s.conn.Close()
+	if s.opsLogger != nil {
+		_ = s.opsLogger.Close()
+	}
 }
 
 func (s *Session) setState(state string, detail string) {
@@ -747,70 +805,165 @@ func (s *Session) consumeLastASRText() string {
 	return out
 }
 
-// trimHistory keeps only the last maxHistoryMessages messages.
-// Must be called with historyMu held.
-func (s *Session) trimHistory() {
-	maxHistoryMessages := s.publicConfig().Chat.Session.MaxHistoryMessages
-	if maxHistoryMessages <= 0 {
-		maxHistoryMessages = defaultPublicConfig().Chat.Session.MaxHistoryMessages
+func (s *Session) sessionAnchorLimit() int {
+	limit := s.publicConfig().Chat.Session.MaxHistoryMessages
+	if limit <= 0 {
+		limit = defaultPublicConfig().Chat.Session.MaxHistoryMessages
 	}
-	if len(s.chatHistory) > maxHistoryMessages {
-		s.chatHistory = s.chatHistory[len(s.chatHistory)-maxHistoryMessages:]
+	if limit <= 0 {
+		limit = 20
+	}
+	return limit
+}
+
+func (s *Session) sessionMessageCap() int {
+	return maxInt(s.sessionAnchorLimit()*4, 64)
+}
+
+// applyHistoryWindowLocked keeps the in-memory history aligned with the sliding anchor window.
+// Must be called with historyMu held.
+func (s *Session) applyHistoryWindowLocked() {
+	anchorLimit := s.sessionAnchorLimit()
+	if anchorLimit > 0 {
+		anchorSeen := 0
+		anchorIdx := -1
+		for i := len(s.chatHistory) - 1; i >= 0; i-- {
+			if !isAnchorMessage(s.chatHistory[i]) {
+				continue
+			}
+			anchorSeen++
+			if anchorSeen == anchorLimit {
+				anchorIdx = i
+				break
+			}
+		}
+		if anchorIdx > 0 {
+			s.chatHistory = append([]ChatMessage(nil), s.chatHistory[anchorIdx:]...)
+		}
+	}
+	if capLimit := s.sessionMessageCap(); len(s.chatHistory) > capLimit {
+		s.chatHistory = append([]ChatMessage(nil), s.chatHistory[len(s.chatHistory)-capLimit:]...)
 	}
 }
 
-func (s *Session) appendAssistantHistory(text string, turnID uint64) {
-	clean := strings.TrimSpace(text)
-	if clean == "" {
+func (s *Session) appendAssistantDraft(turnID uint64, delta string) {
+	if turnID == 0 || strings.TrimSpace(delta) == "" {
 		return
 	}
-	s.historyMu.Lock()
-	if len(s.chatHistory) > 0 {
-		last := s.chatHistory[len(s.chatHistory)-1]
-		if last.Role == "assistant" && last.Content == clean {
-			s.historyMu.Unlock()
-			return
-		}
+	s.draftMu.Lock()
+	defer s.draftMu.Unlock()
+	if s.assistantDrafts == nil {
+		s.assistantDrafts = map[uint64]string{}
 	}
-	s.historyMu.Unlock()
-	s.appendHistoryMessage(ChatMessage{
-		Role:        "assistant",
-		Content:     clean,
-		MessageType: "chat",
-		Visibility:  "visible",
-		CreatedAtMS: nowMS(),
-	}, turnID, map[string]any{
-		"origin": "assistant_final",
-	})
+	if s.assistantFinalized == nil {
+		s.assistantFinalized = map[uint64]struct{}{}
+	}
+	if _, finalized := s.assistantFinalized[turnID]; finalized {
+		return
+	}
+	s.assistantDrafts[turnID] += delta
 }
 
-func (s *Session) appendHistoryMessage(msg ChatMessage, turnID uint64, meta map[string]any) string {
-	content := strings.TrimSpace(msg.Content)
+func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, status string, interrupt string, interruptAtMS int64) {
+	if turnID == 0 {
+		return
+	}
+	s.draftMu.Lock()
+	if s.assistantDrafts == nil {
+		s.assistantDrafts = map[uint64]string{}
+	}
+	if s.assistantFinalized == nil {
+		s.assistantFinalized = map[uint64]struct{}{}
+	}
+	if _, finalized := s.assistantFinalized[turnID]; finalized {
+		s.draftMu.Unlock()
+		return
+	}
+	draft := strings.TrimSpace(s.assistantDrafts[turnID])
+	delete(s.assistantDrafts, turnID)
+	s.assistantFinalized[turnID] = struct{}{}
+	s.draftMu.Unlock()
+
+	content := strings.TrimSpace(finalText)
 	if content == "" {
-		return ""
+		content = draft
+	}
+	if content == "" {
+		return
+	}
+	normalizedStatus := normalizeCompletionStatus(status)
+	if normalizedStatus == "" {
+		normalizedStatus = CompletionStatusComplete
+	}
+	normalizedInterrupt := normalizeInterrupt(interrupt)
+	if normalizedInterrupt == "" {
+		normalizedInterrupt = InterruptNone
+	}
+	payload := map[string]any{
+		"text":              content,
+		"completion_status": normalizedStatus,
+		"interrupt":         normalizedInterrupt,
+	}
+	if draft != "" && draft != content {
+		payload["partial_text"] = draft
 	}
 	entry := ChatMessage{
-		MessageID:   firstNonEmpty(strings.TrimSpace(msg.MessageID), "msg-"+newRequestID()),
-		Role:        firstNonEmpty(strings.TrimSpace(msg.Role), "assistant"),
-		Content:     content,
-		MessageType: firstNonEmpty(strings.TrimSpace(msg.MessageType), "chat"),
-		Visibility:  firstNonEmpty(strings.TrimSpace(msg.Visibility), "visible"),
-		CreatedAtMS: msg.CreatedAtMS,
+		TurnID:               turnID,
+		Role:                 RoleAssistant,
+		Category:             CategoryChat,
+		MessageType:          TypeAssistantMessage,
+		Content:              content,
+		CreatedAtMS:          nowMS(),
+		CompletionStatus:     normalizedStatus,
+		Interrupt:            normalizedInterrupt,
+		InterruptAtMS:        interruptAtMS,
+		PartialText:          draft,
+		PayloadSchemaVersion: PayloadSchemaVersion1,
 	}
-	if entry.CreatedAtMS <= 0 {
-		entry.CreatedAtMS = nowMS()
+	if raw, err := json.Marshal(payload); err == nil {
+		entry.PayloadJSON = string(raw)
 	}
+	s.appendHistoryMessage(entry)
+	s.clearTurnInterrupt(turnID)
+}
 
-	s.historyMu.Lock()
-	s.chatHistory = append(s.chatHistory, entry)
-	s.trimHistory()
-	s.historyMu.Unlock()
-
+func (s *Session) appendHistoryMessage(msg ChatMessage) string {
+	payload := map[string]any{}
+	if strings.TrimSpace(msg.PayloadJSON) != "" {
+		_ = json.Unmarshal([]byte(msg.PayloadJSON), &payload)
+	}
+	entry, err := BuildMessage(MessageWrite{
+		MessageID:            msg.MessageID,
+		TurnID:               msg.TurnID,
+		Role:                 msg.Role,
+		Category:             msg.Category,
+		MessageType:          msg.MessageType,
+		Content:              msg.Content,
+		PayloadSchemaVersion: msg.PayloadSchemaVersion,
+		Payload:              payload,
+		PayloadJSON:          msg.PayloadJSON,
+		CreatedAtMS:          msg.CreatedAtMS,
+		CompletionStatus:     msg.CompletionStatus,
+		Interrupt:            msg.Interrupt,
+		InterruptAtMS:        msg.InterruptAtMS,
+		PartialText:          msg.PartialText,
+	})
+	if err != nil {
+		Errorf("[Turn:%d] build message failed: %v", msg.TurnID, err)
+		return ""
+	}
 	if s.sqliteStore != nil {
-		if _, err := s.sqliteStore.AppendMessage(entry, turnID, entry.Role, entry.MessageType, entry.Visibility, meta); err != nil {
-			Errorf("[Turn:%d] sqlite append message failed: %v", turnID, err)
+		persisted, err := s.sqliteStore.AppendMessage(entry)
+		if err != nil {
+			Errorf("[Turn:%d] sqlite append message failed: %v", msg.TurnID, err)
+		} else {
+			entry = persisted
 		}
 	}
+	s.historyMu.Lock()
+	s.chatHistory = append(s.chatHistory, entry)
+	s.applyHistoryWindowLocked()
+	s.historyMu.Unlock()
 	return entry.MessageID
 }
 
@@ -818,11 +971,7 @@ func (s *Session) bootstrapHistoryFromSQLite() {
 	if s.sqliteStore == nil {
 		return
 	}
-	maxHistoryMessages := s.publicConfig().Chat.Session.MaxHistoryMessages
-	if maxHistoryMessages <= 0 {
-		maxHistoryMessages = defaultPublicConfig().Chat.Session.MaxHistoryMessages
-	}
-	history, err := s.sqliteStore.LoadRecentContext(maxHistoryMessages)
+	history, err := s.sqliteStore.LoadSessionWindow(s.sessionAnchorLimit(), s.sessionMessageCap())
 	if err != nil {
 		Warnf("load sqlite history failed: %v", err)
 		return
@@ -831,8 +980,8 @@ func (s *Session) bootstrapHistoryFromSQLite() {
 		return
 	}
 	s.historyMu.Lock()
-	s.chatHistory = history
-	s.trimHistory()
+	s.chatHistory = append([]ChatMessage(nil), history...)
+	s.applyHistoryWindowLocked()
 	s.historyMu.Unlock()
 }
 
@@ -842,13 +991,15 @@ func (s *Session) handleStateChange(ctrl ControlMessage) {
 		return
 	}
 	state := SurfaceState{
-		SurfaceID:     surfaceID,
-		EventType:     strings.TrimSpace(ctrl.EventType),
-		BusinessState: cloneAnyMap(ctrl.BusinessState),
-		VisibleText:   strings.TrimSpace(ctrl.VisibleText),
-		Status:        strings.TrimSpace(ctrl.Status),
-		StateVersion:  ctrl.StateVersion,
-		UpdatedAtMS:   ctrl.UpdatedAtMS,
+		SurfaceID:      surfaceID,
+		SurfaceType:    firstNonEmpty(strings.TrimSpace(ctrl.SurfaceType), "app"),
+		SurfaceVersion: firstNonEmpty(strings.TrimSpace(ctrl.SurfaceVersion), "1"),
+		EventType:      strings.TrimSpace(ctrl.EventType),
+		BusinessState:  cloneAnyMap(ctrl.BusinessState),
+		VisibleText:    strings.TrimSpace(ctrl.VisibleText),
+		Status:         strings.TrimSpace(ctrl.Status),
+		StateVersion:   ctrl.StateVersion,
+		UpdatedAtMS:    ctrl.UpdatedAtMS,
 	}
 	if state.UpdatedAtMS <= 0 {
 		state.UpdatedAtMS = nowMS()
@@ -858,15 +1009,75 @@ func (s *Session) handleStateChange(ctrl ControlMessage) {
 			Errorf("surface state upsert failed: %v", err)
 		}
 	}
+	statePayload := map[string]any{
+		"surface_id":      state.SurfaceID,
+		"surface_type":    state.SurfaceType,
+		"surface_version": state.SurfaceVersion,
+		"state":           cloneAnyMap(state.BusinessState),
+		"business_state":  cloneAnyMap(state.BusinessState),
+		"visible_text":    state.VisibleText,
+		"status":          state.Status,
+		"state_version":   state.StateVersion,
+		"updated_at_ms":   state.UpdatedAtMS,
+		"event_type":      firstNonEmpty(state.EventType, "state_change"),
+	}
+	if state.EventType == "surface_open" {
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleObserver,
+			Category:    CategorySurface,
+			MessageType: TypeSurfaceOpen,
+			PayloadJSON: mustJSON(statePayload),
+			CreatedAtMS: state.UpdatedAtMS,
+		})
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleObserver,
+			Category:    CategorySurface,
+			MessageType: TypeSurfaceState,
+			PayloadJSON: mustJSON(statePayload),
+			CreatedAtMS: state.UpdatedAtMS,
+		})
+	} else {
+		s.appendHistoryMessage(ChatMessage{
+			TurnID:      ctrl.TurnID,
+			Role:        RoleObserver,
+			Category:    CategorySurface,
+			MessageType: TypeSurfaceChange,
+			PayloadJSON: mustJSON(statePayload),
+			CreatedAtMS: state.UpdatedAtMS,
+		})
+	}
 	_ = s.sendEvent(EventMessage{
-		Type:          "state_change",
-		TsMS:          nowMS(),
-		TurnID:        ctrl.TurnID,
-		SurfaceID:     state.SurfaceID,
-		StateVersion:  state.StateVersion,
-		BusinessState: cloneAnyMap(state.BusinessState),
-		Detail:        firstNonEmpty(state.EventType, "state_change"),
+		Type:           "state_change",
+		TsMS:           nowMS(),
+		TurnID:         ctrl.TurnID,
+		SurfaceID:      state.SurfaceID,
+		SurfaceType:    state.SurfaceType,
+		SurfaceVersion: state.SurfaceVersion,
+		StateVersion:   state.StateVersion,
+		BusinessState:  cloneAnyMap(state.BusinessState),
+		Detail:         firstNonEmpty(state.EventType, "state_change"),
 	})
+	if s.opsLogger != nil {
+		if err := s.opsLogger.Append(
+			s.sqliteStore.projectID,
+			s.sqliteStore.threadID,
+			state.SurfaceID,
+			"surface.state_change",
+			map[string]any{
+				"event_type":      firstNonEmpty(state.EventType, "state_change"),
+				"surface_type":    state.SurfaceType,
+				"surface_version": state.SurfaceVersion,
+				"state_version":   state.StateVersion,
+				"status":          state.Status,
+				"visible_text":    state.VisibleText,
+				"business_state":  cloneAnyMap(state.BusinessState),
+			},
+		); err != nil {
+			Warnf("append operation log failed: %v", err)
+		}
+	}
 }
 
 func (s *Session) handleActionResult(ctrl ControlMessage) {
@@ -897,31 +1108,44 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 	}
 
 	surfaceID := firstNonEmpty(strings.TrimSpace(ctrl.ActionSurfaceID), inferSurfaceIDFromAction(actionName))
-	resultSummary := firstNonEmpty(strings.TrimSpace(ctrl.Text), summarizeAnyMap(ctrl.ActionResult))
+	resultSummary := summarizeActionResultForReport(strings.TrimSpace(ctrl.Text), status, ctrl.ActionResult)
 	effectSummary := summarizeAnyMap(ctrl.ActionEffect)
 	businessState := cloneAnyMap(ctrl.ActionState)
 	if len(businessState) == 0 {
 		businessState = extractBusinessState(ctrl.ActionEffect, ctrl.ActionResult)
 	}
 	now := nowMS()
+	storeUserID := "default"
+	storeProjectID := "project-default"
+	storeThreadID := "chat-default"
+	if s.sqliteStore != nil {
+		storeUserID = s.sqliteStore.userID
+		storeProjectID = s.sqliteStore.projectID
+		storeThreadID = s.sqliteStore.threadID
+	}
 	report := ActionReport{
-		ReportID:      "rep-" + newRequestID(),
-		Origin:        "action_callback",
-		TurnID:        turnID,
-		SurfaceID:     surfaceID,
-		ActionID:      actionID,
-		ActionName:    actionName,
-		Followup:      followup,
-		Status:        status,
-		ResultSummary: resultSummary,
-		EffectSummary: effectSummary,
-		BusinessState: businessState,
-		ManualConfirm: manualConfirm,
-		BlockReason:   blockReason,
-		CreatedAtMS:   now,
-		CreatedAtISO:  time.UnixMilli(now).Format(time.RFC3339),
-		MessageType:   "action_report",
-		Visibility:    "hidden",
+		ReportID:       "rep-" + newRequestID(),
+		Origin:         "action_callback",
+		UserID:         storeUserID,
+		ProjectID:      storeProjectID,
+		ThreadID:       storeThreadID,
+		TurnID:         turnID,
+		SurfaceID:      surfaceID,
+		SurfaceType:    firstNonEmpty(strings.TrimSpace(ctrl.SurfaceType), "app"),
+		SurfaceVersion: firstNonEmpty(strings.TrimSpace(ctrl.SurfaceVersion), "1"),
+		ActionID:       actionID,
+		ActionName:     actionName,
+		Followup:       followup,
+		Status:         status,
+		ResultSummary:  resultSummary,
+		EffectSummary:  effectSummary,
+		BusinessState:  businessState,
+		ManualConfirm:  manualConfirm,
+		BlockReason:    blockReason,
+		CreatedAtMS:    now,
+		CreatedAtISO:   time.UnixMilli(now).Format(time.RFC3339),
+		MessageType:    "action_report",
+		Visibility:     "hidden",
 	}
 	call := ActionCall{
 		ActionID:    actionID,
@@ -933,79 +1157,120 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 		RequestedAt: now,
 	}
 	if s.sqliteStore != nil {
-		if err := s.sqliteStore.AppendActionCall(call, status, manualConfirm, blockReason); err != nil {
-			Errorf("[Turn:%d] action call sqlite persist failed: %v", turnID, err)
-		}
 		if surfaceID != "" && len(businessState) > 0 {
 			if err := s.sqliteStore.UpsertSurfaceState(SurfaceState{
-				SurfaceID:     surfaceID,
-				EventType:     "action_result",
-				BusinessState: businessState,
-				VisibleText:   strings.TrimSpace(ctrl.VisibleText),
-				Status:        "ready",
-				StateVersion:  ctrl.StateVersion,
-				UpdatedAtMS:   now,
+				SurfaceID:      surfaceID,
+				SurfaceType:    report.SurfaceType,
+				SurfaceVersion: report.SurfaceVersion,
+				EventType:      "action_result",
+				BusinessState:  businessState,
+				VisibleText:    strings.TrimSpace(ctrl.VisibleText),
+				Status:         "ready",
+				StateVersion:   ctrl.StateVersion,
+				UpdatedAtMS:    now,
 			}); err != nil {
 				Errorf("[Turn:%d] surface state upsert from action failed: %v", turnID, err)
 			}
 		}
 	}
-
-	record := ActionRecord{
-		RecordID:    actionID,
+	callPayload := map[string]any{
+		"action_id":       actionID,
+		"action_name":     actionName,
+		"name":            actionName,
+		"surface_id":      surfaceID,
+		"surface_type":    report.SurfaceType,
+		"surface_version": report.SurfaceVersion,
+		"followup":        followup,
+		"args":            cloneAnyMap(call.Args),
+		"status":          status,
+		"manual_confirm":  manualConfirm,
+		"block_reason":    blockReason,
+		"trigger_reason":  firstNonEmpty(strings.TrimSpace(ctrl.Reason), "dispatch"),
+	}
+	s.appendHistoryMessage(ChatMessage{
 		TurnID:      turnID,
-		Category:    firstNonEmpty(strings.TrimSpace(ctrl.Reason), "dispatch"),
-		ActionName:  actionName,
-		Status:      status,
-		Content:     strings.TrimSpace(ctrl.Text),
-		Args:        cloneAnyMap(ctrl.ActionArgs),
-		Result:      cloneAnyMap(ctrl.ActionResult),
-		Detail:      firstNonEmpty(effectSummary, ""),
+		Role:        RoleObserver,
+		Category:    CategoryAIAction,
+		MessageType: TypeActionCall,
+		PayloadJSON: mustJSON(callPayload),
 		CreatedAtMS: now,
-	}
-	if s.actionRecords != nil {
-		if err := s.actionRecords.Add(record); err != nil {
-			Errorf("[Turn:%d] action record persist failed: %v", turnID, err)
-		}
-	}
+	})
 
 	reportText := formatActionReportText(report)
-	messageID := s.appendHistoryMessage(ChatMessage{
-		Role:        "observer",
-		Content:     reportText,
-		MessageType: "action_report",
-		Visibility:  "hidden",
-		CreatedAtMS: now,
-	}, turnID, map[string]any{
-		"origin":         "action_callback",
-		"action_id":      actionID,
-		"action_name":    actionName,
-		"followup":       followup,
-		"manual_confirm": manualConfirm,
-		"block_reason":   blockReason,
-	})
-	if s.sqliteStore != nil {
-		if err := s.sqliteStore.AppendActionReport(report, messageID); err != nil {
-			Errorf("[Turn:%d] action report sqlite persist failed: %v", turnID, err)
-		}
+	reportPayload := map[string]any{
+		"report_id":       report.ReportID,
+		"origin":          report.Origin,
+		"action_id":       actionID,
+		"action_name":     actionName,
+		"name":            actionName,
+		"surface_id":      surfaceID,
+		"surface_type":    report.SurfaceType,
+		"surface_version": report.SurfaceVersion,
+		"followup":        followup,
+		"status":          status,
+		"result_summary":  resultSummary,
+		"effect_summary":  effectSummary,
+		"result":          cloneAnyMap(ctrl.ActionResult),
+		"effect":          cloneAnyMap(ctrl.ActionEffect),
+		"business_state":  cloneAnyMap(businessState),
+		"manual_confirm":  manualConfirm,
+		"block_reason":    blockReason,
 	}
+	s.appendHistoryMessage(ChatMessage{
+		TurnID:      turnID,
+		Role:        RoleObserver,
+		Category:    CategoryAIAction,
+		MessageType: TypeActionReport,
+		Content:     reportText,
+		PayloadJSON: mustJSON(reportPayload),
+		CreatedAtMS: now,
+	})
 
 	_ = s.sendEvent(EventMessage{
-		Type:          "action_report",
-		TsMS:          now,
-		TurnID:        turnID,
-		Origin:        "action_callback",
-		MessageType:   "action_report",
-		Text:          reportText,
-		ActionID:      actionID,
-		ActionName:    actionName,
-		ActionStatus:  status,
-		Followup:      followup,
-		ManualConfirm: manualConfirm,
-		BlockReason:   blockReason,
-		SurfaceID:     surfaceID,
-		BusinessState: cloneAnyMap(businessState),
+		Type:           "action_report",
+		TsMS:           now,
+		TurnID:         turnID,
+		Origin:         "action_callback",
+		MessageType:    "action_report",
+		Text:           reportText,
+		ActionID:       actionID,
+		ActionName:     actionName,
+		ActionStatus:   status,
+		Followup:       followup,
+		ManualConfirm:  manualConfirm,
+		BlockReason:    blockReason,
+		SurfaceID:      surfaceID,
+		SurfaceType:    report.SurfaceType,
+		SurfaceVersion: report.SurfaceVersion,
+		BusinessState:  cloneAnyMap(businessState),
+		Payload:        reportPayload,
 	})
+	if s.opsLogger != nil {
+		if err := s.opsLogger.Append(
+			s.sqliteStore.projectID,
+			s.sqliteStore.threadID,
+			surfaceID,
+			"action.report",
+			map[string]any{
+				"action_id":       actionID,
+				"action_name":     actionName,
+				"followup":        followup,
+				"status":          status,
+				"result_summary":  resultSummary,
+				"effect_summary":  effectSummary,
+				"surface_id":      surfaceID,
+				"surface_type":    report.SurfaceType,
+				"surface_version": report.SurfaceVersion,
+				"manual_confirm":  manualConfirm,
+				"block_reason":    blockReason,
+				"result":          cloneAnyMap(ctrl.ActionResult),
+				"effect":          cloneAnyMap(ctrl.ActionEffect),
+				"state":           cloneAnyMap(businessState),
+			},
+		); err != nil {
+			Warnf("append operation log failed: %v", err)
+		}
+	}
 
 	Infof("[Turn:%d] action report generated: %s status=%s followup=%s", turnID, actionName, status, followup)
 	if followup == "report" && manualConfirm != "waiting" && manualConfirm != "cancel" {
@@ -1033,6 +1298,22 @@ func formatActionReportText(report ActionReport) string {
 		report.ActionName, report.Status, normalizeFollowup(report.Followup), result, effect, tail)
 }
 
+func summarizeActionResultForReport(contentText string, status string, result map[string]any) string {
+	cleanText := strings.TrimSpace(contentText)
+	if strings.EqualFold(strings.TrimSpace(status), "ok") {
+		return firstNonEmpty(cleanText, summarizeAnyMap(result))
+	}
+	reason := firstNonEmpty(
+		asTrimmedString(result["reason"]),
+		asTrimmedString(result["error"]),
+		asTrimmedString(result["message"]),
+	)
+	if reason != "" {
+		return "失败原因：" + reason
+	}
+	return firstNonEmpty(cleanText, summarizeAnyMap(result))
+}
+
 func inferSurfaceIDFromAction(actionName string) string {
 	name := strings.ToLower(strings.TrimSpace(actionName))
 	if strings.Contains(name, "counter") {
@@ -1040,6 +1321,12 @@ func inferSurfaceIDFromAction(actionName string) string {
 	}
 	if name == "surface.get_state" {
 		return "counter"
+	}
+	if name == "open_surface" || name == "close_surface" {
+		return "counter"
+	}
+	if name == "get_surfaces" {
+		return "surface_registry"
 	}
 	return ""
 }
@@ -1216,13 +1503,18 @@ func (s *Session) startContinuationTurn(turnID uint64, reports []ActionReport, c
 		}
 		summary := fmt.Sprintf("[action_report] aggregated=%d actions=%s", len(reports), strings.Join(uniqueStrings(names...), ","))
 		s.appendHistoryMessage(ChatMessage{
-			Role:        "observer",
+			TurnID:      turnID,
+			Role:        RoleObserver,
+			Category:    CategoryAIAction,
+			MessageType: TypeActionReport,
 			Content:     summary,
-			MessageType: "action_summary",
+			PayloadJSON: mustJSON(map[string]any{
+				"aggregated": true,
+				"count":      len(reports),
+				"actions":    uniqueStrings(names...),
+			}),
 			Visibility:  "hidden",
 			CreatedAtMS: nowMS(),
-		}, turnID, map[string]any{
-			"origin": "action_callback",
 		})
 	}
 	history := s.getHistory()
@@ -1247,7 +1539,12 @@ func (s *Session) startContinuationTurn(turnID uint64, reports []ActionReport, c
 			s.tryStartContinuation()
 		}()
 		err := s.pipeline.RunTurn(ctx, turnID, "", history)
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if errors.Is(err, context.Canceled) {
+			s.finalizeAssistantMessage(turnID, "", CompletionStatusInterrupted, s.consumeTurnInterrupt(turnID), 0)
+			return
+		}
+		if err != nil {
+			s.finalizeAssistantMessage(turnID, "", CompletionStatusError, InterruptOther, 0)
 			Errorf("[Turn:%d] continuation failed: %v", turnID, err)
 			s.emitError(turnID, "continuation_failed", err.Error(), true)
 			s.setTurnState(turnID, StateError, "continuation failed")
@@ -1257,6 +1554,63 @@ func (s *Session) startContinuationTurn(turnID uint64, reports []ActionReport, c
 			s.setTurnState(turnID, StateListening, "continuation finished")
 		}
 	}()
+}
+
+func (s *Session) handleConfigChange(ctrl ControlMessage) {
+	payload := map[string]any{
+		"source":        firstNonEmpty(strings.TrimSpace(ctrl.ConfigSource), "config_drawer"),
+		"changed_paths": append([]string(nil), ctrl.ConfigChangedPaths...),
+		"config":        cloneAnyMap(ctrl.ConfigSnapshot),
+	}
+	s.appendHistoryMessage(ChatMessage{
+		TurnID:      ctrl.TurnID,
+		Role:        RoleSystem,
+		Category:    CategoryConfig,
+		MessageType: TypeConfigChange,
+		PayloadJSON: mustJSON(payload),
+		CreatedAtMS: nowMS(),
+	})
+}
+
+func (s *Session) recordTurnInterrupt(turnID uint64, reason string) {
+	if turnID == 0 {
+		return
+	}
+	reason = firstNonEmpty(normalizeInterrupt(reason), InterruptOther)
+	s.interruptMu.Lock()
+	if s.turnInterrupt == nil {
+		s.turnInterrupt = map[uint64]string{}
+	}
+	s.turnInterrupt[turnID] = reason
+	s.interruptMu.Unlock()
+}
+
+func (s *Session) consumeTurnInterrupt(turnID uint64) string {
+	if turnID == 0 {
+		return InterruptOther
+	}
+	s.interruptMu.Lock()
+	defer s.interruptMu.Unlock()
+	reason := firstNonEmpty(s.turnInterrupt[turnID], InterruptOther)
+	delete(s.turnInterrupt, turnID)
+	return reason
+}
+
+func (s *Session) clearTurnInterrupt(turnID uint64) {
+	if turnID == 0 {
+		return
+	}
+	s.interruptMu.Lock()
+	delete(s.turnInterrupt, turnID)
+	s.interruptMu.Unlock()
+}
+
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return `{}`
+	}
+	return string(b)
 }
 
 func cloneAnyMap(in map[string]any) map[string]any {

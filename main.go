@@ -19,13 +19,17 @@ func main() {
 	configPath := flag.String("config", "config/configx.json", "path to private config json")
 	publicConfigPath := flag.String("public-config", "config/config.json", "path to public config json")
 	userConfigPath := flag.String("user-config", "data/users/default/user_custom_config.json", "path to user custom config json")
-	actionRecordPath := flag.String("action-record-path", "data/users/default/action_records.jsonl", "path to action record database file")
-	sqlitePath := flag.String("sqlite-path", "data/users/default/chat_state.db", "path to sqlite message store")
+	sqlitePath := flag.String("sqlite-path", "data/kagent.db", "path to sqlite message store")
 	userID := flag.String("user-id", "default", "runtime user id")
-	chatID := flag.String("chat-id", "chat-default", "runtime chat id")
+	projectID := flag.String("project-id", "project-default", "runtime project id")
+	threadID := flag.String("thread-id", "chat-default", "runtime thread id")
+	chatID := flag.String("chat-id", "", "deprecated alias of --thread-id")
 	modelName := flag.String("model", "doubao", "model name in config")
 	addr := flag.String("addr", "127.0.0.1:18080", "listen addr")
 	flag.Parse()
+	if strings.TrimSpace(*chatID) != "" {
+		*threadID = strings.TrimSpace(*chatID)
+	}
 
 	cfg, err := app.LoadModelConfig(*configPath, *modelName)
 	if err != nil {
@@ -37,12 +41,10 @@ func main() {
 		app.Errorf("load runtime config failed: %v", err)
 		os.Exit(1)
 	}
-	actionStore, err := app.NewActionRecordStore(*actionRecordPath)
-	if err != nil {
-		app.Errorf("init action record store failed: %v", err)
-		os.Exit(1)
+	if err := app.CleanupLegacyStorage("data", *sqlitePath); err != nil {
+		app.Warnf("cleanup legacy storage skipped: %v", err)
 	}
-	sqliteStore, err := app.NewSQLiteStore(*sqlitePath, *userID, *chatID)
+	sqliteStore, err := app.NewSQLiteStore(*sqlitePath, *userID, *projectID, *threadID)
 	if err != nil {
 		app.Errorf("init sqlite store failed: %v", err)
 		os.Exit(1)
@@ -157,7 +159,7 @@ func main() {
 			return
 		}
 		conn.SetReadLimit(16 * 1024 * 1024)
-		s := app.NewSession(conn, cfg, runtimeCfg, actionStore, sqliteStore)
+		s := app.NewSession(conn, cfg, runtimeCfg, sqliteStore)
 		go func() {
 			ctx, cancel := context.WithCancel(appCtx)
 			defer cancel()

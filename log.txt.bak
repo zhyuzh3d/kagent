@@ -20641,3 +20641,335 @@ time="2026-03-08 11:33:57.240" level=ERROR source=internal/session.go:496 msg="s
 2026-03-11 13:15:23.744 [INFO] [SessionManager:281] [Turn:158] -> VAD listening started
 2026-03-11 13:57:59.052 [WARN] [System:108] shutdown requested from 127.0.0.1:54231
 
+=== DEPLOY id=e966b6b8-f957-4ade-82d1-586ae57f0766 ts=2026-03-11 13:57:59 CST backend=26030902 pid=? ===
+=== DEPLOY id=e966b6b8-f957-4ade-82d1-586ae57f0766 ts=2026-03-11 13:57:59 CST backend=26030902 pid=44419 started ===
+2026-03-11 13:57:59.716 [INFO] [System:60] kagent version backend=26030902 webui=26030902
+2026-03-11 13:57:59.716 [INFO] [System:175] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-12 15:27:54.263 [WARN] [System:108] shutdown requested from 127.0.0.1:52558
+
+=== DEPLOY id=c6181a6e-c637-424f-9d1e-81966ea535ab ts=2026-03-12 15:27:54 CST backend=26031101 pid=? ===
+=== DEPLOY id=c6181a6e-c637-424f-9d1e-81966ea535ab ts=2026-03-12 15:27:54 CST backend=26031101 pid=555 started ===
+2026-03-12 15:27:54.962 [INFO] [System:62] kagent version backend=26031101 webui=26031101
+2026-03-12 15:27:54.962 [INFO] [System:177] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-12 15:28:09.989 [INFO] [SessionManager:315] [Turn:1] -> VAD listening started
+2026-03-12 15:28:11.984 [INFO] [SessionManager:431] [Turn:1] "吃饭了没有啊？" -> ASR final
+2026-03-12 15:28:11.985 [INFO] [SessionManager:289] [Turn:1] "吃饭了没有啊？" -> LLM Triggered
+2026-03-12 15:28:15.414 [INFO] [AudioPipeline:92] [Turn:1] "我是语音助手，不用吃..." -> TTS start sending...
+2026-03-12 15:28:15.414 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
+2026-03-12 15:28:20.320 [INFO] [SessionManager:315] [Turn:2] -> VAD listening started
+2026-03-12 15:28:21.254 [WARN] [SessionManager:277] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:28:22.518 [INFO] [SessionManager:315] [Turn:3] -> VAD listening started
+2026-03-12 15:28:23.350 [WARN] [SessionManager:277] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:28:23.362 [INFO] [SessionManager:315] [Turn:4] -> VAD listening started
+2026-03-12 15:28:26.257 [INFO] [SessionManager:431] [Turn:4] "没有吃啊，我在等你一..." -> ASR final
+2026-03-12 15:28:26.259 [INFO] [SessionManager:289] [Turn:4] "没有吃啊，我在等你一..." -> LLM Triggered
+2026-03-12 15:28:29.339 [INFO] [SessionManager:315] [Turn:5] -> VAD listening started
+2026-03-12 15:28:29.773 [INFO] [AudioPipeline:92] [Turn:4] "哈哈，我虽然没法陪你..." -> TTS start sending...
+2026-03-12 15:28:29.775 [INFO] [AudioPipeline:172] [Turn:4] -> TTS finished sending
+2026-03-12 15:28:35.350 [WARN] [SessionManager:277] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:28:35.749 [INFO] [SessionManager:315] [Turn:6] -> VAD listening started
+2026-03-12 15:28:37.548 [WARN] [SessionManager:277] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:28:37.739 [INFO] [SessionManager:315] [Turn:7] -> VAD listening started
+2026-03-12 15:28:41.930 [INFO] [SessionManager:431] [Turn:7] "你现在能看到 cou..." -> ASR final
+2026-03-12 15:28:41.930 [INFO] [SessionManager:289] [Turn:7] "你现在能看到 cou..." -> LLM Triggered
+2026-03-12 15:28:43.929 [INFO] [SessionManager:315] [Turn:8] -> VAD listening started
+2026-03-12 15:28:44.849 [WARN] [SessionManager:277] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:28:48.142 [INFO] [AudioPipeline:92] [Turn:7] "我现在查询一下cou..." -> TTS start sending...
+2026-03-12 15:28:48.142 [INFO] [AudioPipeline:172] [Turn:7] -> TTS finished sending
+2026-03-12 15:28:48.157 [INFO] [SessionManager:1276] [Turn:7] action report generated: surface.get_state status=ok followup=report
+2026-03-12 15:28:51.170 [INFO] [AudioPipeline:92] [Turn:9] "counter里的数..." -> TTS start sending...
+2026-03-12 15:28:51.171 [INFO] [AudioPipeline:172] [Turn:9] -> TTS finished sending
+2026-03-12 15:28:55.659 [INFO] [SessionManager:315] [Turn:10] -> VAD listening started
+2026-03-12 15:28:59.128 [INFO] [SessionManager:431] [Turn:10] "那你帮我把 coun..." -> ASR final
+2026-03-12 15:28:59.128 [INFO] [SessionManager:289] [Turn:10] "那你帮我把 coun..." -> LLM Triggered
+2026-03-12 15:29:02.724 [INFO] [AudioPipeline:92] [Turn:10] "正在把counter..." -> TTS start sending...
+2026-03-12 15:29:02.724 [INFO] [AudioPipeline:172] [Turn:10] -> TTS finished sending
+2026-03-12 15:29:02.743 [INFO] [SessionManager:1276] [Turn:10] action report generated: surface.call.counter.set_count status=ok followup=none
+2026-03-12 15:29:07.519 [INFO] [SessionManager:315] [Turn:11] -> VAD listening started
+2026-03-12 15:29:08.450 [WARN] [SessionManager:277] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:10.369 [INFO] [SessionManager:315] [Turn:12] -> VAD listening started
+2026-03-12 15:29:11.250 [WARN] [SessionManager:277] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:17.019 [INFO] [SessionManager:315] [Turn:13] -> VAD listening started
+2026-03-12 15:29:17.949 [WARN] [SessionManager:277] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:19.019 [INFO] [SessionManager:315] [Turn:14] -> VAD listening started
+2026-03-12 15:29:23.549 [WARN] [SessionManager:277] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:24.339 [INFO] [SessionManager:315] [Turn:15] -> VAD listening started
+2026-03-12 15:29:25.950 [WARN] [SessionManager:277] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:26.019 [INFO] [SessionManager:315] [Turn:16] -> VAD listening started
+2026-03-12 15:29:28.250 [WARN] [SessionManager:277] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:28.490 [INFO] [SessionManager:315] [Turn:17] -> VAD listening started
+2026-03-12 15:29:34.048 [WARN] [SessionManager:277] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:34.069 [INFO] [SessionManager:315] [Turn:18] -> VAD listening started
+2026-03-12 15:29:37.748 [WARN] [SessionManager:277] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:37.888 [INFO] [SessionManager:315] [Turn:19] -> VAD listening started
+2026-03-12 15:29:38.849 [WARN] [SessionManager:277] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:39.803 [INFO] [SessionManager:315] [Turn:20] -> VAD listening started
+2026-03-12 15:29:40.649 [WARN] [SessionManager:277] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:41.077 [INFO] [SessionManager:315] [Turn:21] -> VAD listening started
+2026-03-12 15:29:42.049 [WARN] [SessionManager:277] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:44.284 [INFO] [SessionManager:315] [Turn:22] -> VAD listening started
+2026-03-12 15:29:45.148 [WARN] [SessionManager:277] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:29:45.687 [INFO] [SessionManager:315] [Turn:23] -> VAD listening started
+2026-03-12 15:29:49.514 [INFO] [SessionManager:431] [Turn:23] "你现在还能够看到 c..." -> ASR final
+2026-03-12 15:29:49.515 [INFO] [SessionManager:289] [Turn:23] "你现在还能够看到 c..." -> LLM Triggered
+2026-03-12 15:29:58.235 [INFO] [AudioPipeline:92] [Turn:23] "我现在看看count..." -> TTS start sending...
+2026-03-12 15:29:58.236 [INFO] [AudioPipeline:172] [Turn:23] -> TTS finished sending
+2026-03-12 15:29:58.253 [INFO] [SessionManager:1276] [Turn:23] action report generated: surface.get_state status=ok followup=report
+2026-03-12 15:30:00.839 [INFO] [SessionManager:315] [Turn:25] -> VAD listening started
+2026-03-12 15:30:01.301 [INFO] [AudioPipeline:92] [Turn:24] "counter现在显..." -> TTS start sending...
+2026-03-12 15:30:01.301 [INFO] [AudioPipeline:172] [Turn:24] -> TTS finished sending
+2026-03-12 15:30:05.649 [WARN] [SessionManager:277] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:30:14.688 [INFO] [SessionManager:315] [Turn:26] -> VAD listening started
+2026-03-12 15:30:15.649 [WARN] [SessionManager:277] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:30:20.089 [INFO] [SessionManager:315] [Turn:27] -> VAD listening started
+2026-03-12 15:30:20.950 [WARN] [SessionManager:277] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:30:21.348 [INFO] [SessionManager:315] [Turn:28] -> VAD listening started
+2026-03-12 15:30:22.349 [WARN] [SessionManager:277] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:30:22.448 [INFO] [SessionManager:315] [Turn:29] -> VAD listening started
+2026-03-12 15:30:23.949 [WARN] [SessionManager:277] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 15:30:24.080 [INFO] [SessionManager:315] [Turn:30] -> VAD listening started
+2026-03-12 16:49:16.540 [WARN] [System:110] shutdown requested from 127.0.0.1:55152
+
+=== DEPLOY id=a5f77569-a7f7-448b-9180-a69623d28257 ts=2026-03-12 16:49:16 CST backend=26031101 pid=? ===
+=== DEPLOY id=a5f77569-a7f7-448b-9180-a69623d28257 ts=2026-03-12 16:49:16 CST backend=26031101 pid=13728 started ===
+2026-03-12 16:49:17.361 [INFO] [System:62] kagent version backend=26031101 webui=26031101
+2026-03-12 16:49:17.361 [INFO] [System:177] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-12 16:49:23.301 [INFO] [SessionManager:310] [Turn:1] -> VAD listening started
+2026-03-12 16:49:25.433 [INFO] [SessionManager:426] [Turn:1] "hello，hell..." -> ASR final
+2026-03-12 16:49:25.433 [INFO] [SessionManager:291] [Turn:1] "hello，hell..." -> LLM Triggered
+2026-03-12 16:49:28.636 [INFO] [AudioPipeline:92] [Turn:1] "我挺好的呀，你呢？" -> TTS start sending...
+2026-03-12 16:49:29.797 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
+2026-03-12 16:49:30.887 [INFO] [SessionManager:257] [Turn:2] -> VAD interrupt received (reason=barge_in)
+2026-03-12 16:49:31.841 [WARN] [SessionManager:279] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:49:31.842 [INFO] [SessionManager:304] [Turn:2] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:49:36.592 [INFO] [SessionManager:310] [Turn:3] -> VAD listening started
+2026-03-12 16:49:38.836 [INFO] [SessionManager:426] [Turn:3] "你怎么说一半就不说了..." -> ASR final
+2026-03-12 16:49:38.838 [INFO] [SessionManager:291] [Turn:3] "你怎么说一半就不说了..." -> LLM Triggered
+2026-03-12 16:49:43.075 [INFO] [AudioPipeline:92] [Turn:3] "哎呀，这不是在等你说..." -> TTS start sending...
+2026-03-12 16:49:43.075 [INFO] [AudioPipeline:172] [Turn:3] -> TTS finished sending
+2026-03-12 16:49:49.370 [INFO] [SessionManager:310] [Turn:4] -> VAD listening started
+2026-03-12 16:49:50.241 [WARN] [SessionManager:279] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:49:50.241 [INFO] [SessionManager:304] [Turn:4] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:49:50.821 [INFO] [SessionManager:310] [Turn:5] -> VAD listening started
+2026-03-12 16:49:54.817 [INFO] [SessionManager:426] [Turn:5] "我没有想做什么，就是..." -> ASR final
+2026-03-12 16:49:54.817 [INFO] [SessionManager:291] [Turn:5] "我没有想做什么，就是..." -> LLM Triggered
+2026-03-12 16:49:58.005 [INFO] [AudioPipeline:92] [Turn:5] "哈哈，聊天也挺有意思..." -> TTS start sending...
+2026-03-12 16:49:58.005 [INFO] [AudioPipeline:172] [Turn:5] -> TTS finished sending
+2026-03-12 16:50:07.403 [INFO] [SessionManager:310] [Turn:6] -> VAD listening started
+2026-03-12 16:50:11.303 [INFO] [SessionManager:426] [Turn:6] "有什么好说的呢？你说..." -> ASR final
+2026-03-12 16:50:11.303 [INFO] [SessionManager:291] [Turn:6] "有什么好说的呢？你说..." -> LLM Triggered
+2026-03-12 16:50:15.231 [INFO] [AudioPipeline:92] [Turn:6] "哎呀，我是不太懂实时..." -> TTS start sending...
+2026-03-12 16:50:15.233 [INFO] [AudioPipeline:172] [Turn:6] -> TTS finished sending
+2026-03-12 16:50:24.864 [INFO] [SessionManager:310] [Turn:7] -> VAD listening started
+2026-03-12 16:50:25.841 [WARN] [SessionManager:279] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:50:25.841 [INFO] [SessionManager:304] [Turn:7] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:50:26.982 [INFO] [SessionManager:310] [Turn:8] -> VAD listening started
+2026-03-12 16:50:27.942 [WARN] [SessionManager:279] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:50:27.942 [INFO] [SessionManager:304] [Turn:8] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:50:29.813 [INFO] [SessionManager:310] [Turn:9] -> VAD listening started
+2026-03-12 16:50:30.842 [WARN] [SessionManager:279] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:50:30.843 [INFO] [SessionManager:304] [Turn:9] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:50:30.863 [INFO] [SessionManager:310] [Turn:10] -> VAD listening started
+2026-03-12 16:50:31.841 [WARN] [SessionManager:279] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:50:31.842 [INFO] [SessionManager:304] [Turn:10] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:50:31.903 [INFO] [SessionManager:310] [Turn:11] -> VAD listening started
+2026-03-12 16:50:32.842 [WARN] [SessionManager:279] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:50:32.842 [INFO] [SessionManager:304] [Turn:11] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:50:32.853 [INFO] [SessionManager:310] [Turn:12] -> VAD listening started
+2026-03-12 16:50:36.017 [INFO] [SessionManager:426] [Turn:12] "帮我打开 count..." -> ASR final
+2026-03-12 16:50:36.017 [INFO] [SessionManager:291] [Turn:12] "帮我打开 count..." -> LLM Triggered
+2026-03-12 16:50:41.523 [INFO] [AudioPipeline:92] [Turn:12] "正在打开计数器界面." -> TTS start sending...
+2026-03-12 16:50:41.524 [INFO] [AudioPipeline:172] [Turn:12] -> TTS finished sending
+2026-03-12 16:50:41.543 [INFO] [SessionManager:1275] [Turn:12] action report generated: surface.get_state status=fail followup=none
+2026-03-12 16:50:52.075 [INFO] [SessionManager:310] [Turn:13] -> VAD listening started
+2026-03-12 16:50:55.113 [INFO] [SessionManager:426] [Turn:13] "你怎么打不开呀？再试..." -> ASR final
+2026-03-12 16:50:55.113 [INFO] [SessionManager:291] [Turn:13] "你怎么打不开呀？再试..." -> LLM Triggered
+2026-03-12 16:50:59.603 [INFO] [AudioPipeline:92] [Turn:13] "正在尝试重新打开计数..." -> TTS start sending...
+2026-03-12 16:50:59.603 [INFO] [AudioPipeline:172] [Turn:13] -> TTS finished sending
+2026-03-12 16:50:59.620 [INFO] [SessionManager:1275] [Turn:13] action report generated: surface.get_state status=fail followup=report
+2026-03-12 16:51:04.261 [INFO] [SessionManager:310] [Turn:15] -> VAD listening started
+2026-03-12 16:51:05.141 [WARN] [SessionManager:279] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:51:05.141 [INFO] [SessionManager:304] [Turn:15] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:51:06.411 [INFO] [SessionManager:310] [Turn:16] -> VAD listening started
+2026-03-12 16:51:08.142 [WARN] [SessionManager:279] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:51:08.142 [INFO] [SessionManager:304] [Turn:16] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:51:08.207 [INFO] [AudioPipeline:92] [Turn:14] "哎呀，好像有点小问题..." -> TTS start sending...
+2026-03-12 16:51:08.207 [INFO] [AudioPipeline:172] [Turn:14] -> TTS finished sending
+2026-03-12 16:51:16.965 [INFO] [SessionManager:310] [Turn:17] -> VAD listening started
+2026-03-12 16:51:21.566 [INFO] [SessionManager:426] [Turn:17] "我已经打开了，你来看..." -> ASR final
+2026-03-12 16:51:21.566 [INFO] [SessionManager:291] [Turn:17] "我已经打开了，你来看..." -> LLM Triggered
+2026-03-12 16:51:24.008 [INFO] [AudioPipeline:92] [Turn:17] "我来看看计数器上的数..." -> TTS start sending...
+2026-03-12 16:51:24.009 [INFO] [AudioPipeline:172] [Turn:17] -> TTS finished sending
+2026-03-12 16:51:24.026 [INFO] [SessionManager:1275] [Turn:17] action report generated: surface.get_state status=ok followup=report
+2026-03-12 16:51:28.890 [INFO] [AudioPipeline:92] [Turn:18] "2026年03月12..." -> TTS start sending...
+2026-03-12 16:51:28.891 [INFO] [AudioPipeline:172] [Turn:18] -> TTS finished sending
+2026-03-12 16:51:40.603 [INFO] [SessionManager:310] [Turn:19] -> VAD listening started
+2026-03-12 16:51:44.443 [INFO] [SessionManager:426] [Turn:19] "那你能不能把这个数字..." -> ASR final
+2026-03-12 16:51:44.443 [INFO] [SessionManager:291] [Turn:19] "那你能不能把这个数字..." -> LLM Triggered
+2026-03-12 16:51:47.680 [INFO] [AudioPipeline:92] [Turn:19] "正在把计数器数字改成..." -> TTS start sending...
+2026-03-12 16:51:47.680 [INFO] [AudioPipeline:172] [Turn:19] -> TTS finished sending
+2026-03-12 16:51:47.709 [INFO] [SessionManager:1275] [Turn:19] action report generated: surface.call.counter.set_count status=ok followup=report
+2026-03-12 16:51:51.486 [INFO] [AudioPipeline:92] [Turn:20] "计数器的数字已经改好..." -> TTS start sending...
+2026-03-12 16:51:51.486 [INFO] [AudioPipeline:172] [Turn:20] -> TTS finished sending
+2026-03-12 16:51:59.563 [INFO] [SessionManager:310] [Turn:21] -> VAD listening started
+2026-03-12 16:52:03.335 [INFO] [SessionManager:426] [Turn:21] "那你能帮我把 cou..." -> ASR final
+2026-03-12 16:52:03.336 [INFO] [SessionManager:291] [Turn:21] "那你能帮我把 cou..." -> LLM Triggered
+2026-03-12 16:52:13.773 [INFO] [AudioPipeline:92] [Turn:21] "正在关闭计数器界面." -> TTS start sending...
+2026-03-12 16:52:13.773 [INFO] [AudioPipeline:172] [Turn:21] -> TTS finished sending
+2026-03-12 16:52:13.788 [INFO] [SessionManager:1275] [Turn:21] action report generated: surface.get_state status=ok followup=none
+2026-03-12 16:52:34.170 [INFO] [SessionManager:310] [Turn:22] -> VAD listening started
+2026-03-12 16:52:37.104 [INFO] [SessionManager:426] [Turn:22] "你倒是关呀？我看你关..." -> ASR final
+2026-03-12 16:52:37.104 [INFO] [SessionManager:291] [Turn:22] "你倒是关呀？我看你关..." -> LLM Triggered
+2026-03-12 16:52:47.002 [INFO] [AudioPipeline:92] [Turn:22] "正在关闭计数器界面." -> TTS start sending...
+2026-03-12 16:52:47.002 [INFO] [AudioPipeline:172] [Turn:22] -> TTS finished sending
+2026-03-12 16:52:47.018 [INFO] [SessionManager:1275] [Turn:22] action report generated: surface.get_state status=ok followup=none
+2026-03-12 16:52:57.675 [INFO] [SessionManager:310] [Turn:23] -> VAD listening started
+2026-03-12 16:52:58.542 [WARN] [SessionManager:279] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:52:58.542 [INFO] [SessionManager:304] [Turn:23] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:52:59.493 [INFO] [SessionManager:310] [Turn:24] -> VAD listening started
+2026-03-12 16:53:04.363 [INFO] [SessionManager:426] [Turn:24] "我把它关掉了，你现在..." -> ASR final
+2026-03-12 16:53:04.367 [INFO] [SessionManager:291] [Turn:24] "我把它关掉了，你现在..." -> LLM Triggered
+2026-03-12 16:53:08.428 [INFO] [AudioPipeline:92] [Turn:24] "正在查看计数器状态." -> TTS start sending...
+2026-03-12 16:53:08.428 [INFO] [AudioPipeline:172] [Turn:24] -> TTS finished sending
+2026-03-12 16:53:08.448 [INFO] [SessionManager:1275] [Turn:24] action report generated: surface.get_state status=fail followup=none
+2026-03-12 16:53:20.293 [INFO] [SessionManager:310] [Turn:25] -> VAD listening started
+2026-03-12 16:53:22.930 [INFO] [SessionManager:426] [Turn:25] "你看不到就说看不到呢..." -> ASR final
+2026-03-12 16:53:22.930 [INFO] [SessionManager:291] [Turn:25] "你看不到就说看不到呢..." -> LLM Triggered
+2026-03-12 16:53:24.021 [INFO] [SessionManager:310] [Turn:26] -> VAD listening started
+2026-03-12 16:53:24.942 [WARN] [SessionManager:279] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:53:24.942 [INFO] [SessionManager:304] [Turn:26] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:53:26.395 [INFO] [AudioPipeline:92] [Turn:25] "抱歉呀，现在关闭了c..." -> TTS start sending...
+2026-03-12 16:53:26.395 [INFO] [AudioPipeline:172] [Turn:25] -> TTS finished sending
+2026-03-12 16:53:34.021 [INFO] [SessionManager:310] [Turn:27] -> VAD listening started
+2026-03-12 16:53:34.943 [WARN] [SessionManager:279] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:53:34.943 [INFO] [SessionManager:304] [Turn:27] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:53:35.845 [INFO] [SessionManager:310] [Turn:28] -> VAD listening started
+2026-03-12 16:53:39.030 [INFO] [SessionManager:426] [Turn:28] "现在还是关闭的吗？你..." -> ASR final
+2026-03-12 16:53:39.030 [INFO] [SessionManager:291] [Turn:28] "现在还是关闭的吗？你..." -> LLM Triggered
+2026-03-12 16:53:43.102 [INFO] [AudioPipeline:92] [Turn:28] "准备执行动作：sur..." -> TTS start sending...
+2026-03-12 16:53:46.635 [INFO] [AudioPipeline:172] [Turn:28] -> TTS finished sending
+2026-03-12 16:54:08.511 [INFO] [SessionManager:310] [Turn:29] -> VAD listening started
+2026-03-12 16:54:13.617 [INFO] [SessionManager:426] [Turn:29] "你看不看得到呀？有没..." -> ASR final
+2026-03-12 16:54:13.618 [INFO] [SessionManager:291] [Turn:29] "你看不看得到呀？有没..." -> LLM Triggered
+2026-03-12 16:54:17.915 [INFO] [AudioPipeline:92] [Turn:29] "正在查看counte..." -> TTS start sending...
+2026-03-12 16:54:17.916 [INFO] [AudioPipeline:172] [Turn:29] -> TTS finished sending
+2026-03-12 16:54:17.949 [INFO] [SessionManager:1275] [Turn:29] action report generated: surface.get_state status=ok followup=report
+2026-03-12 16:54:22.977 [INFO] [AudioPipeline:92] [Turn:30] "我看到counter..." -> TTS start sending...
+2026-03-12 16:54:22.978 [INFO] [AudioPipeline:172] [Turn:30] -> TTS finished sending
+2026-03-12 16:54:30.981 [INFO] [SessionManager:310] [Turn:31] -> VAD listening started
+2026-03-12 16:54:33.404 [INFO] [SessionManager:426] [Turn:31] "那你现在再看看呢？" -> ASR final
+2026-03-12 16:54:33.404 [INFO] [SessionManager:291] [Turn:31] "那你现在再看看呢？" -> LLM Triggered
+2026-03-12 16:54:36.800 [INFO] [AudioPipeline:92] [Turn:31] "正在查看counte..." -> TTS start sending...
+2026-03-12 16:54:36.800 [INFO] [AudioPipeline:172] [Turn:31] -> TTS finished sending
+2026-03-12 16:54:36.823 [INFO] [SessionManager:1275] [Turn:31] action report generated: surface.get_state status=fail followup=none
+2026-03-12 16:54:43.131 [INFO] [SessionManager:310] [Turn:32] -> VAD listening started
+2026-03-12 16:54:44.042 [WARN] [SessionManager:279] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 16:54:44.043 [INFO] [SessionManager:304] [Turn:32] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 16:54:44.549 [INFO] [SessionManager:310] [Turn:33] -> VAD listening started
+2026-03-12 21:35:14.785 [WARN] [System:110] shutdown requested from 127.0.0.1:61954
+
+=== DEPLOY id=867ea333-c023-4575-b43c-b157097dae01 ts=2026-03-12 21:35:14 CST backend=26031101 pid=? ===
+=== DEPLOY id=867ea333-c023-4575-b43c-b157097dae01 ts=2026-03-12 21:35:14 CST backend=26031101 pid=27136 started ===
+2026-03-12 21:35:15.187 [INFO] [System:62] kagent version backend=26031101 webui=26031101
+2026-03-12 21:35:15.187 [INFO] [System:177] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-12 21:43:59.089 [WARN] [System:110] shutdown requested from 127.0.0.1:62324
+
+=== DEPLOY id=11a240e2-25d9-4ce5-b3c2-e1d4f46e162f ts=2026-03-12 21:44:12 CST backend=26031101 pid=? ===
+=== DEPLOY id=11a240e2-25d9-4ce5-b3c2-e1d4f46e162f ts=2026-03-12 21:44:12 CST backend=26031101 pid=29389 started ===
+2026-03-12 21:44:12.918 [INFO] [System:62] kagent version backend=26031101 webui=26031101
+2026-03-12 21:44:12.918 [INFO] [System:177] kagent T0 server listening on http://127.0.0.1:18080
+2026-03-12 21:44:20.736 [INFO] [SessionManager:310] [Turn:1] -> VAD listening started
+2026-03-12 21:44:22.892 [INFO] [SessionManager:426] [Turn:1] "起来，起来吃饭了。" -> ASR final
+2026-03-12 21:44:22.893 [INFO] [SessionManager:291] [Turn:1] "起来，起来吃饭了。" -> LLM Triggered
+2026-03-12 21:44:30.226 [INFO] [AudioPipeline:92] [Turn:1] "好的，我知道了，准备..." -> TTS start sending...
+2026-03-12 21:44:30.228 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
+2026-03-12 21:44:34.987 [INFO] [SessionManager:310] [Turn:2] -> VAD listening started
+2026-03-12 21:44:37.030 [INFO] [SessionManager:426] [Turn:2] "你今天都干什么去了？" -> ASR final
+2026-03-12 21:44:37.031 [INFO] [SessionManager:291] [Turn:2] "你今天都干什么去了？" -> LLM Triggered
+2026-03-12 21:44:38.386 [INFO] [SessionManager:310] [Turn:3] -> VAD listening started
+2026-03-12 21:44:39.722 [INFO] [SessionManager:426] [Turn:3] "去干什么了？" -> ASR final
+2026-03-12 21:44:39.722 [INFO] [SessionManager:291] [Turn:3] "去干什么了？" -> LLM Triggered
+2026-03-12 21:44:39.775 [INFO] [AudioPipeline:172] [Turn:2] -> TTS finished sending
+2026-03-12 21:44:43.678 [INFO] [AudioPipeline:92] [Turn:3] "我是你的语音助手，主..." -> TTS start sending...
+2026-03-12 21:44:43.678 [INFO] [AudioPipeline:172] [Turn:3] -> TTS finished sending
+2026-03-12 21:44:52.026 [INFO] [SessionManager:310] [Turn:4] -> VAD listening started
+2026-03-12 21:44:56.142 [INFO] [SessionManager:426] [Turn:4] "那你能不能帮我打开 ..." -> ASR final
+2026-03-12 21:44:56.142 [INFO] [SessionManager:291] [Turn:4] "那你能不能帮我打开 ..." -> LLM Triggered
+2026-03-12 21:45:02.356 [INFO] [AudioPipeline:92] [Turn:4] "我先帮你看看有哪些s..." -> TTS start sending...
+2026-03-12 21:45:02.356 [INFO] [AudioPipeline:172] [Turn:4] -> TTS finished sending
+2026-03-12 21:45:02.373 [INFO] [SessionManager:1275] [Turn:4] action report generated: get_surfaces status=ok followup=report
+2026-03-12 21:45:06.727 [INFO] [AudioPipeline:92] [Turn:5] "好的，我现在帮你打开..." -> TTS start sending...
+2026-03-12 21:45:06.727 [INFO] [AudioPipeline:172] [Turn:5] -> TTS finished sending
+2026-03-12 21:45:06.763 [INFO] [SessionManager:1275] [Turn:5] action report generated: open_surface status=ok followup=report
+2026-03-12 21:45:11.230 [INFO] [AudioPipeline:92] [Turn:6] "counterser..." -> TTS start sending...
+2026-03-12 21:45:11.230 [INFO] [AudioPipeline:172] [Turn:6] -> TTS finished sending
+2026-03-12 21:45:18.376 [INFO] [SessionManager:310] [Turn:7] -> VAD listening started
+2026-03-12 21:45:20.127 [WARN] [SessionManager:279] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 21:45:20.127 [INFO] [SessionManager:304] [Turn:7] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 21:45:20.136 [INFO] [SessionManager:310] [Turn:8] -> VAD listening started
+2026-03-12 21:45:22.234 [INFO] [SessionManager:426] [Turn:8] "说的是0，你再看看。" -> ASR final
+2026-03-12 21:45:22.235 [INFO] [SessionManager:291] [Turn:8] "说的是0，你再看看。" -> LLM Triggered
+2026-03-12 21:45:23.336 [INFO] [SessionManager:310] [Turn:9] -> VAD listening started
+2026-03-12 21:45:24.227 [WARN] [SessionManager:279] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 21:45:24.227 [INFO] [SessionManager:304] [Turn:9] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 21:45:27.448 [INFO] [AudioPipeline:92] [Turn:8] "我帮你把counte..." -> TTS start sending...
+2026-03-12 21:45:27.448 [INFO] [AudioPipeline:172] [Turn:8] -> TTS finished sending
+2026-03-12 21:45:27.471 [INFO] [SessionManager:1275] [Turn:8] action report generated: surface.call.counter.reset status=ok followup=report
+2026-03-12 21:45:31.128 [INFO] [AudioPipeline:92] [Turn:10] "现在counter的..." -> TTS start sending...
+2026-03-12 21:45:31.128 [INFO] [AudioPipeline:172] [Turn:10] -> TTS finished sending
+2026-03-12 21:45:34.706 [INFO] [SessionManager:310] [Turn:11] -> VAD listening started
+2026-03-12 21:45:36.628 [WARN] [SessionManager:279] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 21:45:36.628 [INFO] [SessionManager:304] [Turn:11] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 21:45:36.636 [INFO] [SessionManager:310] [Turn:12] -> VAD listening started
+2026-03-12 21:45:38.671 [INFO] [SessionManager:426] [Turn:12] "那现在是多少呢？" -> ASR final
+2026-03-12 21:45:38.807 [INFO] [SessionManager:291] [Turn:12] "那现在是多少呢？" -> LLM Triggered
+2026-03-12 21:45:44.093 [INFO] [AudioPipeline:92] [Turn:12] "好的，我看看当前的计..." -> TTS start sending...
+2026-03-12 21:45:44.094 [INFO] [AudioPipeline:172] [Turn:12] -> TTS finished sending
+2026-03-12 21:45:44.111 [INFO] [SessionManager:1275] [Turn:12] action report generated: surface.get_state status=ok followup=report
+2026-03-12 21:45:46.835 [INFO] [AudioPipeline:92] [Turn:13] "现在counter的..." -> TTS start sending...
+2026-03-12 21:45:46.836 [INFO] [AudioPipeline:172] [Turn:13] -> TTS finished sending
+2026-03-12 21:45:50.586 [INFO] [SessionManager:310] [Turn:14] -> VAD listening started
+2026-03-12 21:45:53.952 [INFO] [SessionManager:426] [Turn:14] "那你能不能帮我改成7..." -> ASR final
+2026-03-12 21:45:53.952 [INFO] [SessionManager:291] [Turn:14] "那你能不能帮我改成7..." -> LLM Triggered
+2026-03-12 21:45:58.855 [INFO] [AudioPipeline:92] [Turn:14] "好的，我帮你把cou..." -> TTS start sending...
+2026-03-12 21:45:58.855 [INFO] [AudioPipeline:172] [Turn:14] -> TTS finished sending
+2026-03-12 21:45:58.882 [INFO] [SessionManager:1275] [Turn:14] action report generated: surface.call.counter.set_count status=ok followup=report
+2026-03-12 21:46:02.166 [INFO] [AudioPipeline:92] [Turn:15] "现在counter的..." -> TTS start sending...
+2026-03-12 21:46:02.167 [INFO] [AudioPipeline:172] [Turn:15] -> TTS finished sending
+2026-03-12 21:46:09.856 [INFO] [SessionManager:310] [Turn:16] -> VAD listening started
+2026-03-12 21:46:12.012 [INFO] [SessionManager:426] [Turn:16] "你帮我把这个关掉吧。" -> ASR final
+2026-03-12 21:46:12.012 [INFO] [SessionManager:291] [Turn:16] "你帮我把这个关掉吧。" -> LLM Triggered
+2026-03-12 21:46:14.995 [INFO] [AudioPipeline:92] [Turn:16] "好的，我来帮你关闭c..." -> TTS start sending...
+2026-03-12 21:46:14.996 [INFO] [AudioPipeline:172] [Turn:16] -> TTS finished sending
+2026-03-12 21:46:15.015 [INFO] [SessionManager:1275] [Turn:16] action report generated: close_surface status=ok followup=report
+2026-03-12 21:46:19.818 [INFO] [AudioPipeline:92] [Turn:17] "counterser..." -> TTS start sending...
+2026-03-12 21:46:19.818 [INFO] [AudioPipeline:172] [Turn:17] -> TTS finished sending
+2026-03-12 21:46:30.976 [INFO] [SessionManager:310] [Turn:18] -> VAD listening started
+2026-03-12 21:46:32.699 [INFO] [SessionManager:426] [Turn:18] "你帮我再打开吧。" -> ASR final
+2026-03-12 21:46:32.699 [INFO] [SessionManager:291] [Turn:18] "你帮我再打开吧。" -> LLM Triggered
+2026-03-12 21:46:40.097 [INFO] [AudioPipeline:92] [Turn:18] "我先帮你看看有哪些s..." -> TTS start sending...
+2026-03-12 21:46:40.097 [INFO] [AudioPipeline:172] [Turn:18] -> TTS finished sending
+2026-03-12 21:46:40.117 [INFO] [SessionManager:1275] [Turn:18] action report generated: get_surfaces status=ok followup=report
+2026-03-12 21:46:44.168 [INFO] [AudioPipeline:92] [Turn:19] "好的，我现在帮你打开..." -> TTS start sending...
+2026-03-12 21:46:44.168 [INFO] [AudioPipeline:172] [Turn:19] -> TTS finished sending
+2026-03-12 21:46:44.188 [INFO] [SessionManager:1275] [Turn:19] action report generated: open_surface status=ok followup=report
+2026-03-12 21:46:51.707 [INFO] [AudioPipeline:92] [Turn:20] "counterser..." -> TTS start sending...
+2026-03-12 21:46:51.708 [INFO] [AudioPipeline:172] [Turn:20] -> TTS finished sending
+2026-03-12 21:47:05.056 [INFO] [SessionManager:310] [Turn:21] -> VAD listening started
+2026-03-12 21:47:10.292 [INFO] [SessionManager:426] [Turn:21] "你帮我把那个 cou..." -> ASR final
+2026-03-12 21:47:10.293 [INFO] [SessionManager:291] [Turn:21] "你帮我把那个 cou..." -> LLM Triggered
+2026-03-12 21:47:15.796 [INFO] [AudioPipeline:92] [Turn:21] "好的，我帮你把cou..." -> TTS start sending...
+2026-03-12 21:47:15.796 [INFO] [AudioPipeline:172] [Turn:21] -> TTS finished sending
+2026-03-12 21:47:15.825 [INFO] [SessionManager:1275] [Turn:21] action report generated: surface.call.counter.set_count status=ok followup=report
+2026-03-12 21:47:19.024 [INFO] [AudioPipeline:92] [Turn:22] "现在counters..." -> TTS start sending...
+2026-03-12 21:47:19.024 [INFO] [AudioPipeline:172] [Turn:22] -> TTS finished sending
+2026-03-12 21:47:31.536 [INFO] [SessionManager:310] [Turn:23] -> VAD listening started
+2026-03-12 21:47:33.311 [INFO] [SessionManager:426] [Turn:23] "你吃饭了没有？" -> ASR final
+2026-03-12 21:47:33.311 [INFO] [SessionManager:291] [Turn:23] "你吃饭了没有？" -> LLM Triggered
+2026-03-12 21:47:35.913 [INFO] [AudioPipeline:92] [Turn:23] "我是AI助手，不需要..." -> TTS start sending...
+2026-03-12 21:47:35.914 [INFO] [AudioPipeline:172] [Turn:23] -> TTS finished sending
+2026-03-12 21:47:42.626 [INFO] [SessionManager:310] [Turn:24] -> VAD listening started
+2026-03-12 21:47:43.527 [WARN] [SessionManager:279] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+2026-03-12 21:47:43.529 [INFO] [SessionManager:304] [Turn:24] turn_nack sent to frontend, skipped DB persistence
+2026-03-12 21:55:43.147 [WARN] [System:110] shutdown requested from 127.0.0.1:63093
+

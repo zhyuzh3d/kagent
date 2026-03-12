@@ -1,17 +1,6 @@
 import { buildPermissionProfile, extractManifestFromHTML } from "./manifest.js";
 import { createID } from "./utils.js";
 
-function buildUniqueSurfaceID(base, surfaceMap) {
-  const root = base || createID("surface");
-  let id = root;
-  let idx = 2;
-  while (surfaceMap.has(id)) {
-    id = `${root}-${idx}`;
-    idx += 1;
-  }
-  return id;
-}
-
 function buildReloadURL(rawURL) {
   const u = new URL(rawURL, location.origin);
   u.searchParams.set("_reload", String(Date.now()));
@@ -193,6 +182,8 @@ export function createSurfaceManager(options) {
     for (const entry of surfaceMap.values()) {
       output.push({
         id: entry.id,
+        type: entry.manifest.surface_type || "",
+        version: entry.manifest.surface_version || "",
         url: entry.url,
         frozen: entry.frozen,
         minimized: entry.minimized,
@@ -219,6 +210,18 @@ export function createSurfaceManager(options) {
     const htmlText = await response.text();
     const extracted = extractManifestFromHTML(htmlText, url.toString());
     const manifest = extracted.manifest;
+    if (!manifest.surface_id) {
+      throw new Error("manifest 缺少 surface_id");
+    }
+    if (!manifest.surface_type) {
+      throw new Error("manifest 缺少 surface_type");
+    }
+    if (!manifest.surface_version) {
+      throw new Error("manifest 缺少 surface_version");
+    }
+    if (surfaceMap.has(manifest.surface_id)) {
+      throw new Error(`surface_id 已存在: ${manifest.surface_id}`);
+    }
     const profile = buildPermissionProfile(manifest);
     if (profile.requiresConfirm) {
       const detail = profile.extraSandboxTokens.join(", ");
@@ -231,7 +234,7 @@ export function createSurfaceManager(options) {
       }
     }
 
-    const surfaceID = buildUniqueSurfaceID(manifest.surface_id || createID("surface"), surfaceMap);
+    const surfaceID = manifest.surface_id;
     const rootEl = document.createElement("div");
     rootEl.className = "surface-window";
     rootEl.dataset.surfaceId = surfaceID;
@@ -294,6 +297,8 @@ export function createSurfaceManager(options) {
     authBtn.addEventListener("click", () => {
       window.alert(
         `Surface: ${entry.id}\n` +
+        `Type: ${entry.manifest.surface_type || "(unknown)"}\n` +
+        `Version: ${entry.manifest.surface_version || "(unknown)"}\n` +
         `URL: ${entry.url}\n` +
         `${summarizePermissions(entry.permissionProfile)}`,
       );

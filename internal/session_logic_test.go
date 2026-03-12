@@ -56,9 +56,12 @@ func TestAdoptTurnID(t *testing.T) {
 
 func TestStartTurnRemapsOnTurnIDCollision(t *testing.T) {
 	s := &Session{
-		rootCtx:     context.Background(),
-		ttsQueue:    make(chan TTSChunk, 1),
-		actionDedup: map[string]int64{},
+		rootCtx:            context.Background(),
+		ttsQueue:           make(chan TTSChunk, 1),
+		actionDedup:        map[string]int64{},
+		assistantDrafts:    map[uint64]string{},
+		assistantFinalized: map[uint64]struct{}{},
+		turnInterrupt:      map[uint64]string{},
 	}
 	s.pipeline = NewTurnPipeline(&fakeLLM{deltas: []string{"好的。"}}, &fakeTTS{}, nil, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {},
@@ -83,5 +86,59 @@ func TestStartTurnRemapsOnTurnIDCollision(t *testing.T) {
 	last := history[len(history)-1]
 	if last.Role != "user" || last.Content != "请把数字设置成3215" {
 		t.Fatalf("unexpected history tail: %#v", last)
+	}
+}
+
+func TestApplyHistoryWindowKeepsAnchorRangeAndCap(t *testing.T) {
+	s := &Session{}
+	for i := 0; i < 20; i++ {
+		s.chatHistory = append(s.chatHistory, ChatMessage{
+			Seq:         int64(i + 1),
+			Role:        RoleUser,
+			Category:    CategoryChat,
+			MessageType: TypeUserMessage,
+			Content:     "u",
+		})
+		s.chatHistory = append(s.chatHistory, ChatMessage{
+			Seq:         int64(i + 100),
+			Role:        RoleObserver,
+			Category:    CategoryAIAction,
+			MessageType: TypeActionReport,
+			Content:     "r",
+		})
+	}
+	s.historyMu.Lock()
+	s.applyHistoryWindowLocked()
+	got := append([]ChatMessage(nil), s.chatHistory...)
+	s.historyMu.Unlock()
+
+	if len(got) != 40 {
+		t.Fatalf("expected 40 messages kept (20 anchors + 20 reports), got %d", len(got))
+	}
+	if got[0].Seq != 1 || got[len(got)-1].Seq != 119 {
+		t.Fatalf("unexpected history window boundaries: first=%#v last=%#v", got[0], got[len(got)-1])
+	}
+}
+
+func TestFinalizeAssistantMessageInterrupted(t *testing.T) {
+	s := &Session{
+		assistantDrafts:    map[uint64]string{},
+		assistantFinalized: map[uint64]struct{}{},
+		turnInterrupt:      map[uint64]string{},
+	}
+	s.appendAssistantDraft(3, "第一段")
+	s.appendAssistantDraft(3, "第二段")
+	s.finalizeAssistantMessage(3, "", CompletionStatusInterrupted, InterruptVAD, 0)
+
+	history := s.getHistory()
+	if len(history) != 1 {
+		t.Fatalf("expected one assistant history message, got %d", len(history))
+	}
+	msg := history[0]
+	if msg.CompletionStatus != CompletionStatusInterrupted || msg.Interrupt != InterruptVAD {
+		t.Fatalf("unexpected assistant finalization: %#v", msg)
+	}
+	if msg.Content != "第一段第二段" {
+		t.Fatalf("unexpected assistant content: %#v", msg)
 	}
 }
