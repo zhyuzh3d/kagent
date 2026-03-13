@@ -1,12 +1,11 @@
-# kagent - 糖糖（TANGTANG）智能体计划
+# kagent - 门糖智能体计划
 
-`kagent` 的目标是打造一个能持续自主意识、自主行动、自主进化的安全可控的智能体小女生「糖糖」。
+`kagent` 的目标是打造一个能持续自主意识、自主行动、自主进化的安全可控的智能体。
 
 > T0 / Trinity Zero  / C.A.T Zero   
 > 第一代**三自体**核心  
 > Consciousness · Agency · Transcendence  
 > 自主意识 · 自主行动 · 自主演化  
-> 糖糖   
 
 ## 项目愿景
 - 让智能体从“被动响应”走向“主动理解与行动”。

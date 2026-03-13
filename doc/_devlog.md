@@ -323,3 +323,21 @@
   - 有效实践：用 `plan/` 里的规划与复盘作为“意图来源”，再以代码与可核验落盘路径作为“事实来源”更新 `doc/_instruction.md`，可以显著降低文档漂移。
 - 下一步：
   - 若要启用 `thread_summaries/memories/files/file_refs` 的真实产出链路，需明确写入触发点（LLM/前端/后端）与消费面板，并定义哪些进入 `messages`，哪些只进入 `ops`。
+
+## [2026-03-13 20:20 CST] JWT 认证系统与多用户数据隔离修复
+- 时间范围：2026-03-12 22:05 CST -> 2026-03-13 20:20 CST
+- 主要变更：
+  - **身份认证基座**：落地 JWT 签发/校验机制与 salted SHA-256 密码哈希，支持用户注册、登录、登出流程。
+  - **前端鉴权保护**：新增 `page/account/` 账户管理页；在 `page/chat/` 引入 Auth Guard 守卫，并在头部增加了用户头像及退出菜单。
+  - **存储架构升级**：`users` 表增加 `username`/`password_hash` 字段；`SQLiteStore` 修复了初始化阶段“盲抓 ID”的漏洞，强制锁定认证身份，实现严格的多用户数据物理隔离。
+  - **持久化安全**：JWT 签名密钥自动生成并持久化于 `data/.jwt_secret`，Cookie 有效期 30 天。
+- 关键文件/模块：
+  - `internal/auth.go`, `internal/sqlite_store.go`, `main.go`
+  - `webui/page/account/index.html`, `webui/page/chat/index.html`
+- 开发结果：
+  - 成功：通过 18 项后端测试（含新增认证与隔离专项测试）；实机验证不同用户数据完全隔离。
+- 经验与结论：
+  - 有效实践：使用 `SameSite=Strict` 的 Cookie 配合前端 Auth Guard 能在不破坏单页应用体验的前提下提供足够的安全性。
+  - 安全规避：严格禁止在数据库初始化阶段推断 UserID，必须由认证上下文显式传入并锁定。
+- 下一步：
+  - 考虑为用户增加默认随机头像，提升 UI 个人化程度。

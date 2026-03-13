@@ -43,8 +43,11 @@ kagent/                                              # 仓库根目录
 ├── webui/                                           # 前端静态资源根目录
 │   ├── json/                                        # 前端元数据目录
 │   │   └── config_info.json                         # 配置抽屉字段说明
-│   └── page/chat/                                   # 实时对话页面目录
-│       ├── index.html                               # 页面入口与装配层
+│   └── page/
+│       ├── account/                                 # 账户登录/注册页面
+│       │   └── index.html                           # 账户页入口
+│       └── chat/                                    # 实时对话页面目录
+│           ├── index.html                           # 页面入口与装配层
 │       ├── config-store.js                          # 配置读取/保存工具
 │       ├── config-drawer.js                         # 配置抽屉
 │       ├── chat-store.js                            # 消息与气泡状态
@@ -59,7 +62,8 @@ kagent/                                              # 仓库根目录
 
 ## 3. 核心模块职责
 1. `main.go`
-- 启动 HTTP 服务、`/ws`、`/version`、`/api/config` 与静态资源服务。
+- 启动 HTTP 服务、`/ws`、`/version`、`/api/config`、`/api/auth/*` 与静态资源服务。
+- 负责 JWT 鉴权校验与 WebSocket 身份提取。
 
 2. `internal/session.go`
 - 维护浏览器会话生命周期。
@@ -113,18 +117,19 @@ kagent/                                              # 仓库根目录
 5. 左侧配置抽屉只展示 `webui/json/config_info.json` 里声明过的字段。
 
 ### 4.4 数据与存储（现状与规划约定）
-按数据价值与访问模式分层存储，避免把“高吞吐低价值”的过程日志拖慢高价值查询与迁移。
+按数据价值与访问模式分层存储。引入 JWT 认证后，系统支持真正的多用户身份隔离，所有个人数据按 `user_id` 严格解耦。
 
 #### 4.4.1 当前落盘现状（可核验）
 1. JSON 配置文件：
 - 全局公开默认配置：`config/config.json`
-- 私密接入配置：`config/configx.json`（不入库）
-- 用户覆盖配置：运行时路径约定为 `data/users/<user_id>/user_custom_config.json`（当前默认 user 为 `default`）
+- 私密接入配置：`config/configx.json`
+- JWT 签名密钥：`data/.jwt_secret`（持久化密钥，确保重启后 Token 依然有效）
+- 用户覆盖配置：`data/users/<user_id>/user_custom_config.json`
 
-2. SQLite 主库（高价值数据）：`data/kagent.db`
-- 默认通过 `--sqlite-path` 指定（当前默认值就是 `data/kagent.db`）。
-- 负责存储（已建表）：`users/projects/threads/messages`、`surface_states`、`thread_summaries`、`memories`、`files`、`file_refs`。
-- 启动时会清理 legacy 文件：`data/users/*/chat_state.db*` 与 `data/users/*/action_records.jsonl`（避免旧数据污染新 schema）。
+2. SQLite 主库（多用户高价值数据）：`data/kagent.db`
+- 负责存储：`users/projects/threads/messages` 等。
+- **严格隔离**：后端 `SQLiteStore` 在建连时会强制锁定 `user_id`，查询历史记录、项目列表等操作均带 ID 过滤，防止跨用户数据泄漏。
+- `users` 表已扩展 `username` 与 `password_hash` 字段支持登录。
 
 3. 低价值高吞吐过程日志（operation，按用户按日分桶）：
 - 路径约定：`data/users/<user_id>/ops/<YYYYMMDD>.jsonl`
@@ -159,10 +164,13 @@ kagent/                                              # 仓库根目录
 2. 新增公开配置与用户覆盖配置机制，前端可通过配置抽屉读取和保存部分运行参数。
 3. 会话停止和页面卸载时增加了 Worker 与音频链路的清理，避免旧连接和旧状态残留。
 4. 默认主库已切换为 `data/kagent.db`，并在启动时清理 legacy `chat_state.db*`；operation 过程日志以 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 按日分桶落盘。
+5. **身份认证系统落地**：新增 JWT 认证流（注册/登录/登出），前端对话页增加 Auth Guard 保护，后端实现严格的多用户数据物理隔离，防止 ID 劫持漏洞。
 
 ## 6. 项目术语表
 | 术语 | 定义（本项目语境） | 来源文件 | 状态 |
 | --- | --- | --- | --- |
+| `JWT` | 用于用户身份标识与权鉴的令牌，存储在 `kagent_token` Cookie 中。 | `internal/auth.go`, `main.go` | active |
+| `Auth Guard` | 前端鉴权守卫，在对话页加载前检查身份，失效则重定向至 `page/account/`。 | `webui/page/chat/index.html` | active |
 | `app` | 整个本地软件实例级别的范围，例如全局 UI 或默认行为。 | `config/config.json`, `webui/json/config_info.json` | active |
 | `chat` | 一次“开始对话”到“停止”的完整实时对话范围。比单个 turn 大，比 app 小。 | `config/config.json`, `webui/page/chat/index.html` | active |
 | `thread` | 对话线/话题边界。当前实现默认只有一个 thread（`chat-default`）；规划为每个 project 下可有多个 thread。 | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json`, `main.go` | active |
@@ -201,9 +209,10 @@ kagent/                                              # 仓库根目录
 4. `thread_summaries/memories/files/file_refs` 当前已建表但尚无稳定写入/读取链路，需要明确触发点与 UI/LLM 的使用场景后再补齐。
 
 ## 8. 文档更新时间与信息来源
-- 更新时间：2026-03-12 22:05 CST
+- 更新时间：2026-03-13 20:15 CST
 - 信息来源：
-  - 仓库实时扫描（目录与文件内容）
+  - 仓库实时扫描与 `go test` 验证
+  - JWT 认证与数据隔离专项开发（`260313-auth-devplan.md`）
   - 当前工作区代码核验（`main.go`、`internal/*.go`、`webui/page/chat/*.js`）
   - `plan/260312-db-*.md`（存储机制与 schema 变更的规划/复盘记录）
   - 本轮架构会话确认（彻底的 Client-Driven 驱动架构：后端瘦持久层，前端胖客户端接管所有 action_call；建立 `hostops` 的协同约束。）

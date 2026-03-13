@@ -346,8 +346,8 @@
     }
 
     .surface-float-panel {
-      width: min(380px, 88vw);
-      height: 280px;
+      width: min(560px, 94vw);
+      height: min(520px, 72vh);
       border: 1px solid rgba(129, 140, 248, 0.35);
       border-radius: 14px;
       background: linear-gradient(180deg, rgba(18, 23, 37, 0.97), rgba(11, 16, 25, 0.97));
@@ -394,7 +394,10 @@
 
     .surface-float-body {
       flex: 1;
-      background: #fff;
+      min-height: 0;
+      background: rgba(10, 14, 23, 0.9);
+      display: grid;
+      grid-template-columns: minmax(210px, 42%) minmax(260px, 58%);
     }
 
     .surface-float-iframe {
@@ -411,6 +414,109 @@
       border-top: 1px solid rgba(129, 140, 248, 0.16);
       background: rgba(15, 20, 32, 0.72);
       font-family: "SF Mono", monospace;
+    }
+
+    .surface-manager-list {
+      overflow: auto;
+      border-right: 1px solid rgba(129, 140, 248, 0.22);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: #dbe6ff;
+    }
+
+    .surface-manager-item {
+      border: 1px solid rgba(129, 140, 248, 0.2);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(27, 37, 60, 0.5);
+      display: grid;
+      gap: 8px;
+    }
+
+    .surface-manager-meta {
+      font-size: 11px;
+      line-height: 1.45;
+      color: #c7d2fe;
+      word-break: break-word;
+    }
+
+    .surface-manager-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #dbeafe;
+    }
+
+    .surface-manager-actions button {
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: 8px;
+      background: rgba(30, 41, 59, 0.95);
+      color: #e2e8f0;
+      padding: 4px 9px;
+      font-size: 11px;
+    }
+
+    .surface-manager-actions button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    .surface-manager-empty {
+      font-size: 12px;
+      color: #94a3b8;
+      padding: 8px;
+    }
+
+    .surface-manager-workspace {
+      overflow: auto;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .surface-runtime-host {
+      height: 100%;
+      min-height: 240px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .surface-runtime-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+      padding: 8px 10px;
+      background: #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .surface-runtime-host .surface-float-iframe {
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 720px) {
+      .surface-float-panel {
+        width: min(96vw, 620px);
+        height: min(78vh, 620px);
+      }
+
+      .surface-float-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+
+      .surface-manager-list {
+        border-right: 0;
+        border-bottom: 1px solid rgba(129, 140, 248, 0.22);
+      }
     }
 
     .config-drawer-head,
@@ -643,12 +749,76 @@
         width: 100%;
       }
     }
+
+    /* ── User Avatar ─────────────────────────────── */
+    .user-avatar-wrapper {
+      position: relative;
+    }
+
+    .user-avatar-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid var(--accent2);
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: transform 0.15s;
+    }
+
+    .user-avatar-btn:hover {
+      transform: scale(1.08);
+    }
+
+    .user-menu {
+      position: absolute;
+      top: 42px;
+      right: 0;
+      min-width: 160px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      padding: 8px 0;
+      display: none;
+      z-index: 30;
+    }
+
+    .user-menu.open {
+      display: block;
+    }
+
+    .user-menu-name {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent2);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .user-menu-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .user-menu-item:hover {
+      background: rgba(99, 102, 241, 0.12);
+    }
   </style>
 </head>
 
 <body>
   <div class="header">
-    <h1>糖糖 T0</h1>
+    <h1>MT0</h1>
     <div id="versionText" class="version-text"></div>
     <div id="statusDot" class="status-dot"></div>
     <div id="statusText" class="status-text">Idle</div>
@@ -656,6 +826,13 @@
     <button id="surfaceBtn" class="btn-surface">Surface</button>
     <button id="startBtn" class="btn-start">开始对话</button>
     <button id="stopBtn" class="btn-stop" disabled>停止</button>
+    <div class="user-avatar-wrapper">
+      <button id="userAvatarBtn" class="user-avatar-btn" title="用户"></button>
+      <div id="userMenu" class="user-menu">
+        <div id="userMenuName" class="user-menu-name"></div>
+        <div id="logoutBtn" class="user-menu-item">退出登录</div>
+      </div>
+    </div>
   </div>
 
   <div id="chatArea" class="chat-area"></div>
@@ -667,6 +844,24 @@
   <div class="debug-panel" id="debugPanel">
     <pre id="debug"></pre>
   </div>
+
+  <!-- Auth guard: check JWT before loading any modules -->
+  <script>
+    (async function authGuard() {
+      try {
+        const resp = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (!resp.ok) throw new Error('not authenticated');
+        const data = await resp.json();
+        if (!data || !data.ok) throw new Error('not authenticated');
+        // Store user info for later use
+        window.__kagentUser = { user_id: data.user_id, username: data.username };
+      } catch (_) {
+        window.location.href = '/page/account/?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+        // Prevent further script execution
+        throw new Error('redirecting to login');
+      }
+    })();
+  </script>
 
   <script type="module">
     import { createAudioCapture } from './audio-capture.js';
@@ -755,7 +950,32 @@
       debug: document.getElementById('debug'),
       debugToggle: document.getElementById('debugToggle'),
       debugPanel: document.getElementById('debugPanel'),
+      userAvatarBtn: document.getElementById('userAvatarBtn'),
+      userMenu: document.getElementById('userMenu'),
+      userMenuName: document.getElementById('userMenuName'),
+      logoutBtn: document.getElementById('logoutBtn'),
     };
+
+    // ── User Avatar Setup ───────────────────────────────────────
+    {
+      const user = window.__kagentUser || {};
+      const name = user.username || '?';
+      el.userAvatarBtn.textContent = name.charAt(0).toUpperCase();
+      el.userMenuName.textContent = name;
+      el.userAvatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.userMenu.classList.toggle('open');
+      });
+      document.addEventListener('click', () => {
+        el.userMenu.classList.remove('open');
+      });
+      el.logoutBtn.addEventListener('click', async () => {
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (_) { }
+        window.location.href = '/page/account/';
+      });
+    }
 
     let savedDebugHeight = 180;
 
@@ -979,9 +1199,9 @@
           action_name: actionName,
           action_status: typeof p.status === 'string' && p.status ? p.status : 'unknown',
           action_followup: typeof p.followup === 'string' && p.followup ? p.followup : 'none',
-          action_surface_id: typeof p.actionSurfaceID === 'string' && p.actionSurfaceID ? p.actionSurfaceID : 'counter',
-          surface_type: typeof p.actionSurfaceType === 'string' && p.actionSurfaceType ? p.actionSurfaceType : 'app',
-          surface_version: typeof p.actionSurfaceVersion === 'string' && p.actionSurfaceVersion ? p.actionSurfaceVersion : '1',
+          action_surface_id: typeof p.actionSurfaceID === 'string' ? p.actionSurfaceID : '',
+          surface_type: typeof p.actionSurfaceType === 'string' ? p.actionSurfaceType : '',
+          surface_version: typeof p.actionSurfaceVersion === 'string' ? p.actionSurfaceVersion : '',
           action_manual_confirm: typeof p.manualConfirm === 'string' ? p.manualConfirm : '',
           action_block_reason: typeof p.blockReason === 'string' ? p.blockReason : '',
           action_args: p.args && typeof p.args === 'object' ? p.args : {},
@@ -995,15 +1215,15 @@
     function reportStateChange(payload) {
       const p = payload && typeof payload === 'object' ? payload : {};
       const turnId = Number.isFinite(p.turnId) ? p.turnId : (App.activeTurnId || App.currentTurn || 0);
-      const surfaceId = typeof p.surface_id === 'string' && p.surface_id ? p.surface_id : 'counter';
+      const surfaceId = typeof p.surface_id === 'string' ? p.surface_id : '';
       sessionController.workerSend({
         type: 'send_control',
         control: 'state_change',
         turn_id: turnId,
         extra: {
           surface_id: surfaceId,
-          surface_type: typeof p.surface_type === 'string' && p.surface_type ? p.surface_type : 'app',
-          surface_version: typeof p.surface_version === 'string' && p.surface_version ? p.surface_version : '1',
+          surface_type: typeof p.surface_type === 'string' ? p.surface_type : '',
+          surface_version: typeof p.surface_version === 'string' ? p.surface_version : '',
           event_type: typeof p.event_type === 'string' ? p.event_type : 'state_change',
           business_state: p.business_state && typeof p.business_state === 'object' ? p.business_state : {},
           visible_text: typeof p.visible_text === 'string' ? p.visible_text : '',
@@ -1030,8 +1250,9 @@
 
     const surfaceBridge = createSurfaceBridge({
       root: el.surfaceFloatRoot,
-      surfaceURL: '/surface/demo-counter.html',
       appendDebug,
+      appendSystem: (text) => chatStore.addChatMsg('system', text, 0),
+      reportActionRecord,
       onSurfaceEvent: (evt) => {
         const turnId = App.activeTurnId || App.currentTurn || 0;
         actionEngine.handleSurfaceEffect(turnId, evt);

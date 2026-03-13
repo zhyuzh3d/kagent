@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -35,7 +34,10 @@ func NewSQLiteStore(path string, userID string, projectID string, threadID strin
 	db.SetMaxOpenConns(1)
 
 	s := &SQLiteStore{
-		db: db,
+		db:        db,
+		userID:    strings.TrimSpace(userID),
+		projectID: strings.TrimSpace(projectID),
+		threadID:  strings.TrimSpace(threadID),
 	}
 	if err := s.init(); err != nil {
 		_ = db.Close()
@@ -49,6 +51,27 @@ func (s *SQLiteStore) Close() error {
 		return nil
 	}
 	return s.db.Close()
+}
+
+func (s *SQLiteStore) RuntimeUserID() string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.userID)
+}
+
+func (s *SQLiteStore) RuntimeProjectID() string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.projectID)
+}
+
+func (s *SQLiteStore) RuntimeThreadID() string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.threadID)
 }
 
 func (s *SQLiteStore) init() error {
@@ -78,6 +101,8 @@ func (s *SQLiteStore) init() error {
 	schemaStmts := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			user_id TEXT PRIMARY KEY,
+			username TEXT NOT NULL DEFAULT '',
+			password_hash TEXT NOT NULL DEFAULT '',
 			created_at_ms INTEGER NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS projects (
@@ -102,17 +127,23 @@ func (s *SQLiteStore) init() error {
 			FOREIGN KEY(user_id) REFERENCES users(user_id),
 			FOREIGN KEY(project_id) REFERENCES projects(project_id)
 		)`,
-		`CREATE TABLE IF NOT EXISTS surface_states (
+		`CREATE TABLE IF NOT EXISTS surfaces (
+			surface_id TEXT PRIMARY KEY,
+			surface_type TEXT NOT NULL,
+			pkg_path TEXT NOT NULL,
+			manifest_json TEXT NOT NULL,
+			manifest_hash TEXT NOT NULL,
+			status TEXT NOT NULL,
+			error TEXT NOT NULL DEFAULT '',
+			scanned_at_ms INTEGER NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS user_surfaces (
 			user_id TEXT NOT NULL,
 			surface_id TEXT NOT NULL,
-			surface_type TEXT NOT NULL DEFAULT 'app',
-			surface_version TEXT NOT NULL DEFAULT '1',
-			state_version INTEGER NOT NULL,
-			business_state_json TEXT NOT NULL DEFAULT '{}',
-			visible_text TEXT NOT NULL DEFAULT '',
-			status TEXT NOT NULL DEFAULT '',
+			enabled INTEGER NOT NULL,
 			updated_at_ms INTEGER NOT NULL,
-			PRIMARY KEY(user_id, surface_id)
+			PRIMARY KEY(user_id, surface_id),
+			FOREIGN KEY(surface_id) REFERENCES surfaces(surface_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS thread_summaries (
 			user_id TEXT NOT NULL,
@@ -178,6 +209,9 @@ func (s *SQLiteStore) init() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(user_id, project_id, thread_id, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_anchor_id ON messages(user_id, project_id, thread_id, category, type, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_surfaces_status ON surfaces(status, surface_type, surface_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_user_surfaces_user_enabled ON user_surfaces(user_id, enabled, surface_id)`,
+		`DROP TABLE IF EXISTS surface_states`,
 	}
 	for _, stmt := range schemaStmts {
 		if _, err := s.db.Exec(stmt); err != nil {
@@ -185,44 +219,54 @@ func (s *SQLiteStore) init() error {
 		}
 	}
 
+	if err := s.migrateUsersTable(); err != nil {
+		return err
+	}
+
 	return s.initDefaultIDs()
 }
 
 func (s *SQLiteStore) initDefaultIDs() error {
-	var uid string
-	err := s.db.QueryRow(`SELECT user_id FROM users LIMIT 1`).Scan(&uid)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			s.userID = "usr-" + newRequestID()
+	if s.userID == "" {
+		var uid string
+		err := s.db.QueryRow(`SELECT user_id FROM users LIMIT 1`).Scan(&uid)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				s.userID = "usr-" + newRequestID()
+			} else {
+				return err
+			}
 		} else {
-			return err
+			s.userID = uid
 		}
-	} else {
-		s.userID = uid
 	}
 
-	var pid string
-	err = s.db.QueryRow(`SELECT project_id FROM projects LIMIT 1`).Scan(&pid)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			s.projectID = "prj-" + newRequestID()
+	if s.projectID == "" {
+		var pid string
+		err := s.db.QueryRow(`SELECT project_id FROM projects WHERE user_id=? LIMIT 1`, s.userID).Scan(&pid)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				s.projectID = "prj-" + newRequestID()
+			} else {
+				return err
+			}
 		} else {
-			return err
+			s.projectID = pid
 		}
-	} else {
-		s.projectID = pid
 	}
 
-	var tid string
-	err = s.db.QueryRow(`SELECT thread_id FROM threads LIMIT 1`).Scan(&tid)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			s.threadID = "thd-" + newRequestID()
+	if s.threadID == "" {
+		var tid string
+		err := s.db.QueryRow(`SELECT thread_id FROM threads WHERE user_id=? AND project_id=? LIMIT 1`, s.userID, s.projectID).Scan(&tid)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				s.threadID = "thd-" + newRequestID()
+			} else {
+				return err
+			}
 		} else {
-			return err
+			s.threadID = tid
 		}
-	} else {
-		s.threadID = tid
 	}
 
 	now := nowMS()
@@ -269,22 +313,6 @@ func (s *SQLiteStore) needsSchemaReset() (bool, error) {
 		}
 		for _, name := range required {
 			if !msgCols[name] {
-				return true, nil
-			}
-		}
-	}
-
-	stateExists, stateCols, err := s.tableColumns("surface_states")
-	if err != nil {
-		return false, err
-	}
-	if stateExists {
-		required := []string{"surface_type", "surface_version"}
-		if stateCols["chat_id"] {
-			return true, nil
-		}
-		for _, name := range required {
-			if !stateCols[name] {
 				return true, nil
 			}
 		}
@@ -368,71 +396,99 @@ func (s *SQLiteStore) tableColumns(name string) (bool, map[string]bool, error) {
 }
 
 func (s *SQLiteStore) UpsertSurfaceState(state SurfaceState) error {
-	if s == nil || s.db == nil {
-		return nil
-	}
-	surfaceID := strings.TrimSpace(state.SurfaceID)
-	if surfaceID == "" {
-		return fmt.Errorf("surface_id is empty")
-	}
-	if state.UpdatedAtMS <= 0 {
-		state.UpdatedAtMS = time.Now().UnixMilli()
-	}
-	state.SurfaceType = firstNonEmpty(strings.TrimSpace(state.SurfaceType), "app")
-	state.SurfaceVersion = firstNonEmpty(strings.TrimSpace(state.SurfaceVersion), "1")
-	bsJSON, err := json.Marshal(nonNilMap(state.BusinessState))
-	if err != nil {
-		return fmt.Errorf("marshal business_state: %w", err)
-	}
-	_, err = s.db.Exec(`
-		INSERT INTO surface_states(
-			user_id, surface_id, surface_type, surface_version, state_version, business_state_json, visible_text, status, updated_at_ms
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(user_id, surface_id) DO UPDATE SET
-			surface_type = excluded.surface_type,
-			surface_version = excluded.surface_version,
-			state_version = excluded.state_version,
-			business_state_json = excluded.business_state_json,
-			visible_text = excluded.visible_text,
-			status = excluded.status,
-			updated_at_ms = excluded.updated_at_ms
-	`, s.userID, surfaceID, state.SurfaceType, state.SurfaceVersion, state.StateVersion, string(bsJSON), strings.TrimSpace(state.VisibleText), strings.TrimSpace(state.Status), state.UpdatedAtMS)
-	if err != nil {
-		return fmt.Errorf("upsert surface state: %w", err)
-	}
+	_ = state
+	// Surface state has moved to "surface self file storage + message events".
+	// Keep this API as no-op for backward compatibility.
 	return nil
 }
 
 func (s *SQLiteStore) LoadSurfaceState(surfaceID string) (SurfaceState, bool, error) {
-	if s == nil || s.db == nil {
-		return SurfaceState{}, false, nil
+	_ = surfaceID
+	// Surface state has moved to "surface self file storage + message events".
+	// Keep this API as no-op for backward compatibility.
+	return SurfaceState{}, false, nil
+}
+
+func (s *SQLiteStore) migrateUsersTable() error {
+	exists, cols, err := s.tableColumns("users")
+	if err != nil || !exists {
+		return err
 	}
-	var (
-		state     SurfaceState
-		stateJSON string
-	)
-	err := s.db.QueryRow(`
-		SELECT surface_id, surface_type, surface_version, state_version, business_state_json, visible_text, status, updated_at_ms
-		FROM surface_states
-		WHERE user_id=? AND surface_id=?
-	`, s.userID, strings.TrimSpace(surfaceID)).Scan(
-		&state.SurfaceID,
-		&state.SurfaceType,
-		&state.SurfaceVersion,
-		&state.StateVersion,
-		&stateJSON,
-		&state.VisibleText,
-		&state.Status,
-		&state.UpdatedAtMS,
-	)
+	if !cols["username"] {
+		if _, err := s.db.Exec(`ALTER TABLE users ADD COLUMN username TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("migrate users add username: %w", err)
+		}
+	}
+	if !cols["password_hash"] {
+		if _, err := s.db.Exec(`ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("migrate users add password_hash: %w", err)
+		}
+	}
+	return nil
+}
+
+// CreateUser creates a new user with a username and password hash.
+// Returns the generated user_id.
+func (s *SQLiteStore) CreateUser(username string, passwordHash string) (string, error) {
+	if s == nil || s.db == nil {
+		return "", fmt.Errorf("sqlite store not initialized")
+	}
+	clean := strings.TrimSpace(username)
+	if clean == "" {
+		return "", fmt.Errorf("username is empty")
+	}
+	// Check uniqueness
+	var existing string
+	err := s.db.QueryRow(`SELECT user_id FROM users WHERE username=?`, clean).Scan(&existing)
+	if err == nil {
+		return "", fmt.Errorf("username already exists")
+	}
+	if err != sql.ErrNoRows {
+		return "", fmt.Errorf("check username: %w", err)
+	}
+	userID := "usr-" + newRequestID()
+	now := nowMS()
+	if _, err := s.db.Exec(
+		`INSERT INTO users(user_id, username, password_hash, created_at_ms) VALUES(?, ?, ?, ?)`,
+		userID, clean, strings.TrimSpace(passwordHash), now,
+	); err != nil {
+		return "", fmt.Errorf("insert user: %w", err)
+	}
+	return userID, nil
+}
+
+// GetUserByUsername looks up a user by username.
+func (s *SQLiteStore) GetUserByUsername(username string) (userID string, passwordHash string, exists bool, err error) {
+	if s == nil || s.db == nil {
+		return "", "", false, fmt.Errorf("sqlite store not initialized")
+	}
+	clean := strings.TrimSpace(username)
+	if clean == "" {
+		return "", "", false, nil
+	}
+	err = s.db.QueryRow(`SELECT user_id, password_hash FROM users WHERE username=?`, clean).Scan(&userID, &passwordHash)
 	if err == sql.ErrNoRows {
-		return SurfaceState{}, false, nil
+		return "", "", false, nil
 	}
 	if err != nil {
-		return SurfaceState{}, false, fmt.Errorf("load surface state: %w", err)
+		return "", "", false, fmt.Errorf("query user by username: %w", err)
 	}
-	_ = json.Unmarshal([]byte(stateJSON), &state.BusinessState)
-	return state, true, nil
+	return userID, passwordHash, true, nil
+}
+
+// GetUserByID looks up a user by user_id.
+func (s *SQLiteStore) GetUserByID(userID string) (username string, exists bool, err error) {
+	if s == nil || s.db == nil {
+		return "", false, fmt.Errorf("sqlite store not initialized")
+	}
+	err = s.db.QueryRow(`SELECT username FROM users WHERE user_id=?`, strings.TrimSpace(userID)).Scan(&username)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("query user by id: %w", err)
+	}
+	return username, true, nil
 }
 
 func (s *SQLiteStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {

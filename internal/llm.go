@@ -13,14 +13,15 @@ import (
 )
 
 const chatSurfaceActionPromptSuffix = "" +
-	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.counter.set_count、surface.call.counter.increment、surface.call.counter.reset。\n" +
+	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.<surface_id>.<action_name>。\n" +
 	"当你需要动作时，必须只输出 JSON（可以是纯 JSON 或 ```json 代码块），不能在 JSON 外再输出任何解释文字。\n" +
-	"格式：{\"content\":\"给用户看的自然语言\",\"action\":{\"id\":\"可选\",\"name\":\"动作名\",\"args\":{\"target\":\"counter\",\"surface_id\":\"counter\",\"count\":number,\"step\":number},\"followup\":\"none|report\"}}\n" +
+	"格式：{\"content\":\"给用户看的自然语言\",\"action\":{\"id\":\"可选\",\"name\":\"动作名\",\"args\":{\"target\":\"surface_id或surface名称\",\"surface_id\":\"surface_id\",\"...\":\"动作参数\"},\"followup\":\"none|report\"}}\n" +
 	"硬性约束：content 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/[action_report]/ai_action.call 等协议字段片段。\n" +
 	"流程约束：\n" +
 	"1) 用户要求打开某个 surface：先调用 get_surfaces 且 followup=report；拿到列表后若命中目标再调用 open_surface(target) 且 followup=report；若不存在则直接回复找不到且不发动作。\n" +
 	"2) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
-	"3) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
+	"3) 调用 surface action 前，必须确保目标 surface 已启用且已打开；action 名称与参数必须来自该 surface 运行时注册信息。\n" +
+	"4) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
 	"如果不需要动作，输出普通自然文本即可，不要伪造动作执行结果。"
 
 const continuationUserPrompt = "请基于最新的 action_report 继续推理并回复用户。只输出用户可读结论，禁止复述协议字段或 [action_report] 原文。"

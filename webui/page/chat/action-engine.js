@@ -107,10 +107,9 @@ function normalizeAction(rawAction, payload) {
   if (!nameRaw) return null;
   const args = rawAction.args && typeof rawAction.args === "object" ? rawAction.args : {};
 
+  const lowerName = nameRaw.toLowerCase();
   const aliases = new Map([
     ["surface.get_state", "surface.get_state"],
-    ["surface.call.counter.get_state", "surface.get_state"],
-    ["counter.get_state", "surface.get_state"],
     ["get_state", "surface.get_state"],
     ["get_surfaces", "get_surfaces"],
     ["surface.get_surfaces", "get_surfaces"],
@@ -121,17 +120,11 @@ function normalizeAction(rawAction, payload) {
     ["close_surface", "close_surface"],
     ["surface.close_surface", "close_surface"],
     ["surface.close", "close_surface"],
-    ["surface.call.counter.set_count", "surface.call.counter.set_count"],
-    ["counter.set_count", "surface.call.counter.set_count"],
-    ["set_count", "surface.call.counter.set_count"],
-    ["surface.call.counter.increment", "surface.call.counter.increment"],
-    ["counter.increment", "surface.call.counter.increment"],
-    ["increment", "surface.call.counter.increment"],
-    ["surface.call.counter.reset", "surface.call.counter.reset"],
-    ["counter.reset", "surface.call.counter.reset"],
-    ["reset", "surface.call.counter.reset"],
   ]);
-  const canonical = aliases.get(nameRaw);
+  let canonical = aliases.get(lowerName) || "";
+  if (!canonical && lowerName.startsWith("surface.call.")) {
+    canonical = nameRaw;
+  }
   if (!canonical) return null;
 
   const followup = normalizeFollowup(rawAction.followup || payload.followup);
@@ -151,33 +144,27 @@ function normalizeAction(rawAction, payload) {
     normalized.followup = "report";
     const target = typeof args.target === "string" && args.target.trim()
       ? args.target.trim()
-      : (typeof args.surface_id === "string" && args.surface_id.trim() ? args.surface_id.trim() : "counter");
-    normalized.args = { target };
+      : (typeof args.surface_id === "string" && args.surface_id.trim() ? args.surface_id.trim() : "");
+    normalized.args = target ? { target } : {};
     return normalized;
   }
-  if (canonical === "surface.call.counter.set_count") {
-    if (!Number.isFinite(args.count)) return null;
-    normalized.args = { count: Math.floor(args.count) };
-    return normalized;
-  }
-  if (canonical === "surface.call.counter.increment") {
-    const step = Number.isFinite(args.step) ? args.step : 1;
-    normalized.args = { step };
-    return normalized;
-  }
-  if (canonical === "surface.call.counter.reset") {
-    normalized.args = {};
-    return normalized;
-  }
-  normalized.args = {
-    surface_id: typeof args.surface_id === "string" && args.surface_id.trim()
+  if (canonical === "surface.get_state") {
+    const surfaceID = typeof args.surface_id === "string" && args.surface_id.trim()
       ? args.surface_id.trim()
-      : (typeof args.target === "string" && args.target.trim() ? args.target.trim() : "counter"),
-  };
-  return normalized;
+      : (typeof args.target === "string" && args.target.trim() ? args.target.trim() : "");
+    normalized.args = surfaceID ? { surface_id: surfaceID } : {};
+    return normalized;
+  }
+  if (canonical.startsWith("surface.call.")) {
+    const parts = canonical.split(".");
+    if (parts.length < 4 || !parts[2] || !parts[3]) return null;
+    normalized.args = args;
+    return normalized;
+  }
+  return null;
 }
 
-function inferActionSurfaceID(actionName, args, fallback = "counter") {
+function inferActionSurfaceID(actionName, args, fallback = "") {
   const action = typeof actionName === "string" ? actionName : "";
   const payload = args && typeof args === "object" ? args : {};
   if (typeof payload.surface_id === "string" && payload.surface_id.trim()) {
@@ -188,6 +175,12 @@ function inferActionSurfaceID(actionName, args, fallback = "counter") {
   }
   if (action === "get_surfaces") {
     return "surface_registry";
+  }
+  if (action.startsWith("surface.call.")) {
+    const parts = action.split(".");
+    if (parts.length >= 4 && parts[2]) {
+      return parts[2];
+    }
   }
   return fallback;
 }
@@ -461,9 +454,9 @@ export function createChatActionEngine(options) {
     if ((evt.type === "state_change" || evt.type === "surface_open") && evt.payload && typeof evt.payload === "object") {
       reportStateChange({
         turnId,
-        surface_id: evt.surface_id || "counter",
-        surface_type: typeof evt.payload.surface_type === "string" ? evt.payload.surface_type : "app",
-        surface_version: typeof evt.payload.surface_version === "string" ? evt.payload.surface_version : "1",
+        surface_id: typeof evt.surface_id === "string" ? evt.surface_id : "",
+        surface_type: typeof evt.payload.surface_type === "string" ? evt.payload.surface_type : "",
+        surface_version: typeof evt.payload.surface_version === "string" ? evt.payload.surface_version : "",
         event_type: evt.payload.event_type || (evt.type === "surface_open" ? "surface_open" : "state_change"),
         business_state: evt.payload.business_state && typeof evt.payload.business_state === "object" ? evt.payload.business_state : {},
         visible_text: typeof evt.payload.visible_text === "string" ? evt.payload.visible_text : "",

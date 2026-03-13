@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kagent - 账户</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #1a1d27;
+      --panel2: #22252f;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --line: #2d3244;
+      --accent: #6366f1;
+      --accent2: #818cf8;
+      --err: #ef4444;
+      --ok: #22c55e;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auth-card {
+      width: min(92vw, 400px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 36px 28px 28px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    }
+
+    .auth-card h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent2);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .auth-card .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .form-group input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent2);
+    }
+
+    .error-text {
+      color: var(--err);
+      font-size: 12px;
+      min-height: 18px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: background 0.2s;
+    }
+
+    .submit-btn:hover {
+      background: var(--accent2);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .switch-mode {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .switch-mode a {
+      color: var(--accent2);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .switch-mode a:hover {
+      text-decoration: underline;
+    }
+
+    .confirm-group {
+      display: none;
+    }
+
+    .confirm-group.visible {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="auth-card">
+    <h1 id="title">登录</h1>
+    <div class="subtitle">kagent 实时对话系统</div>
+
+    <form id="authForm" autocomplete="off">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input id="username" type="text" placeholder="请输入用户名" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input id="password" type="password" placeholder="请输入密码（至少6位）" autocomplete="current-password" required />
+      </div>
+      <div id="confirmGroup" class="form-group confirm-group">
+        <label for="confirmPassword">确认密码</label>
+        <input id="confirmPassword" type="password" placeholder="请再次输入密码" autocomplete="new-password" />
+      </div>
+      <div id="errorText" class="error-text"></div>
+      <button id="submitBtn" type="submit" class="submit-btn">登录</button>
+    </form>
+
+    <div class="switch-mode">
+      <span id="switchHint">还没有账号？</span>
+      <a id="switchLink" href="javascript:void(0)">注册</a>
+    </div>
+  </div>
+
+  <script>
+    let isRegister = false;
+
+    const titleEl = document.getElementById('title');
+    const confirmGroup = document.getElementById('confirmGroup');
+    const confirmInput = document.getElementById('confirmPassword');
+    const submitBtn = document.getElementById('submitBtn');
+    const switchHint = document.getElementById('switchHint');
+    const switchLink = document.getElementById('switchLink');
+    const errorText = document.getElementById('errorText');
+    const authForm = document.getElementById('authForm');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+
+    // Get redirect target from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect') || '/page/chat/';
+
+    // Check if already logged in
+    (async function checkAuth() {
+      try {
+        const resp = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.ok) {
+            window.location.href = redirectUrl;
+            return;
+          }
+        }
+      } catch (_) { }
+    })();
+
+    function setMode(register) {
+      isRegister = register;
+      titleEl.textContent = register ? '注册' : '登录';
+      submitBtn.textContent = register ? '注册' : '登录';
+      switchHint.textContent = register ? '已有账号？' : '还没有账号？';
+      switchLink.textContent = register ? '登录' : '注册';
+      confirmGroup.classList.toggle('visible', register);
+      if (!register) confirmInput.value = '';
+      errorText.textContent = '';
+    }
+
+    switchLink.addEventListener('click', () => {
+      setMode(!isRegister);
+    });
+
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorText.textContent = '';
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!username) {
+        errorText.textContent = '请输入用户名';
+        return;
+      }
+      if (password.length < 6) {
+        errorText.textContent = '密码至少需要6位';
+        return;
+      }
+
+      if (isRegister) {
+        if (password !== confirmInput.value) {
+          errorText.textContent = '两次输入的密码不一致';
+          return;
+        }
+      }
+
+      submitBtn.disabled = true;
+      try {
+        const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await resp.json();
+        if (data && data.ok) {
+          window.location.href = redirectUrl;
+        } else {
+          errorText.textContent = (data && data.error) || '操作失败，请重试';
+        }
+      } catch (err) {
+        errorText.textContent = '网络错误，请重试';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+
+</html>

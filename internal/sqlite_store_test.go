@@ -202,3 +202,52 @@ func TestSQLiteStoreResetsLegacySchema(t *testing.T) {
 		t.Fatalf("expected store id after reset append, got %#v", msg)
 	}
 }
+
+func TestUserDataStrictIsolation(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "iso.db")
+
+	// User A opens store and sends a message
+	storeA, err := NewSQLiteStore(dbPath, "user-a", "prj-a", "thd-a")
+	if err != nil {
+		t.Fatalf("StoreA init failed: %v", err)
+	}
+	_, err = storeA.AppendMessage(ChatMessage{
+		TurnID: 1, Role: RoleUser, Category: CategoryChat, MessageType: TypeUserMessage,
+		Content: "Secret Message A", CreatedAtMS: 1000,
+	})
+	if err != nil {
+		t.Fatalf("StoreA append failed: %v", err)
+	}
+	storeA.Close()
+
+	// User B opens the SAME database
+	storeB, err := NewSQLiteStore(dbPath, "user-b", "prj-b", "thd-b")
+	if err != nil {
+		t.Fatalf("StoreB init failed: %v", err)
+	}
+	defer storeB.Close()
+
+	if storeB.RuntimeUserID() != "user-b" {
+		t.Fatalf("StoreB identity hijacked: expected user-b, got %s", storeB.RuntimeUserID())
+	}
+
+	// User B should NOT see User A's history
+	history, err := storeB.LoadSessionWindow(10, 50)
+	if err != nil {
+		t.Fatalf("StoreB load history failed: %v", err)
+	}
+	for _, m := range history {
+		if m.Content == "Secret Message A" {
+			t.Fatal("Data Leakage! User B saw User A's secret message")
+		}
+	}
+
+	if len(history) != 0 {
+		// Note: Depending on implementation, history might contain system messages,
+		// but shouldn't contain ChatMessage from other users.
+		// In our current implementation, it should be empty for a new user/thread.
+		t.Fatalf("Expected empty history for new user-b, got %d messages", len(history))
+	}
+}
+

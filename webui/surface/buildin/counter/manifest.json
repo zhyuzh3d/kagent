@@ -1,0 +1,13 @@
+{
+  "id": "f0f6f645-7d4a-4f13-b3c0-5f0c6e8b4421",
+  "name": "Counter",
+  "version": "1.0",
+  "min_supported_version": "1.0",
+  "entry": "index.html",
+  "desc": "可被主页面打开并通过 action 调用的计数器 surface",
+  "tags": ["buildin", "demo", "counter"],
+  "permissions": {
+    "sandbox": ["allow-scripts", "allow-downloads"],
+    "allow": []
+  }
+}

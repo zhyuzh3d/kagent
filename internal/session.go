@@ -1004,11 +1004,6 @@ func (s *Session) handleStateChange(ctrl ControlMessage) {
 	if state.UpdatedAtMS <= 0 {
 		state.UpdatedAtMS = nowMS()
 	}
-	if s.sqliteStore != nil {
-		if err := s.sqliteStore.UpsertSurfaceState(state); err != nil {
-			Errorf("surface state upsert failed: %v", err)
-		}
-	}
 	statePayload := map[string]any{
 		"surface_id":      state.SurfaceID,
 		"surface_type":    state.SurfaceType,
@@ -1156,23 +1151,6 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 		Args:        cloneAnyMap(ctrl.ActionArgs),
 		RequestedAt: now,
 	}
-	if s.sqliteStore != nil {
-		if surfaceID != "" && len(businessState) > 0 {
-			if err := s.sqliteStore.UpsertSurfaceState(SurfaceState{
-				SurfaceID:      surfaceID,
-				SurfaceType:    report.SurfaceType,
-				SurfaceVersion: report.SurfaceVersion,
-				EventType:      "action_result",
-				BusinessState:  businessState,
-				VisibleText:    strings.TrimSpace(ctrl.VisibleText),
-				Status:         "ready",
-				StateVersion:   ctrl.StateVersion,
-				UpdatedAtMS:    now,
-			}); err != nil {
-				Errorf("[Turn:%d] surface state upsert from action failed: %v", turnID, err)
-			}
-		}
-	}
 	callPayload := map[string]any{
 		"action_id":       actionID,
 		"action_name":     actionName,
@@ -1315,18 +1293,19 @@ func summarizeActionResultForReport(contentText string, status string, result ma
 }
 
 func inferSurfaceIDFromAction(actionName string) string {
-	name := strings.ToLower(strings.TrimSpace(actionName))
-	if strings.Contains(name, "counter") {
-		return "counter"
-	}
-	if name == "surface.get_state" {
-		return "counter"
-	}
-	if name == "open_surface" || name == "close_surface" {
-		return "counter"
-	}
-	if name == "get_surfaces" {
+	name := strings.TrimSpace(actionName)
+	lower := strings.ToLower(name)
+	if lower == "get_surfaces" {
 		return "surface_registry"
+	}
+	if strings.HasPrefix(lower, "surface.call.") {
+		parts := strings.Split(name, ".")
+		if len(parts) >= 4 {
+			surfaceID := strings.TrimSpace(parts[2])
+			if surfaceID != "" {
+				return surfaceID
+			}
+		}
 	}
 	return ""
 }
