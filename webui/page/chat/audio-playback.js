@@ -3,6 +3,10 @@ export function createAudioPlayback(options) {
 
   function ensurePlaybackContext() {
     if (!app.audioCtx) app.audioCtx = new AudioContext();
+    if (!app.mainGainNode) {
+      app.mainGainNode = app.audioCtx.createGain();
+      app.mainGainNode.connect(app.audioCtx.destination);
+    }
     return app.audioCtx;
   }
 
@@ -62,7 +66,7 @@ export function createAudioPlayback(options) {
       }
       const src = ctx.createBufferSource();
       src.buffer = buffer;
-      src.connect(ctx.destination);
+      src.connect(app.mainGainNode);
       app.playingBufferSource = src;
       src.onended = () => {
         if (epoch !== app.playbackEpoch) return;
@@ -152,6 +156,24 @@ export function createAudioPlayback(options) {
       }
       app.playingBufferSource = null;
     }
+    // Deep reset volume on stop
+    setVolume(1.0, 0);
+  }
+
+  function setVolume(value, rampMs = 100) {
+    const ctx = ensurePlaybackContext();
+    if (!app.mainGainNode) return;
+    app.mainGainNode.gain.cancelScheduledValues(ctx.currentTime);
+    if (rampMs <= 0) {
+      app.mainGainNode.gain.setValueAtTime(value, ctx.currentTime);
+    } else {
+      const timeConstant = rampMs / 1000;
+      app.mainGainNode.gain.setTargetAtTime(value, ctx.currentTime, Math.max(0.01, timeConstant));
+    }
+  }
+
+  function isSpeaking() {
+    return !!(app.isPlaying || app.playbackQueue.length > 0);
   }
 
   return {
@@ -160,5 +182,7 @@ export function createAudioPlayback(options) {
     queueChunkMeta,
     handleAudioBinary,
     stopPlayback,
+    setVolume,
+    isSpeaking,
   };
 }

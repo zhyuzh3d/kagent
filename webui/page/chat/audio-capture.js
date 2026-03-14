@@ -63,37 +63,47 @@ export function createAudioCapture(options) {
 
     if (aiAudible) {
       if (rms > app.bargeInThreshold) {
+        if (app.sustainedHighRmsCount === 0) {
+          audioPlayback.setVolume(0.1, 50); // Ducking
+        }
         app.sustainedHighRmsCount++;
         pushPreRollFrame(int16);
       } else if (app.sustainedHighRmsCount > 0) {
         app.sustainedHighRmsCount = Math.max(0, app.sustainedHighRmsCount - 1);
+        if (app.sustainedHighRmsCount === 0) {
+          audioPlayback.setVolume(1.0, 300); // Recovery
+        }
       }
 
-      const canBargeIn = app.sustainedHighRmsCount >= app.bargeInMinFrames;
-      if (canBargeIn) {
+      const canStartASR = app.sustainedHighRmsCount >= app.bargeInMinFrames;
+      if (canStartASR && !app.utteranceActive) {
         const now = Date.now();
         if (now - app.lastInterruptAt > app.bargeInCooldownMs) {
           app.lastInterruptAt = now;
-          if (app.utteranceActive && typeof onBargeIn === "function") {
-            onBargeIn(app.currentTurn);
-          }
           app.currentTurn++;
-          app.activeTurnId = app.currentTurn;
-          audioPlayback.stopPlayback();
           app.backendState = "Listening";
           setStatus("Listening");
           app.utteranceActive = true;
           app.audioSending = true;
           app.silentFramesSinceVoice = 0;
-          workerSend({ type: "send_control", control: "interrupt", reason: "barge_in", turn_id: app.currentTurn });
+          workerSend({ type: "send_control", control: "start_listen", turn_id: app.currentTurn });
           workerSend({ type: "voice_detected" });
           flushPreRollIntoQueue();
-          queuePCMFrame(int16);
-          app.sustainedHighRmsCount = 0;
-          appendDebug("INFO", "FrontendVAD", app.currentTurn, null, "Barge-in committed (interrupt)");
+          appendDebug("INFO", "FrontendVAD", app.currentTurn, null, "Ducking started ASR (awaiting commit)");
         }
       }
+
+      if (app.audioSending || app.utteranceActive) {
+        queuePCMFrame(int16);
+      }
       return;
+    } else {
+      // Safety: If AI is NOT speaking, we MUST ensure volume is 100%
+      // and we reset the sustained high RMS counter.
+      if (app.sustainedHighRmsCount > 0) {
+        app.sustainedHighRmsCount = 0;
+        audioPlayback.setVolume(1.0, 100);
+      }
     }
 
     const voiceDetected = rms > app.voiceThreshold;
@@ -201,6 +211,20 @@ export function createAudioCapture(options) {
     app.replyOnsetGuardTurn = 0;
     app.replyOnsetGuardLoggedTurn = 0;
   }
+
+  // Safety watchdog: Ensure volume is restored if something hangs
+  setInterval(() => {
+    const aiAudible = app.isPlaying || app.playbackQueue.length > 0;
+    if (!aiAudible && app.sustainedHighRmsCount > 0) {
+      app.sustainedHighRmsCount = 0;
+      audioPlayback.setVolume(1.0, 200);
+      appendDebug("DEBUG", "AudioCapture", null, null, "Watchdog: Volume restored (AI not speaking)");
+    }
+    // Periodic check to ensure volume is 1.0 if not ducking
+    if (!aiAudible && app.mainGainNode && app.mainGainNode.gain.value < 0.95 && app.sustainedHighRmsCount === 0) {
+       audioPlayback.setVolume(1.0, 500);
+    }
+  }, 1000);
 
   return {
     startMic,

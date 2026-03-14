@@ -44,8 +44,10 @@ type Session struct {
 	turnID     atomic.Uint64
 	turnCancel context.CancelFunc
 
-	lastASRTextMu sync.Mutex
-	lastASRText   string
+	lastASRTextMu    sync.Mutex
+	committedTurnID  uint64
+	committedASRText string
+	lastASRText      string
 
 	// endpointConsumed prevents ASREventFinal from re-saving text
 	// after ASREventEndpoint already consumed it for a turn.
@@ -263,11 +265,6 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		}
 
 		s.interruptTurnWithReason(InterruptVAD)
-		s.cancelASR()
-
-		// Optional: if client sends start_listen explicitly, we don't need to start here.
-		// But for now we start the next ASR turn immediately upon interruption.
-		s.startASRTurn(tid)
 
 		s.setState(StateInterrupted, "interrupted")
 		s.setState(StateListening, "ready for next utterance")
@@ -408,30 +405,35 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 			// Increment turn ID so this new utterance gets a fresh turn.
 			s.turnID.Add(1)
 			s.endpointConsumed = false
+			s.committedASRText = ""
 		}
+		fullText := strings.TrimSpace(s.committedASRText + " " + evt.Text)
+		s.lastASRText = fullText
 		s.lastASRTextMu.Unlock()
 
-		s.maybeInterruptForRecognizedSpeech(explicitTurnID, evt.Text)
+		s.maybeInterruptForRecognizedSpeech(explicitTurnID, fullText)
 
 		s.setState(StateRecognizing, "receiving speech")
-		s.saveLastASRText(evt.Text)
-		_ = s.sendEvent(NewTextEvent("asr_partial", explicitTurnID, evt.Text))
+		_ = s.sendEvent(NewTextEvent("asr_partial", explicitTurnID, fullText))
 
 	case ASREventFinal:
-		s.maybeInterruptForRecognizedSpeech(explicitTurnID, evt.Text)
-		s.setState(StateRecognizing, "speech finalized")
 		s.lastASRTextMu.Lock()
 		if !s.endpointConsumed {
-			s.lastASRText = strings.TrimSpace(evt.Text)
+			s.committedASRText = strings.TrimSpace(s.committedASRText + " " + evt.Text)
+			s.lastASRText = s.committedASRText
 		}
+		fullText := s.lastASRText
 		s.lastASRTextMu.Unlock()
 
+		s.maybeInterruptForRecognizedSpeech(explicitTurnID, fullText)
+		s.setState(StateRecognizing, "speech finalized")
+
 		if text := strings.TrimSpace(evt.Text); text != "" {
-			Infof("[Turn:%d] %q -> ASR final", explicitTurnID, Snippet(text))
+			Infof("[Turn:%d] %q -> ASR final (segment), full=%q", explicitTurnID, Snippet(text), Snippet(fullText))
 		}
 
 		// Always send asr_final with the explicitly bound turn ID!
-		_ = s.sendEvent(NewTextEvent("asr_final", explicitTurnID, evt.Text))
+		_ = s.sendEvent(NewTextEvent("asr_final", explicitTurnID, fullText))
 		select {
 		case s.asrFinalCh <- struct{}{}:
 		default:
@@ -440,7 +442,6 @@ func (s *Session) handleASREvent(evt ASREvent, explicitTurnID uint64) {
 	case ASREventEndpoint:
 		s.lastASRTextMu.Lock()
 		text := strings.TrimSpace(s.lastASRText)
-		s.lastASRText = ""
 		s.endpointConsumed = true
 		s.lastASRTextMu.Unlock()
 
@@ -467,7 +468,9 @@ func (s *Session) interruptTurnLocked() {
 }
 
 func shouldInterruptOnStartListen(state string) bool {
-	return state == StateSpeaking
+	// In the Client-Driven architecture, starting to listen (e.g., for barge-in ASR)
+	// should not proactively kill the AI response. We only kill it on explicit 'interrupt'.
+	return false
 }
 
 func shouldInterruptForRecognizedSpeech(state string, activeGeneratedTurnID uint64, speechTurnID uint64, text string) bool {
@@ -481,17 +484,18 @@ func shouldInterruptForRecognizedSpeech(state string, activeGeneratedTurnID uint
 }
 
 func (s *Session) maybeInterruptForRecognizedSpeech(turnID uint64, text string) {
+	// Backend-driven proactive interruption is disabled in favor of Client-Driven architecture.
+	// The frontend now decides when to interrupt based on ASR text and local context.
+	// We only log the event here for debugging purposes.
 	activeState := s.getState()
 	s.turnMu.Lock()
 	activeGeneratedTurnID := s.lastStartedTurnID
 	hasActiveTurn := s.turnCancel != nil
 	s.turnMu.Unlock()
 
-	if !hasActiveTurn || !shouldInterruptForRecognizedSpeech(activeState, activeGeneratedTurnID, turnID, text) {
-		return
+	if hasActiveTurn && shouldInterruptForRecognizedSpeech(activeState, activeGeneratedTurnID, turnID, text) {
+		Debugf("[Turn:%d] %q -> Recognized speech detected; awaiting frontend interrupt command", turnID, Snippet(text))
 	}
-	Infof("[Turn:%d] %q -> Interrupt active response after confirmed user speech", turnID, Snippet(text))
-	s.interruptTurnWithReason(InterruptVAD)
 }
 
 func (s *Session) adoptTurnID(proposed uint64) uint64 {
@@ -517,10 +521,20 @@ func (s *Session) startASRTurn(turnID uint64) {
 	s.cancelASR() // Drop old connection if it exists
 
 	s.lastASRTextMu.Lock()
-	s.lastASRText = ""
-	s.endpointConsumed = false
+	if s.committedTurnID == turnID {
+		// Crucial: Promoted last known partial text to committed if we are restarting
+		// ASR for the SAME turn (e.g. on barge-in interrupt).
+		if s.lastASRText != "" {
+			s.committedASRText = s.lastASRText
+		}
+	} else {
+		// New turn (manually triggered or auto-incremented)
+		s.committedTurnID = turnID
+		s.committedASRText = ""
+		s.lastASRText = ""
+		s.endpointConsumed = false
+	}
 	s.lastASRTextMu.Unlock()
-	s.flushAudioQueue()
 	select {
 	case <-s.asrFinalCh:
 	default:
@@ -799,17 +813,14 @@ func significantEnergy(frame []byte) bool {
 	return avg > 420
 }
 
-func (s *Session) saveLastASRText(text string) {
-	s.lastASRTextMu.Lock()
-	s.lastASRText = strings.TrimSpace(text)
-	s.lastASRTextMu.Unlock()
-}
 
 func (s *Session) consumeLastASRText() string {
 	s.lastASRTextMu.Lock()
 	defer s.lastASRTextMu.Unlock()
 	out := strings.TrimSpace(s.lastASRText)
 	s.lastASRText = ""
+	s.committedASRText = ""
+	s.committedTurnID = 0
 	return out
 }
 

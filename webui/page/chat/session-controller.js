@@ -75,9 +75,11 @@ export function createSessionController(options) {
       switch (msg.type) {
         case "ws_open":
           const limit = (app.publicConfig && app.publicConfig.chat && app.publicConfig.chat.session && app.publicConfig.chat.session.maxHistoryMessages) || app.initialHistorySize || 20;
-          appendDebug("INFO", "Network", null, null, `ws connected (via worker), fetching history sliding window limit=${limit}`);
-          if (limit > 0) {
+          if (limit > 0 && (!app.messages || app.messages.length === 0)) {
+            appendDebug("INFO", "Network", null, null, `ws connected (via worker), fetching history sliding window limit=${limit}`);
             workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, before_id: 0, show_more: !!app.showMore } });
+          } else {
+            appendDebug("INFO", "Network", null, null, `ws connected (via worker), skip history fetch (messages.len=${app.messages ? app.messages.length : 0})`);
           }
           break;
         case "ws_close":
@@ -111,8 +113,12 @@ export function createSessionController(options) {
     });
   }
 
-  async function connectWorkerWS() {
-    const wsUrl = `ws://${location.host}/ws`;
+  async function connectWorkerWS(projectId, threadId) {
+    let wsUrl = `ws://${location.host}/ws`;
+    const params = [];
+    if (projectId) params.push(`project_id=${encodeURIComponent(projectId)}`);
+    if (threadId) params.push(`thread_id=${encodeURIComponent(threadId)}`);
+    if (params.length > 0) wsUrl += "?" + params.join("&");
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
@@ -177,24 +183,35 @@ export function createSessionController(options) {
     app.currentTurn = 0;
   }
 
-  async function initWorkerConnection() {
+  async function initWorkerConnection(projectId, threadId) {
     if (ioWorker) return;
     bindPageCloseSignal();
     setupWorker();
     try {
-      await connectWorkerWS();
+      await connectWorkerWS(projectId, threadId);
     } catch (err) {
       appendDebug("ERROR", "System", null, null, `ws initial connect failed: ${err.message}`);
     }
   }
 
-  async function startAll() {
+  async function reconnectWith(projectId, threadId) {
+    appendDebug("INFO", "System", null, null, `reconnecting with proj=${projectId} thd=${threadId}`);
+    teardownWorker();
+    setupWorker();
+    try {
+      await connectWorkerWS(projectId, threadId);
+    } catch (err) {
+      appendDebug("ERROR", "System", null, null, `reconnect failed: ${err.message}`);
+    }
+  }
+
+  async function startAll(projectId, threadId) {
     if (app.running) return;
     try {
       if (!ioWorker) {
         setupWorker();
       }
-      await connectWorkerWS();
+      await connectWorkerWS(projectId, threadId);
       if (!audioCapture) {
         throw new Error("audio capture not bound");
       }
@@ -234,5 +251,6 @@ export function createSessionController(options) {
     workerSend,
     finalizeUtterance,
     initWorkerConnection,
+    reconnectWith,
   };
 }

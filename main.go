@@ -65,6 +65,8 @@ func main() {
 		*threadID = strings.TrimSpace(*chatID)
 	}
 
+	app.InitLogger(app.LevelDebug)
+
 	appRoot, rootErr := app.DetectAppRoot()
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
@@ -97,7 +99,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer sqliteStore.Close()
-	runtimeUserID := sqliteStore.RuntimeUserID()
+	// Initial IDs for backend log / setup (optional)
+	_ = sqliteStore.RuntimeUserID()
 
 	if err := app.SyncSurfaceCatalog(sqliteStore, surfaceRoot); err != nil {
 		app.Warnf("surface catalog scan skipped: %v", err)
@@ -125,6 +128,32 @@ func main() {
 
 	mux := http.NewServeMux()
 	var server *http.Server
+
+	// Request logging middleware
+	loggingMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		app.Infof("→ %s %s", r.Method, r.URL.Path)
+		mux.ServeHTTP(w, r)
+		app.Infof("← %s %s (%v)", r.Method, r.URL.Path, time.Since(start))
+	})
+
+	mux.HandleFunc("/api/debug/log", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var body struct {
+			Level   string `json:"level"`
+			Module  string `json:"module"`
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+		app.Infof("[FRONTEND] [%s] [%s] %s", body.Level, body.Module, body.Content)
+		writeJSON(w, map[string]any{"ok": true})
+	})
 
 	mux.HandleFunc("/version", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, ver)
@@ -275,25 +304,171 @@ func main() {
 		}
 		writeJSON(w, map[string]any{"ok": true, "user_id": claims.UserID, "username": claims.Username})
 	})
+	mux.HandleFunc("/api/projects", func(w http.ResponseWriter, r *http.Request) {
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			list, err := sqliteStore.ListProjectsForUser(claims.UserID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, list)
+		case http.MethodPost:
+			var body struct {
+				Title string `json:"title"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, "invalid body", http.StatusBadRequest)
+				return
+			}
+			app.Infof("API CreateProject: user=%s title=%s", claims.UserID, body.Title)
+			id, err := sqliteStore.CreateProject(claims.UserID, body.Title)
+			if err != nil {
+				app.Errorf("api create project failed for %s: %v", claims.UserID, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "project_id": id})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/projects/", func(w http.ResponseWriter, r *http.Request) {
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		path := strings.TrimPrefix(r.URL.Path, "/api/projects/")
+		parts := strings.Split(path, "/")
+		projectID := parts[0]
+
+		if len(parts) == 2 && parts[1] == "threads" {
+			// /api/projects/:id/threads
+			switch r.Method {
+			case http.MethodGet:
+				list, err := sqliteStore.ListThreadsForProject(claims.UserID, projectID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				writeJSON(w, list)
+			case http.MethodPost:
+				var body struct {
+					Title string `json:"title"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					http.Error(w, "invalid body", http.StatusBadRequest)
+					return
+				}
+				id, err := sqliteStore.CreateThread(claims.UserID, projectID, body.Title)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				writeJSON(w, map[string]any{"ok": true, "thread_id": id})
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+			return
+		}
+
+		// /api/projects/:id
+		switch r.Method {
+		case http.MethodPatch:
+			var body struct {
+				Title      string `json:"title"`
+				OrderIndex int    `json:"order_index"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, "invalid body", http.StatusBadRequest)
+				return
+			}
+			if err := sqliteStore.UpdateProject(projectID, body.Title, body.OrderIndex); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true})
+		case http.MethodDelete:
+			if err := sqliteStore.DeleteProject(projectID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/threads/", func(w http.ResponseWriter, r *http.Request) {
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		threadID := strings.TrimPrefix(r.URL.Path, "/api/threads/")
+		switch r.Method {
+		case http.MethodPatch:
+			var body struct {
+				Title      string `json:"title"`
+				OrderIndex int    `json:"order_index"`
+				ProjectID  string `json:"project_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, "invalid body", http.StatusBadRequest)
+				return
+			}
+			if err := sqliteStore.UpdateThread(threadID, body.Title, body.OrderIndex, body.ProjectID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true})
+		case http.MethodDelete:
+			if err := sqliteStore.DeleteThread(threadID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/api/surfaces", func(w http.ResponseWriter, r *http.Request) {
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		surfaces, err := sqliteStore.ListSurfacesForUser(runtimeUserID)
+		surfaces, err := sqliteStore.ListSurfacesForUser(claims.UserID)
 		if err != nil {
 			http.Error(w, "query surfaces failed", http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{
-			"user_id": runtimeUserID,
+			"user_id": claims.UserID,
 			"total":   len(surfaces),
 			"items":   surfaces,
 		})
 	})
 
 	mux.HandleFunc("/api/surfaces/", func(w http.ResponseWriter, r *http.Request) {
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		pathPart := strings.TrimPrefix(r.URL.Path, "/api/surfaces/")
 		pathPart = strings.Trim(pathPart, "/")
 		parts := strings.Split(pathPart, "/")
@@ -320,11 +495,11 @@ func main() {
 				http.Error(w, "invalid enable payload", http.StatusBadRequest)
 				return
 			}
-			if err := sqliteStore.SetSurfaceEnabled(runtimeUserID, surfaceID, *req.Enabled); err != nil {
+			if err := sqliteStore.SetSurfaceEnabled(claims.UserID, surfaceID, *req.Enabled); err != nil {
 				http.Error(w, "set surface enabled failed", http.StatusInternalServerError)
 				return
 			}
-			entry, ok, err := sqliteStore.GetSurfaceForUser(runtimeUserID, surfaceID)
+			entry, ok, err := sqliteStore.GetSurfaceForUser(claims.UserID, surfaceID)
 			if err != nil {
 				http.Error(w, "query surface failed", http.StatusInternalServerError)
 				return
@@ -342,7 +517,7 @@ func main() {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			entry, ok, err := sqliteStore.GetSurfaceForUser(runtimeUserID, surfaceID)
+			entry, ok, err := sqliteStore.GetSurfaceForUser(claims.UserID, surfaceID)
 			if err != nil {
 				http.Error(w, "query surface failed", http.StatusInternalServerError)
 				return
@@ -355,7 +530,7 @@ func main() {
 				http.Error(w, "surface is not available", http.StatusForbidden)
 				return
 			}
-			token, expMS, err := surfaceFS.IssueSurfaceSessionToken(runtimeUserID, surfaceID, 30*time.Minute)
+			token, expMS, err := surfaceFS.IssueSurfaceSessionToken(claims.UserID, surfaceID, 30*time.Minute)
 			if err != nil {
 				http.Error(w, "issue session token failed", http.StatusInternalServerError)
 				return
@@ -591,8 +766,17 @@ func main() {
 			app.Errorf("ws upgrade failed: %v", err)
 			return
 		}
-		conn.SetReadLimit(16 * 1024 * 1024)
-		userStore, err := app.NewSQLiteStore(sqlitePathResolved, claims.UserID, *projectID, *threadID)
+		q := r.URL.Query()
+		pID := q.Get("project_id")
+		if pID == "" {
+			pID = *projectID
+		}
+		tID := q.Get("thread_id")
+		if tID == "" {
+			tID = *threadID
+		}
+
+		userStore, err := app.NewSQLiteStore(sqlitePathResolved, claims.UserID, pID, tID)
 		if err != nil {
 			app.Errorf("ws user store failed for %s: %v", claims.UserID, err)
 			conn.Close()
@@ -620,7 +804,7 @@ func main() {
 
 	server = &http.Server{
 		Addr:              *addr,
-		Handler:           mux,
+		Handler:           loggingMux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	app.Infof("kagent server root=%s listening=http://%s", appRoot, *addr)

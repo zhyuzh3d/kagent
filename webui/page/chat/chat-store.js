@@ -348,9 +348,14 @@ export function createChatStore(options) {
 
     const fragment = document.createDocumentFragment();
     const batch = [];
+    const existingMsgIds = new Set(app.messages.map((item) => item.msgId).filter((id) => !!id));
+
     for (const m of historyMessages) {
-      const role = (m.role === "assistant") ? "assistant" : (m.role || "system");
-      const say = (typeof m.say === "string" && m.say) ? m.say : (typeof m.content === "string" ? m.content : "");
+      if (m.message_id && existingMsgIds.has(m.message_id)) {
+        continue;
+      }
+      const role = m.role === "assistant" ? "assistant" : m.role || "system";
+      const say = typeof m.say === "string" && m.say ? m.say : typeof m.content === "string" ? m.content : "";
       const record = createMessageRecord({
         role,
         say,
@@ -370,8 +375,10 @@ export function createChatStore(options) {
       batch.push(record);
     }
 
-    chatArea.prepend(fragment);
-    app.messages = batch.concat(app.messages);
+    if (batch.length > 0) {
+      chatArea.prepend(fragment);
+      app.messages = batch.concat(app.messages);
+    }
 
     chatArea.scrollTop = scrollTopBefore + (chatArea.scrollHeight - scrollHeightBefore);
 

@@ -8,6 +8,7 @@ export function createEventRouter(options) {
     appendDebug,
     onLLMDelta,
     onLLMFinal,
+    onInterrupt,
   } = options;
 
   function syncCurrentTurn(msg) {
@@ -106,6 +107,17 @@ export function createEventRouter(options) {
 
     if (type === "asr_partial") {
       chatStore.updatePartialASR(msg.text || "", msg.turn_id);
+      const text = (msg.text || "").trim();
+      // Improved check: If audio is physically playing, or we are specifically in Thinking state,
+      // allow interruption regardless of if VAD shifted the status to "Listening" already.
+      const isActuallyBusy = audioPlayback.isSpeaking() || (app.backendState === "Thinking" || app.backendState === "Speaking");
+      if (isActuallyBusy && text.length >= 2) {
+        appendDebug("INFO", "SessionControl", msg.turn_id, text, "Commit-stop triggered by ASR partial");
+        audioPlayback.stopPlayback();
+        if (typeof onInterrupt === "function") {
+          onInterrupt(msg.turn_id);
+        }
+      }
       return;
     }
     if (type === "asr_final") {

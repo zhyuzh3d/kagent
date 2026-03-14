@@ -1,3 +1,59 @@
+## [2026-03-14 16:15 CST] 实现对话项目（Project）与线程（Thread）管理系统
+- 时间范围：2026-03-14 15:20 -> 2026-03-14 16:15
+- 主要变更：
+  - **后端存储升级**：`internal/sqlite_store.go` 中 `projects` 和 `threads` 表新增 `order_index` 字段并支持自动迁移；实现完整的 CRUD 接口。
+  - **WebSocket 动态上下文**：修改 `main.go`，WebSocket 握手支持通过 query params (`project_id`, `thread_id`) 建立指定上下文的连接。
+  - **侧边栏 (Sidebar) 落地**：`webui/` 新增侧边栏 UI，支持项目/会话的展示、切换、增删改。
+  - **交互增强**：利用 HTML5 Drag and Drop API 实现项目/会话的手放排序及跨项目移动会话；支持自动创建默认项目/会话。
+  - **架构一致性**：`session-controller.js` 适配重连逻辑；`chat-store.js` 补齐切换会话时的清理动作。
+- 关键文件/模块：
+  - `internal/sqlite_store.go`
+  - `main.go`
+  - `webui/page/chat/index.html`
+  - `webui/page/chat/sidebar-controller.js`
+  - `webui/page/chat/session-controller.js`
+- 开发结果：
+  - 成功：实现了完整的项目与会话管理闭环，支持动态切换对话上下文，UI 交互流畅。
+- 经验与结论：
+  - 有效实践：将 WebSocket 的路由参数化（URL Query Params）是解决单连接多上下文切换的轻量级方案。
+  - 设计权衡：在侧边栏渲染时一次性拉取所有项目及首层会话，平衡了首屏加载速度与交互响应度。
+- 下一步：
+  - 适配移动端侧边栏的滑动手势。
+
+## [2026-03-14 15:20 CST] 修复点击“开始对话”导致历史消息重复加载的 Bug
+- 时间范围：2026-03-14 15:05 -> 2026-03-14 15:20
+- 主要变更：
+  - **前端启动逻辑优化**：修改 `session-controller.js`，在 `ws_open` 事件处理器中增加 `app.messages.length === 0` 判定，避免因 `startAll` 触发重复连接而导致的冗余历史拉取。
+  - **消息存储去重防御**：在 `chat-store.js` 的 `handleHistorySync` 中引入基于 `message_id` 的去重逻辑，确保即便后端返回重复历史，前端 UI 也不会出现重影。
+- 关键文件/模块：
+  - `webui/page/chat/session-controller.js`
+  - `webui/page/chat/chat-store.js`
+- 开发结果：
+  - 成功：解决了用户反馈的“每次点击开始对话历史消息重读一遍”的问题；增强了系统的健壮性。
+- 经验与结论：
+  - 有效实践：对于幂等性要求高的初始化操作（如拉取历史），除了在触发端做节流/状态检查，在消费端做 ID 维度的去重是极佳的防御性编程实践。
+- 下一步：
+  - 观察在极弱网环境下 WebSocket 频繁断连重读时的 UI 表现，确认是否仍有体验瑕疵。
+
+
+## [2026-03-14 15:05 CST] 重构数据库重置脚本支持分级清理
+- 时间范围：2026-03-14 14:55 -> 2026-03-14 15:05
+- 主要变更：
+  - 重构 `scripts/reset_db.sh`，引入参数化控制清理范围。
+  - 支持 `messages` (默认，仅清空消息表)、`log` (清空所有用户 ops 日志)、`data` (清空所有 Surface 数据)、`all` (清理以上全部)。
+  - 增加安全保护逻辑：强制排除 `.jwt_secret` 和 `user_custom_config.json`，不再执行暴力 `rm -rf data/`。
+  - 优化数据库清理方式：使用 `sqlite3 DELETE` 代替直接删除文件，避免丢失账号和项目元数据。
+- 关键文件/模块：
+  - `scripts/reset_db.sh`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：脚本重构成功并已同步文档。
+- 经验与结论：
+  - 通过分级清理，可以更好地平衡“重测对话逻辑”与“保留用户信息”的需求。
+- 下一步：
+  - 观察测试过程中日志量，如有必要增加按日期清理的功能。
+
+
 ## [2026-03-03 19:39 CST] 项目文档与安全基线初始化
 - 时间范围：N/A（初始化，无历史日志） -> 2026-03-03 19:39 CST
 - 主要变更：
@@ -368,3 +424,25 @@
   - 后续规避：后续继续迭代消息协议时，先保持 `message_id + ref_*` 的稳定约束，再做 UI 展示扩展。
 - 下一步：
   - 补一轮浏览器实机回归，重点覆盖 show more 切换、解析失败气泡、action 调度与 followup 去抖场景。
+
+## [2026-03-14 14:55 CST] Client-Driven 确权打断与智能回避机制落地
+- 时间范围：2026-03-14 14:00 CST -> 2026-03-14 14:55 CST
+- 主要变更：
+  - **Client-Driven 架构深化**：确立“前端决策、后端执行”的单一事实源原则，移除后端主动打断逻辑。
+  - **智能回避 (Ducking)**：前端 `audio-capture.js` 集成 VAD 能量检测，开口瞬间自动压低 AI 播放音量 (10%)。
+  - **确权打断 (Commit Stop)**：在 `event-router.js` 中实现 ASR 语义过滤，仅在识别到有效文本时执行物理打断 (`interrupt`)，防止环境噪音误伤。
+  - **平滑控制**：`audio-playback.js` 引入 `GainNode` 支撑 ramped 线性音量变化，提升交互听感。
+- 关键文件/模块：
+  - `webui/page/chat/audio-capture.js`
+  - `webui/page/chat/audio-playback.js`
+  - `webui/page/chat/event-router.js`
+  - `internal/session.go`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：解决了“敲击桌面噪音误打断”的问题，实现了即便环境嘈杂也能稳定对话的体验。
+  - 成功：`go build` 校验通过，前端模块语法检查通过。
+- 经验与结论：
+  - 有效实践：将“物理感反馈 (Ducking)”与“逻辑态变更 (Interrupt)”解耦，能极大缓解延迟感并提升鲁棒性。
+  - 核心原则：坚持 Client-Driven，避免前后端状态分裂。
+- 下一步：
+  - 进行全场景浏览器实机回归测试。

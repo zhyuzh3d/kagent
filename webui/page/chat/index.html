@@ -35,24 +35,262 @@
       background: var(--bg);
       height: 100vh;
       display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      display: flex;
       flex-direction: column;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+    }
+
+    .sidebar.collapsed {
+      margin-left: -280px;
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg);
+      position: relative;
     }
 
     .header {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px 20px;
+      padding: 0 20px;
+      height: 56px;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
       flex-shrink: 0;
     }
 
-    .header h1 {
-      font-size: 16px;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-toggle {
+      background: transparent;
+      padding: 8px;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn-toggle:hover {
+      background: var(--panel2);
+    }
+
+    .current-path {
+      font-size: 14px;
       font-weight: 600;
       color: var(--accent2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .path-sep {
+      color: var(--muted);
+      font-weight: normal;
+    }
+
+    /* Sidebar Content Styles */
+    .sidebar-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sidebar-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar-scroll {
       flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+
+    .project-item {
+      margin-bottom: 4px;
+    }
+
+    .project-header {
+      padding: 8px 16px 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 14px;
+      transition: background 0.2s;
+      border-radius: 0 20px 20px 0;
+      margin-right: 12px;
+      position: relative;
+    }
+
+    .project-header:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .project-header.active {
+      color: var(--accent2);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .project-arrow {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+      color: var(--muted);
+    }
+
+    .project-item.expanded .project-arrow {
+      transform: rotate(90deg);
+    }
+
+    .project-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .thread-list {
+      margin-left: 36px;
+      margin-top: 2px;
+      display: none;
+      padding-right: 12px;
+    }
+
+    .project-item.expanded .thread-list {
+      display: block;
+    }
+
+    .thread-item {
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .thread-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+    }
+
+    .thread-item.active {
+      background: var(--accent);
+      color: #fff !important;
+    }
+
+    .thread-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .btn-new-project {
+      width: 100%;
+      background: transparent;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      padding: 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-new-project:hover {
+      border-color: var(--accent);
+      color: var(--accent2);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .item-actions {
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .project-header:hover .item-actions,
+    .thread-item:hover .item-actions {
+      display: flex;
+    }
+
+    .btn-action {
+      background: transparent;
+      border: none;
+      padding: 2px;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    /* Drag and Drop hints */
+    .dragging {
+      opacity: 0.5;
+      background: var(--accent) !important;
+    }
+
+    .drop-target {
+      border-top: 2px solid var(--accent);
     }
 
     .status-dot {
@@ -258,10 +496,22 @@
       padding: 4px;
     }
 
+    .history-no-more {
+      text-align: center;
+      padding: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .msg-main {
       white-space: pre-wrap;
       word-break: break-word;
     }
+
+    .msg.system .msg-main {
+      text-align: center;
+    }
+
 
     .msg-aside {
       margin-top: 6px;
@@ -892,34 +1142,54 @@
 </head>
 
 <body>
-  <div class="header">
-    <h1>MT0</h1>
-    <div id="versionText" class="version-text"></div>
-    <div id="statusDot" class="status-dot"></div>
-    <div id="statusText" class="status-text">Idle</div>
-    <button id="configBtn" class="btn-config">配置</button>
-    <button id="surfaceBtn" class="btn-surface">Surface</button>
-    <button id="showMoreBtn" class="btn-ghost">Show More: Off</button>
-    <button id="startBtn" class="btn-start">开始对话</button>
-    <button id="stopBtn" class="btn-stop" disabled>停止</button>
-    <div class="user-avatar-wrapper">
-      <button id="userAvatarBtn" class="user-avatar-btn" title="用户"></button>
-      <div id="userMenu" class="user-menu">
-        <div id="userMenuName" class="user-menu-name"></div>
-        <div id="logoutBtn" class="user-menu-item">退出登录</div>
+  <aside id="sidebar" class="sidebar">
+    <!-- Sidebar content will be rendered here by sidebar-controller.js -->
+    <div style="padding: 20px; color: var(--muted); font-size: 13px;">Loading projects...</div>
+  </aside>
+
+  <main class="main-container">
+    <div class="header">
+      <div class="header-left">
+        <button id="sidebarToggle" class="btn-toggle" title="切换边栏">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div id="currentPath" class="current-path">
+          <span id="currentProjectName">Default Project</span>
+          <span class="path-sep">/</span>
+          <span id="currentThreadName">Default Thread</span>
+        </div>
+      </div>
+      <div id="versionText" class="version-text"></div>
+      <div id="statusDot" class="status-dot"></div>
+      <div id="statusText" class="status-text">Idle</div>
+      <button id="configBtn" class="btn-config">配置</button>
+      <button id="surfaceBtn" class="btn-surface">Surface</button>
+      <button id="showMoreBtn" class="btn-ghost">Show More: Off</button>
+      <button id="startBtn" class="btn-start">开始对话</button>
+      <button id="stopBtn" class="btn-stop" disabled>停止</button>
+      <div class="user-avatar-wrapper">
+        <button id="userAvatarBtn" class="user-avatar-btn" title="用户"></button>
+        <div id="userMenu" class="user-menu">
+          <div id="userMenuName" class="user-menu-name"></div>
+          <div id="logoutBtn" class="user-menu-item">退出登录</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div id="chatArea" class="chat-area"></div>
-  <div id="configShell" class="config-shell"></div>
-  <div id="surfaceFloatRoot" class="surface-float-root"></div>
+    <div id="chatArea" class="chat-area"></div>
+    <div id="configShell" class="config-shell"></div>
+    <div id="surfaceFloatRoot" class="surface-float-root"></div>
 
-  <div class="resize-handle" id="resizeHandle"></div>
-  <div class="debug-toggle" id="debugToggle">▶ 调试日志</div>
-  <div class="debug-panel" id="debugPanel">
-    <pre id="debug"></pre>
-  </div>
+    <div class="resize-handle" id="resizeHandle"></div>
+    <div class="debug-toggle" id="debugToggle">▶ 调试日志</div>
+    <div class="debug-panel" id="debugPanel">
+      <pre id="debug"></pre>
+    </div>
+  </main>
 
   <!-- Auth guard: check JWT before loading any modules -->
   <script>
@@ -940,6 +1210,7 @@
   </script>
 
   <script type="module">
+    fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Script module start' }) }).catch(() => {});
     import { createAudioCapture } from './audio-capture.js';
     import { createAudioPlayback } from './audio-playback.js';
     import { createChatActionEngine } from './action-engine.js';
@@ -949,6 +1220,7 @@
     import { createEventRouter } from './event-router.js';
     import { createSessionController } from './session-controller.js';
     import { createSurfaceBridge } from './surface-bridge.js';
+    import { createSidebarController } from './sidebar-controller.js';
 
     // ===================================================================
     // Architecture: Main Thread (UI + AudioContext + Playback)
@@ -1032,6 +1304,10 @@
       userMenu: document.getElementById('userMenu'),
       userMenuName: document.getElementById('userMenuName'),
       logoutBtn: document.getElementById('logoutBtn'),
+      sidebar: document.getElementById('sidebar'),
+      sidebarToggle: document.getElementById('sidebarToggle'),
+      currentProjectName: document.getElementById('currentProjectName'),
+      currentThreadName: document.getElementById('currentThreadName'),
     };
 
     // ── User Avatar Setup ───────────────────────────────────────
@@ -1047,6 +1323,23 @@
       document.addEventListener('click', () => {
         el.userMenu.classList.remove('open');
       });
+
+      // Global error reporting to backend
+      window.onerror = function(msg, url, line, col, error) {
+        fetch('/api/debug/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ level: 'CRITICAL', module: 'Browser', content: `JS Error: ${msg} at ${url}:${line}:${col}. Error: ${error ? error.stack : ''}` })
+        }).catch(() => {});
+      };
+      window.onunhandledrejection = function(event) {
+        fetch('/api/debug/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ level: 'CRITICAL', module: 'Browser', content: `Unhandled Promise Rejection: ${event.reason}` })
+        }).catch(() => {});
+      };
+
       el.logoutBtn.addEventListener('click', async () => {
         try {
           await fetch('/api/auth/logout', { method: 'POST' });
@@ -1119,6 +1412,15 @@
         action = text;
         text = null;
       }
+
+      // Forward to backend for debugging
+      fetch('/api/debug/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: level, module: module || 'Client', content: action })
+      }).catch(() => {});
+
+      if (!el.debugPanel) return;
 
       const parts = [];
 
@@ -1389,6 +1691,16 @@
           appendDebug('ERROR', 'ActionEngine', turnId, null, `handleAssistantFinal failed: ${err.message || err}`);
         });
       },
+      onInterrupt: (turnId) => {
+        if (sessionController && sessionController.workerSend) {
+          sessionController.workerSend({
+            type: 'send_control',
+            control: 'interrupt',
+            reason: 'commit_stop',
+            turn_id: turnId || App.activeTurnId || App.currentTurn,
+          });
+        }
+      },
     });
 
     const sessionController = createSessionController({
@@ -1403,6 +1715,7 @@
       flashIndicator,
       getWorkerConfig: () => buildWorkerConfig(App.publicConfig),
     });
+    App.workerSend = sessionController.workerSend;
 
     const audioCapture = createAudioCapture({
       app: App,
@@ -1417,6 +1730,14 @@
 
     sessionController.bindAudioCapture(audioCapture);
 
+    const sidebarController = createSidebarController({
+      app: App,
+      el,
+      chatStore,
+      sessionController,
+      appendDebug,
+    });
+
     function setButtons(running) {
       el.startBtn.disabled = running;
       el.stopBtn.disabled = !running;
@@ -1430,7 +1751,10 @@
       }
     });
 
-    el.startBtn.addEventListener('click', () => sessionController.startAll());
+    el.startBtn.addEventListener('click', () => {
+      const ctx = sidebarController.getCurrentContext();
+      sessionController.startAll(ctx.projectId, ctx.threadId);
+    });
     el.stopBtn.addEventListener('click', () => sessionController.stopAll('手动停止'));
     el.configBtn.addEventListener('click', () => {
       if (App.configDrawer) App.configDrawer.toggle();
@@ -1441,12 +1765,18 @@
     el.showMoreBtn.addEventListener('click', () => {
       toggleShowMore();
     });
+
+    el.sidebarToggle.addEventListener('click', () => {
+      el.sidebar.classList.toggle('collapsed');
+    });
     window.addEventListener('beforeunload', () => sessionController.stopAll(''));
 
     async function initPage() {
       await loadClientConfig();
       await loadVersion();
-      await sessionController.initWorkerConnection();
+      await sidebarController.init();
+      const ctx = sidebarController.getCurrentContext();
+      await sessionController.initWorkerConnection(ctx.projectId, ctx.threadId);
     }
 
     initPage().catch((err) => {

@@ -9,12 +9,19 @@
 
 当前真实状态（基于 2026-03-14 代码扫描、运行验证与本轮会话核验）：
 1. 后端主链路已经稳定在“单会话状态机 + 每个输入 turn 独立 ASR + 流式 LLM + 句级 TTS backlog 拼组”这一结构上。
-2. 前端聊天页已从单个大脚本拆为多个运行模块，`index.html` 主要承担页面装配和事件绑定。
-3. `messages` 已升级为分层消息模型：展示字段（`say/aside`）与调试字段（`action_json/raw_data/parse_error`）并存，支持 call 引用链字段（`ref_message_id/ref_action_slot`）。
-4. 聊天页已支持 `show more` 调试视图：可查看 observer/system 消息及 `action_json/parse_error/raw_data` 详情；默认仍仅展示 user/assistant。
-5. 旧 turn `partial` 气泡在 stale 场景下的收口边界问题仍待后续浏览器实机回归确认。
+2. 前端聊天页已从单个大脚本拆为多个运行模块，`index.html` 完成了侧边栏 (Sidebar) 架构升级。
+3. **项目与会话管理已落地**：支持动态切换项目 (Project) 和会话 (Thread)，支持 CRUD 操作与拖拽 (Drag & Drop) 排序/移动。
+4. WebSocket 握手已支持通过 URL Query Params 动态绑定目标 project/thread 上下文。
+5. 后端 `SQLiteStore` 补齐了 `order_index` 字段支持及物理隔离的 CRUD 接口。
+6. `messages` 已升级为分层消息模型：展示字段（`say/aside`）与调试字段（`action_json/raw_data/parse_error`）并存，支持 call 引用链字段（`ref_message_id/ref_action_slot`）。
+7. 聊天页已支持 `show more` 调试视图：可查看 observer/system 消息及 `action_json/parse_error/raw_data` 详情；默认仍仅展示 user/assistant。
+8. 旧 turn `partial` 气泡在 stale 场景下的收口边界问题仍待后续浏览器实机回归确认。
 
-## 2. 当前目录结构（关键层级）
+## 2. 核心设计原则
+1. **单一事实源 (Single Source of Truth, SSoT)**: 所有的配置、版本和状态应尽量维持单一事实源，避免多副本同步导致的冲突。
+2. **全客户端驱动 (Client-Driven) 架构**: 前端胖客户端 (Rich Client) + 后端瘦持久层 (Thin Server)。UI 在哪里，决策和状态就在哪里，后端仅负责传输、持久化和原子操作，不干预业务判定。
+
+## 3. 当前目录结构（关键层级）
 > 已忽略噪音目录：`.git`、`node_modules`、`dist`、`build`、`.next`、`coverage` 等。
 
 ```text
@@ -51,11 +58,12 @@ kagent/                                              # 仓库根目录
 │           ├── index.html                           # 页面入口与装配层
 │       ├── config-store.js                          # 配置读取/保存工具
 │       ├── config-drawer.js                         # 配置抽屉
+│       ├── sidebar-controller.js                     # 侧边栏项目与会话管理
 │       ├── chat-store.js                            # 消息与气泡状态
 │       ├── audio-playback.js                        # 播放队列与音频上下文
 │       ├── audio-capture.js                         # 采集、降采样、抢话
 │       ├── event-router.js                          # 协议事件路由
-│       ├── session-controller.js                    # 会话启动/停止与 Worker 生命周期
+│       ├── session-controller.js                    # 会话控制及动态重连
 │       └── io-worker.js                             # Worker 内 WS 与 VAD 定时器
 ├── main.go                                          # HTTP 服务入口
 └── version.json                                     # 前后端版本单一事实源
@@ -98,10 +106,18 @@ kagent/                                              # 仓库根目录
 10. `webui/page/chat/config-drawer.js`
 - 负责左侧配置抽屉，仅用于运行时体验调节，不参与主链路对话编排。
 
+11. **多上下文切换 (Context Switching)**:
+    - 侧边栏点击线程时，触发 WebSocket 带参数重连，由 `session-controller.js` 协调 `chat-store.js` 自动加载新线程的历史记录。
+12. `webui/page/chat/sidebar-controller.js`
+- 负责侧边栏项目与线程的 CRUD、动态切换、手放排序及跨项目移动，是多会话管理的中心枢纽。
+
 ## 4. 当前工作方式
 ### 4.1 前端
 1. 点击开始后，前端创建 Worker、建立 `/ws`、启动麦克风。
-2. 本地检测开口、停顿和抢话，必要时发送 `start_listen / interrupt / trigger_llm`。
+2. **智能避让与确权打断 (Smart Ducking & Commit Stop)**:
+   - **VAD Ducking**: 前端 VAD 检测到声音即刻平滑降低 AI 音量 (10%) 并开始 ASR，提供“我在听”的物理反馈。
+   - **ASR Recovery**: 若 ASR 未识别出有效意图或声音消失，AI 音量平滑恢复 (100%)。
+   - **Commit Stop**: 只有当 ASR 识别出具有打断意义的文字 (如“停下”、“等一下”) 时，前端才物理停止播放并向后端发送 `interrupt` 指令。
 3. `asr_partial / asr_final` 更新用户气泡，`llm_delta / llm_final / tts_chunk` 更新 AI 回复和播放队列。
 4. 调试时可开启 `show more`：前端会在消息气泡补充时间语义字段，并展示 `action_json / parse_error / raw_data`。
 
@@ -169,47 +185,48 @@ kagent/                                              # 仓库根目录
 4. 聊天页新增 `show more` 开关，可查看 observer/system 与调试字段详情。
 5. 默认主库为 `data/kagent.db`，operation 继续按 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 分桶落盘。
 6. 身份认证与多用户隔离保持生效（JWT + 用户维度数据强隔离）。
-
+7. 修复点击“开始对话”重复加载历史消息的 Bug，并补齐前端消息 ID 去重防御。
+8. **落地项目 (Project) 与线程 (Thread) 管理系统**：实现后端 CRUD/Migration 及前端侧边栏交互。
 ## 6. 项目术语表
-| 术语 | 定义（本项目语境） | 来源文件 | 状态 |
-| --- | --- | --- | --- |
-| `JWT` | 用于用户身份标识与权鉴的令牌，存储在 `kagent_token` Cookie 中。 | `internal/auth.go`, `main.go` | active |
-| `Auth Guard` | 前端鉴权守卫，在对话页加载前检查身份，失效则重定向至 `page/account/`。 | `webui/page/chat/index.html` | active |
-| `app` | 整个本地软件实例级别的范围，例如全局 UI 或默认行为。 | `config/config.json`, `webui/json/config_info.json` | active |
-| `chat` | 一次“开始对话”到“停止”的完整实时对话范围。比单个 turn 大，比 app 小。 | `config/config.json`, `webui/page/chat/index.html` | active |
-| `thread` | 对话线/话题边界。当前实现默认只有一个 thread（`chat-default`）；规划为每个 project 下可有多个 thread。 | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json`, `main.go` | active |
-| `turn` | 一轮用户输入加对应 AI 回复，对应前后端都在使用的 `turn_id` 语义。 | `internal/session.go`, `webui/page/chat/chat-store.js` | active |
-| `message` | turn 内更细的消息单位，通常指聊天区里的单条用户或 AI 气泡。 | `webui/page/chat/chat-store.js` | active |
-| `say` | 消息主展示文本（气泡主体）。 | `internal/message_types.go`, `webui/page/chat/chat-store.js` | active |
-| `aside` | 消息附加小字说明（气泡次级文本）。 | `internal/message_types.go`, `webui/page/chat/chat-store.js` | active |
-| `action_json` | 消息关联动作的结构化 JSON，默认折叠，仅在 `show more` 或动作标识中体现。 | `internal/sqlite_store.go`, `webui/page/chat/chat-store.js` | active |
-| `raw_data` / `parse_error` | assistant 原始输出与解析异常信息，用于回放与调试。 | `internal/assistant_envelope.go`, `internal/session.go` | active |
-| `show more` | 聊天页调试开关，开启后展示 observer/system 消息与调试字段。 | `webui/page/chat/index.html`, `webui/page/chat/chat-store.js` | active |
-| `message_uid` | message 的跨系统稳定标识（现状：`messages.message_uid` 唯一约束；同时使用自增 `id` 作为查询游标）。 | `internal/sqlite_store.go` | active |
-| `抢话` / `barge-in` | AI 正在说话时，用户再次开口并打断当前回复。 | `internal/session.go`, `webui/page/chat/audio-capture.js` | active |
-| `空 turn` | 前端推进了 turn，但后端最终没有拿到有效文本，通常会收到 `turn_nack`。 | `internal/session.go`, `webui/page/chat/event-router.js` | active |
-| `partial 气泡` | 前端收到 `asr_partial` 后显示的斜体用户气泡，表示这句还没正式收口。 | `webui/page/chat/chat-store.js` | active |
-| `有效回复 turn` | 前端当前仍应接收 `llm_delta / llm_final / tts_chunk` 的回复轮次，用来防止空 turn 抢走回复流。 | `webui/page/chat/event-router.js`, `webui/page/chat/chat-store.js` | active |
-| `公开配置` | 可以被前端读取和保存的运行时配置，不包含敏感接入信息。 | `config/config.json`, `internal/runtime_config.go` | active |
-| `私密配置` | 只用于本地服务端接入外部能力的敏感配置，例如 Token、AppID、私有 URL。 | `config/configx.json.example`, `internal/config.go` | active |
-| `用户覆盖配置` | 用户保存的个性化配置覆盖项，只记录相对公开默认配置的差异。 | `internal/runtime_config.go`, `main.go` | active |
-| `配置抽屉` | 聊天页左侧的运行时配置面板，用于调节部分体验参数。 | `webui/page/chat/config-drawer.js`, `webui/json/config_info.json` | active |
-| `mtrca` | 前端配置字段上的生效层级提示标签，分别代表 `message / turn / thread / chat / app`。 | `webui/json/config_info.json` | active |
-| `kagent.db` | 单一 SQLite 高价值库（现状）：默认路径为 `data/kagent.db`，可通过 `--sqlite-path` 指定。 | `main.go`, `internal/sqlite_store.go`, `internal/storage_reset.go` | active |
-| `project` | 用户侧长期容器（规划）：管理目标、上下文、文件集合、记忆集合等；包含多个 thread。 | `doc/_instruction.md` | active |
-| `summary` | thread 级概要（预留表）：每个 thread 仅一条（可被增量更新），用于上下文压缩与快速回忆。 | `internal/sqlite_store.go` | active |
-| `memory` | 记忆条目（预留表）：从某个 thread 抽取出的可复用事实/偏好/结论等，间接归属 project。 | `internal/sqlite_store.go` | active |
-| `file ref` | 文件引用关系（预留表）：结构化数据到文件资产的引用索引，只存链接/索引信息，不存二进制内容。 | `internal/sqlite_store.go` | active |
-| `surface_id` | surface 的标识。当前协议与数据流中以 `surface_id` 引用具体 surface；规划约束为每用户维度全局唯一，用于持久化 surface state。 | `internal/protocol.go`, `doc/_instruction.md` | active |
-| `surface_type` | surface 类型（现状：随 surface state 持久化；用于分类与路由），例如 `app`/`game`/`plan`。 | `internal/sqlite_store.go`, `internal/session.go` | active |
-| `surface_version` | surface 版本号（现状：随 surface state 持久化；用于升级后的 state 兼容与迁移判定）。 | `internal/sqlite_store.go`, `internal/session.go` | active |
-| `action` | 高价值互动动作记录：用户与主 AI 真实交互产生的动作事件。按照**客户端驱动架构**，由前端直接负责并出具 report。直接进入 message 数据流持久化。 | `internal/session.go`, `doc/_instruction.md` | active |
-| `operation` | 低价值高吞吐操作日志（现状）：过程事件不进入 message 流，按用户按日分桶写入 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 用于溯源。 | `internal/operation_log.go`, `internal/session.go` | active |
-| `inputops` | operation 的一种（规划）：UI 输入层操作序列，例如鼠标点击、键盘输入、后台窗体挪动等。 | `doc/_instruction.md` | active |
-| `hostops` | operation/action 协作类（规划）：前端因需要宿主（Go 运行时）底层能力而通过 API 调用后端的宿主操作。对于此场景，依然由前端驱动触发和合并 report 投递入消息流，后端只提供 API 实现而不干预消息组装。 | `doc/_instruction.md` | active |
-| `huddle` | operation 的一种（规划）：butler/worker 等 AI 角色之间的后台讨论、协作过程记录。 | `doc/_instruction.md` | active |
-| `butler agent` | 主智能体角色（规划）：对用户负责，编排 worker agents 与工具调用，产出对用户可理解的结果。 | `doc/_instruction.md` | active |
-| `worker agents` | 工作智能体角色（规划）：按 butler 分派执行子任务，过程中由前端或后台串联各节点。 | `doc/_instruction.md` | active |
+| 术语                       | 定义（本项目语境）                                                                                                                                                                                 | 来源文件                                                                                            | 状态   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------ |
+| `JWT`                      | 用于用户身份标识与权鉴的令牌，存储在 `kagent_token` Cookie 中。                                                                                                                                    | `internal/auth.go`, `main.go`                                                                       | active |
+| `Auth Guard`               | 前端鉴权守卫，在对话页加载前检查身份，失效则重定向至 `page/account/`。                                                                                                                             | `webui/page/chat/index.html`                                                                        | active |
+| `app`                      | 整个本地软件实例级别的范围，例如全局 UI 或默认行为。                                                                                                                                               | `config/config.json`, `webui/json/config_info.json`                                                 | active |
+| `chat`                     | 一次“开始对话”到“停止”的完整实时对话范围。比单个 turn 大，比 app 小。                                                                                                                              | `config/config.json`, `webui/page/chat/index.html`                                                  | active |
+| `thread`                   | 对话线/话题边界。当前实现默认只有一个 thread（`chat-default`）；规划为每个 project 下可有多个 thread。                                                                                             | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json`, `main.go` | active |
+| `turn`                     | 一轮用户输入加对应 AI 回复，对应前后端都在使用的 `turn_id` 语义。                                                                                                                                  | `internal/session.go`, `webui/page/chat/chat-store.js`                                              | active |
+| `message`                  | turn 内更细的消息单位，通常指聊天区里的单条用户或 AI 气泡。                                                                                                                                        | `webui/page/chat/chat-store.js`                                                                     | active |
+| `say`                      | 消息主展示文本（气泡主体）。                                                                                                                                                                       | `internal/message_types.go`, `webui/page/chat/chat-store.js`                                        | active |
+| `aside`                    | 消息附加小字说明（气泡次级文本）。                                                                                                                                                                 | `internal/message_types.go`, `webui/page/chat/chat-store.js`                                        | active |
+| `action_json`              | 消息关联动作的结构化 JSON，默认折叠，仅在 `show more` 或动作标识中体现。                                                                                                                           | `internal/sqlite_store.go`, `webui/page/chat/chat-store.js`                                         | active |
+| `raw_data` / `parse_error` | assistant 原始输出与解析异常信息，用于回放与调试。                                                                                                                                                 | `internal/assistant_envelope.go`, `internal/session.go`                                             | active |
+| `show more`                | 聊天页调试开关，开启后展示 observer/system 消息与调试字段。                                                                                                                                        | `webui/page/chat/index.html`, `webui/page/chat/chat-store.js`                                       | active |
+| `message_uid`              | message 的跨系统稳定标识（现状：`messages.message_uid` 唯一约束；同时使用自增 `id` 作为查询游标）。                                                                                                | `internal/sqlite_store.go`                                                                          | active |
+| `抢话` / `barge-in`        | AI 正在说话时，用户再次开口并打断当前回复。                                                                                                                                                        | `internal/session.go`, `webui/page/chat/audio-capture.js`                                           | active |
+| `空 turn`                  | 前端推进了 turn，但后端最终没有拿到有效文本，通常会收到 `turn_nack`。                                                                                                                              | `internal/session.go`, `webui/page/chat/event-router.js`                                            | active |
+| `partial 气泡`             | 前端收到 `asr_partial` 后显示的斜体用户气泡，表示这句还没正式收口。                                                                                                                                | `webui/page/chat/chat-store.js`                                                                     | active |
+| `有效回复 turn`            | 前端当前仍应接收 `llm_delta / llm_final / tts_chunk` 的回复轮次，用来防止空 turn 抢走回复流。                                                                                                      | `webui/page/chat/event-router.js`, `webui/page/chat/chat-store.js`                                  | active |
+| `公开配置`                 | 可以被前端读取和保存的运行时配置，不包含敏感接入信息。                                                                                                                                             | `config/config.json`, `internal/runtime_config.go`                                                  | active |
+| `私密配置`                 | 只用于本地服务端接入外部能力的敏感配置，例如 Token、AppID、私有 URL。                                                                                                                              | `config/configx.json.example`, `internal/config.go`                                                 | active |
+| `用户覆盖配置`             | 用户保存的个性化配置覆盖项，只记录相对公开默认配置的差异。                                                                                                                                         | `internal/runtime_config.go`, `main.go`                                                             | active |
+| `配置抽屉`                 | 聊天页左侧的运行时配置面板，用于调节部分体验参数。                                                                                                                                                 | `webui/page/chat/config-drawer.js`, `webui/json/config_info.json`                                   | active |
+| `mtrca`                    | 前端配置字段上的生效层级提示标签，分别代表 `message / turn / thread / chat / app`。                                                                                                                | `webui/json/config_info.json`                                                                       | active |
+| `kagent.db`                | 单一 SQLite 高价值库（现状）：默认路径为 `data/kagent.db`，可通过 `--sqlite-path` 指定。可通过 `scripts/reset_db.sh [messages|log|data|all]` 进行分级清理。 | `main.go`, `internal/sqlite_store.go`, `internal/storage_reset.go`, `scripts/reset_db.sh` | active |
+| `project`                  | 用户侧长期容器（规划）：管理目标、上下文、文件集合、记忆集合等；包含多个 thread。                                                                                                                  | `doc/_instruction.md`                                                                               | active |
+| `summary`                  | thread 级概要（预留表）：每个 thread 仅一条（可被增量更新），用于上下文压缩与快速回忆。                                                                                                            | `internal/sqlite_store.go`                                                                          | active |
+| `memory`                   | 记忆条目（预留表）：从某个 thread 抽取出的可复用事实/偏好/结论等，间接归属 project。                                                                                                               | `internal/sqlite_store.go`                                                                          | active |
+| `file ref`                 | 文件引用关系（预留表）：结构化数据到文件资产的引用索引，只存链接/索引信息，不存二进制内容。                                                                                                        | `internal/sqlite_store.go`                                                                          | active |
+| `surface_id`               | surface 的标识。当前协议与数据流中以 `surface_id` 引用具体 surface；规划约束为每用户维度全局唯一，用于持久化 surface state。                                                                       | `internal/protocol.go`, `doc/_instruction.md`                                                       | active |
+| `surface_type`             | surface 类型（现状：随 surface state 持久化；用于分类与路由），例如 `app`/`game`/`plan`。                                                                                                          | `internal/sqlite_store.go`, `internal/session.go`                                                   | active |
+| `surface_version`          | surface 版本号（现状：随 surface state 持久化；用于升级后的 state 兼容与迁移判定）。                                                                                                               | `internal/sqlite_store.go`, `internal/session.go`                                                   | active |
+| `action`                   | 高价值互动动作记录：用户与主 AI 真实交互产生的动作事件。按照**客户端驱动架构**，由前端直接负责并出具 report。直接进入 message 数据流持久化。                                                       | `internal/session.go`, `doc/_instruction.md`                                                        | active |
+| `operation`                | 低价值高吞吐操作日志（现状）：过程事件不进入 message 流，按用户按日分桶写入 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 用于溯源。                                                                 | `internal/operation_log.go`, `internal/session.go`                                                  | active |
+| `inputops`                 | operation 的一种（规划）：UI 输入层操作序列，例如鼠标点击、键盘输入、后台窗体挪动等。                                                                                                              | `doc/_instruction.md`                                                                               | active |
+| `hostops`                  | operation/action 协作类（规划）：前端因需要宿主（Go 运行时）底层能力而通过 API 调用后端的宿主操作。对于此场景，依然由前端驱动触发和合并 report 投递入消息流，后端只提供 API 实现而不干预消息组装。 | `doc/_instruction.md`                                                                               | active |
+| `huddle`                   | operation 的一种（规划）：butler/worker 等 AI 角色之间的后台讨论、协作过程记录。                                                                                                                   | `doc/_instruction.md`                                                                               | active |
+| `butler agent`             | 主智能体角色（规划）：对用户负责，编排 worker agents 与工具调用，产出对用户可理解的结果。                                                                                                          | `doc/_instruction.md`                                                                               | active |
+| `worker agents`            | 工作智能体角色（规划）：按 butler 分派执行子任务，过程中由前端或后台串联各节点。                                                                                                                   | `doc/_instruction.md`                                                                               | active |
 
 ## 7. 待确认事项
 1. 旧 turn 的 partial 气泡在被新 turn 顶掉后，是否采用“允许旧 `asr_final` 收口 + superseded fallback”双层策略；当前还未正式修复。
@@ -218,9 +235,9 @@ kagent/                                              # 仓库根目录
 4. `thread_summaries/memories/files/file_refs` 当前已建表但尚无稳定写入/读取链路，需要明确触发点与 UI/LLM 的使用场景后再补齐。
 
 ## 8. 文档更新时间与信息来源
-- 更新时间：2026-03-14 14:00 CST
+- 更新时间：2026-03-14 16:15 CST
 - 信息来源：
-  - 仓库实时扫描与 `go test` 验证
-  - 消息模型开发计划：`plan/260313-message-model-devplan.md`
-  - 当前工作区代码核验（`internal/message_types.go`、`internal/sqlite_store.go`、`internal/session.go`、`webui/page/chat/{index,chat-store,action-engine}.js`）
-  - 本地验证（`go test ./...`、`go build -buildvcs=false ./...`、`node --check webui/page/chat/{chat-store,action-engine,event-router,io-worker}.js`）
+  - 前端：`sidebar-controller.js` 落地与 `session-controller.js` 重连改造
+  - 后端：`sqlite_store.go` 增加 `order_index` 与 CRUD 接口
+  - 开发计划：`plan/260314-chat-project-thread-mgmt-prd.md`
+  - 仓库实时扫描与功能逻辑校对

@@ -11,6 +11,29 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type Project struct {
+	ProjectID              string `json:"project_id"`
+	UserID                 string `json:"user_id"`
+	Title                  string `json:"title"`
+	CreatedAtMS            int64  `json:"created_at_ms"`
+	LastActiveAtMS         int64  `json:"last_active_at_ms"`
+	CreatedAtLocalWeekday  string `json:"created_at_local_weekday"`
+	CreatedAtLocalLunar    string `json:"created_at_local_lunar"`
+	OrderIndex             int    `json:"order_index"`
+}
+
+type Thread struct {
+	ThreadID               string `json:"thread_id"`
+	UserID                 string `json:"user_id"`
+	ProjectID              string `json:"project_id"`
+	Title                  string `json:"title"`
+	CreatedAtMS            int64  `json:"created_at_ms"`
+	LastActiveAtMS         int64  `json:"last_active_at_ms"`
+	CreatedAtLocalWeekday  string `json:"created_at_local_weekday"`
+	CreatedAtLocalLunar    string `json:"created_at_local_lunar"`
+	OrderIndex             int    `json:"order_index"`
+}
+
 type SQLiteStore struct {
 	db        *sql.DB
 	userID    string
@@ -113,6 +136,7 @@ func (s *SQLiteStore) init() error {
 			last_active_at_ms INTEGER NOT NULL,
 			created_at_local_weekday TEXT NOT NULL DEFAULT '',
 			created_at_local_lunar TEXT NOT NULL DEFAULT '',
+			order_index INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY(user_id) REFERENCES users(user_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS threads (
@@ -124,6 +148,7 @@ func (s *SQLiteStore) init() error {
 			last_active_at_ms INTEGER NOT NULL,
 			created_at_local_weekday TEXT NOT NULL DEFAULT '',
 			created_at_local_lunar TEXT NOT NULL DEFAULT '',
+			order_index INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY(user_id) REFERENCES users(user_id),
 			FOREIGN KEY(project_id) REFERENCES projects(project_id)
 		)`,
@@ -233,6 +258,9 @@ func (s *SQLiteStore) init() error {
 	if err := s.migrateUsersTable(); err != nil {
 		return err
 	}
+	if err := s.migrateProjectsAndThreads(); err != nil {
+		return err
+	}
 
 	return s.initDefaultIDs()
 }
@@ -286,18 +314,21 @@ func (s *SQLiteStore) initDefaultIDs() error {
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, s.userID, now); err != nil {
 		return fmt.Errorf("insert default user failed: %w", err)
 	}
+	Debugf("initDefaultIDs: user %s ensured", s.userID)
 	if _, err := s.db.Exec(`
 		INSERT OR IGNORE INTO projects(project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar)
 		VALUES(?, ?, ?, ?, ?, ?, ?)
 	`, s.projectID, s.userID, "default", now, now, semFields.LocalWeekday, semFields.LocalLunar); err != nil {
 		return fmt.Errorf("insert default project failed: %w", err)
 	}
+	Debugf("initDefaultIDs: project %s ensured for user %s", s.projectID, s.userID)
 	if _, err := s.db.Exec(`
 		INSERT OR IGNORE INTO threads(thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
 	`, s.threadID, s.userID, s.projectID, "chat-default", now, now, semFields.LocalWeekday, semFields.LocalLunar); err != nil {
 		return fmt.Errorf("insert default thread failed: %w", err)
 	}
+	Debugf("initDefaultIDs: thread %s ensured for proj %s", s.threadID, s.projectID)
 	return nil
 }
 
@@ -333,10 +364,16 @@ func (s *SQLiteStore) needsSchemaReset() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if projExists && !projCols["created_at_local_lunar"] {
+	if projExists && !projCols["order_index"] {
 		return true, nil
 	}
-
+	threadExists, threadCols, err := s.tableColumns("threads")
+	if err != nil {
+		return false, err
+	}
+	if threadExists && !threadCols["order_index"] {
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -433,6 +470,32 @@ func (s *SQLiteStore) migrateUsersTable() error {
 	if !cols["password_hash"] {
 		if _, err := s.db.Exec(`ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''`); err != nil {
 			return fmt.Errorf("migrate users add password_hash: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *SQLiteStore) migrateProjectsAndThreads() error {
+	{
+		exists, cols, err := s.tableColumns("projects")
+		if err != nil || !exists {
+			return err
+		}
+		if !cols["order_index"] {
+			if _, err := s.db.Exec(`ALTER TABLE projects ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return fmt.Errorf("migrate projects add order_index: %w", err)
+			}
+		}
+	}
+	{
+		exists, cols, err := s.tableColumns("threads")
+		if err != nil || !exists {
+			return err
+		}
+		if !cols["order_index"] {
+			if _, err := s.db.Exec(`ALTER TABLE threads ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return fmt.Errorf("migrate threads add order_index: %w", err)
+			}
 		}
 	}
 	return nil
@@ -840,6 +903,202 @@ func (s *SQLiteStore) loadByQuery(query string, args []any, reverse bool) ([]Cha
 		}
 	}
 	return out, nil
+}
+
+// --- Project & Thread Management ---
+
+func (s *SQLiteStore) ListProjectsForUser(userID string) ([]Project, error) {
+	if s == nil || s.db == nil {
+		return nil, nil
+	}
+	rows, err := s.db.Query(`
+		SELECT project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
+		FROM projects
+		WHERE user_id=?
+		ORDER BY order_index ASC, created_at_ms DESC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Project, 0)
+	for rows.Next() {
+		var p Project
+		if err := rows.Scan(&p.ProjectID, &p.UserID, &p.Title, &p.CreatedAtMS, &p.LastActiveAtMS, &p.CreatedAtLocalWeekday, &p.CreatedAtLocalLunar, &p.OrderIndex); err != nil {
+			return nil, fmt.Errorf("scan project: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (s *SQLiteStore) CreateProject(userID string, title string) (string, error) {
+	if s == nil || s.db == nil {
+		return "", fmt.Errorf("db not init")
+	}
+	projectID := "prj-" + newRequestID()
+	now := nowMS()
+	sem := buildSemanticTimeFields(now)
+	_, err := s.db.Exec(`
+		INSERT INTO projects(project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index)
+		VALUES(?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(order_index), 0) + 1 FROM projects WHERE user_id=?))
+	`, projectID, userID, title, now, now, sem.LocalWeekday, sem.LocalLunar, userID)
+	if err != nil {
+		return "", fmt.Errorf("create project: %w", err)
+	}
+	return projectID, nil
+}
+
+func (s *SQLiteStore) UpdateProject(projectID string, title string, orderIndex int) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("db not init")
+	}
+	_, err := s.db.Exec(`UPDATE projects SET title=?, order_index=? WHERE project_id=?`, title, orderIndex, projectID)
+	return err
+}
+
+func (s *SQLiteStore) DeleteProject(projectID string) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("db not init")
+	}
+	// Cascade delete is handled by FOREIGN KEY constraint if PRAGMA foreign_keys=ON is set (which it is)
+	// But we need to make sure we also delete messages.
+	// Actually messages belong to project_id too, so they should be cascade deleted if threads are cascade deleted.
+	// Let's verify if messages table has project_id FK.
+	// messages schema in init(): FOREIGN KEY(user_id) REFERENCES users(user_id), but project_id and thread_id are NOT explicitly FKed in schemaStmts above.
+	// Wait, I should check the schemaStmts in init() again.
+	// Line 216: CREATE TABLE IF NOT EXISTS messages ...
+	// It doesn't have FK for project_id or thread_id.
+	// So I should manually delete them or add FK. 
+	// For now, let's do manual cascade to be safe.
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM messages WHERE project_id=?`, projectID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM threads WHERE project_id=?`, projectID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM projects WHERE project_id=?`, projectID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *SQLiteStore) ListThreadsForProject(userID string, projectID string) ([]Thread, error) {
+	if s == nil || s.db == nil {
+		return nil, nil
+	}
+	rows, err := s.db.Query(`
+		SELECT thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
+		FROM threads
+		WHERE user_id=? AND project_id=?
+		ORDER BY order_index ASC, created_at_ms DESC
+	`, userID, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list threads: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Thread, 0)
+	for rows.Next() {
+		var t Thread
+		if err := rows.Scan(&t.ThreadID, &t.UserID, &t.ProjectID, &t.Title, &t.CreatedAtMS, &t.LastActiveAtMS, &t.CreatedAtLocalWeekday, &t.CreatedAtLocalLunar, &t.OrderIndex); err != nil {
+			return nil, fmt.Errorf("scan thread: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+func (s *SQLiteStore) CreateThread(userID string, projectID string, title string) (string, error) {
+	if s == nil || s.db == nil {
+		return "", fmt.Errorf("db not init")
+	}
+	threadID := "thd-" + newRequestID()
+	now := nowMS()
+	sem := buildSemanticTimeFields(now)
+	_, err := s.db.Exec(`
+		INSERT INTO threads(thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(order_index), 0) + 1 FROM threads WHERE project_id=?))
+	`, threadID, userID, projectID, title, now, now, sem.LocalWeekday, sem.LocalLunar, projectID)
+	if err != nil {
+		return "", fmt.Errorf("create thread: %w", err)
+	}
+	return threadID, nil
+}
+
+func (s *SQLiteStore) UpdateThread(threadID string, title string, orderIndex int, projectID string) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("db not init")
+	}
+	// projectID here is used if we want to move thread to another project
+	_, err := s.db.Exec(`UPDATE threads SET title=?, order_index=?, project_id=? WHERE thread_id=?`, title, orderIndex, projectID, threadID)
+	if err != nil {
+		return err
+	}
+	// If project changed, we must also update all messages' project_id to keep consistency
+	_, err = s.db.Exec(`UPDATE messages SET project_id=? WHERE thread_id=?`, projectID, threadID)
+	return err
+}
+
+func (s *SQLiteStore) DeleteThread(threadID string) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("db not init")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM messages WHERE thread_id=?`, threadID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM threads WHERE thread_id=?`, threadID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *SQLiteStore) GetProjectByID(projectID string) (Project, bool, error) {
+	if s == nil || s.db == nil {
+		return Project{}, false, nil
+	}
+	var p Project
+	err := s.db.QueryRow(`
+		SELECT project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
+		FROM projects WHERE project_id=?
+	`, projectID).Scan(&p.ProjectID, &p.UserID, &p.Title, &p.CreatedAtMS, &p.LastActiveAtMS, &p.CreatedAtLocalWeekday, &p.CreatedAtLocalLunar, &p.OrderIndex)
+	if err == sql.ErrNoRows {
+		return Project{}, false, nil
+	}
+	if err != nil {
+		return Project{}, false, err
+	}
+	return p, true, nil
+}
+
+func (s *SQLiteStore) GetThreadByID(threadID string) (Thread, bool, error) {
+	if s == nil || s.db == nil {
+		return Thread{}, false, nil
+	}
+	var t Thread
+	err := s.db.QueryRow(`
+		SELECT thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
+		FROM threads WHERE thread_id=?
+	`, threadID).Scan(&t.ThreadID, &t.UserID, &t.ProjectID, &t.Title, &t.CreatedAtMS, &t.LastActiveAtMS, &t.CreatedAtLocalWeekday, &t.CreatedAtLocalLunar, &t.OrderIndex)
+	if err == sql.ErrNoRows {
+		return Thread{}, false, nil
+	}
+	if err != nil {
+		return Thread{}, false, err
+	}
+	return t, true, nil
 }
 
 func nonNilMap(in map[string]any) map[string]any {
