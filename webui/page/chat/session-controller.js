@@ -77,7 +77,7 @@ export function createSessionController(options) {
           const limit = (app.publicConfig && app.publicConfig.chat && app.publicConfig.chat.session && app.publicConfig.chat.session.maxHistoryMessages) || app.initialHistorySize || 20;
           appendDebug("INFO", "Network", null, null, `ws connected (via worker), fetching history sliding window limit=${limit}`);
           if (limit > 0) {
-            workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, before_id: 0 } });
+            workerSend({ type: "send_control", control: "fetch_history", extra: { limit: limit, before_id: 0, show_more: !!app.showMore } });
           }
           break;
         case "ws_close":

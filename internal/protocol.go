@@ -24,6 +24,7 @@ type ControlMessage struct {
 	Limit               int            `json:"limit,omitempty"`
 	BeforeID            int64          `json:"before_id,omitempty"`
 	Cursor              int64          `json:"cursor,omitempty"`
+	ShowMore            bool           `json:"show_more,omitempty"`
 	Text                string         `json:"text,omitempty"`
 	ActionID            string         `json:"action_id,omitempty"`
 	ActionName          string         `json:"action_name,omitempty"`

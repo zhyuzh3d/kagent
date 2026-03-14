@@ -1,4 +1,104 @@
-=== DEPLOY id=239e128d-ebed-490d-91a2-b410a3b4da7f ts=2026-03-13 18:16:35 CST backend=26031301 pid=? ===
-=== DEPLOY id=239e128d-ebed-490d-91a2-b410a3b4da7f ts=2026-03-13 18:16:35 CST backend=26031301 pid=89441 started ===
-2026-03-13 18:16:36.533 [INFO] [System:124] kagent version backend=26031301 webui=26031301
-2026-03-13 18:16:36.533 [INFO] [System:626] kagent server root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent listening=http://127.0.0.1:18080
+=== DEPLOY id=a2ad39bf-b805-496e-892c-56f61bf778e6 ts=2026-03-14 13:48:27 CST backend=26031302 pid=? ===
+=== DEPLOY id=a2ad39bf-b805-496e-892c-56f61bf778e6 ts=2026-03-14 13:48:27 CST backend=26031302 pid=12578 started ===
+2026-03-14 13:48:28.562 [INFO] [System:124] kagent version backend=26031302 webui=26031302
+2026-03-14 13:48:28.562 [INFO] [System:626] kagent server root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent listening=http://127.0.0.1:18080
+2026-03-14 13:48:44.465 [ERROR] [SessionManager:564] [Turn:0] asr run error: asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+2026-03-14 13:48:45.243 [INFO] [SessionManager:314] [Turn:1] -> VAD listening started
+2026-03-14 13:48:47.065 [WARN] [SessionManager:283] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:48:47.065 [INFO] [SessionManager:308] [Turn:1] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:48:51.047 [INFO] [SessionManager:314] [Turn:2] -> VAD listening started
+2026-03-14 13:48:53.165 [WARN] [SessionManager:283] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:48:53.165 [INFO] [SessionManager:308] [Turn:2] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:48:56.326 [INFO] [SessionManager:314] [Turn:3] -> VAD listening started
+2026-03-14 13:48:58.067 [WARN] [SessionManager:283] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:48:58.067 [INFO] [SessionManager:308] [Turn:3] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:48:58.327 [INFO] [SessionManager:314] [Turn:4] -> VAD listening started
+2026-03-14 13:48:59.366 [WARN] [SessionManager:283] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:48:59.366 [INFO] [SessionManager:308] [Turn:4] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:49:07.365 [INFO] [SessionManager:314] [Turn:1] -> VAD listening started
+2026-03-14 13:49:08.716 [WARN] [SessionManager:283] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:49:08.716 [INFO] [SessionManager:308] [Turn:1] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:49:08.907 [INFO] [SessionManager:314] [Turn:2] -> VAD listening started
+2026-03-14 13:49:11.516 [WARN] [SessionManager:283] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:49:11.516 [INFO] [SessionManager:295] [Turn:2] "你现在能听到说话吗" -> LLM Triggered
+2026-03-14 13:49:18.242 [INFO] [AudioPipeline:92] [Turn:2] "我可以听到你说话呀，..." -> TTS start sending...
+2026-03-14 13:49:18.243 [INFO] [AudioPipeline:172] [Turn:2] -> TTS finished sending
+2026-03-14 13:49:29.168 [INFO] [SessionManager:314] [Turn:3] -> VAD listening started
+2026-03-14 13:49:30.115 [WARN] [SessionManager:283] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:49:30.116 [INFO] [SessionManager:308] [Turn:3] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:49:33.933 [INFO] [SessionManager:314] [Turn:4] -> VAD listening started
+2026-03-14 13:49:34.825 [WARN] [SessionManager:283] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:49:34.826 [INFO] [SessionManager:308] [Turn:4] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:49:34.936 [INFO] [SessionManager:314] [Turn:5] -> VAD listening started
+2026-03-14 13:49:38.528 [INFO] [SessionManager:314] [Turn:1] -> VAD listening started
+2026-03-14 13:49:40.861 [WARN] [SessionManager:283] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:49:40.861 [INFO] [SessionManager:295] [Turn:1] "你吃晚饭了吗" -> LLM Triggered
+2026-03-14 13:49:48.792 [INFO] [AudioPipeline:92] [Turn:1] "我作为语音助手不需要..." -> TTS start sending...
+2026-03-14 13:49:48.792 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
+2026-03-14 13:50:02.170 [INFO] [SessionManager:314] [Turn:1] -> VAD listening started
+2026-03-14 13:50:03.982 [INFO] [SessionManager:430] [Turn:1] "你会做什么菜呀？" -> ASR final
+2026-03-14 13:50:03.982 [INFO] [SessionManager:295] [Turn:1] "你会做什么菜呀？" -> LLM Triggered
+2026-03-14 13:50:09.203 [INFO] [AudioPipeline:92] [Turn:1] "我没办法亲手下厨做菜..." -> TTS start sending...
+2026-03-14 13:50:09.203 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
+2026-03-14 13:50:13.819 [INFO] [SessionManager:261] [Turn:2] -> VAD interrupt received (reason=barge_in)
+2026-03-14 13:50:15.109 [WARN] [SessionManager:283] [Turn:2] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:50:15.109 [INFO] [SessionManager:308] [Turn:2] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:50:19.899 [INFO] [SessionManager:314] [Turn:3] -> VAD listening started
+2026-03-14 13:50:22.514 [INFO] [SessionManager:430] [Turn:3] "你会不会做番茄炒蛋呀..." -> ASR final
+2026-03-14 13:50:22.514 [INFO] [SessionManager:295] [Turn:3] "你会不会做番茄炒蛋呀..." -> LLM Triggered
+2026-03-14 13:50:28.633 [INFO] [AudioPipeline:92] [Turn:3] "我没办法亲手做番茄炒..." -> TTS start sending...
+2026-03-14 13:50:28.633 [INFO] [AudioPipeline:172] [Turn:3] -> TTS finished sending
+2026-03-14 13:50:31.558 [INFO] [SessionManager:261] [Turn:4] -> VAD interrupt received (reason=barge_in)
+2026-03-14 13:50:32.808 [WARN] [SessionManager:283] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:50:32.809 [INFO] [SessionManager:308] [Turn:4] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:50:35.258 [INFO] [SessionManager:314] [Turn:5] -> VAD listening started
+2026-03-14 13:50:36.108 [WARN] [SessionManager:283] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:50:36.108 [INFO] [SessionManager:308] [Turn:5] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:50:37.947 [INFO] [SessionManager:314] [Turn:6] -> VAD listening started
+2026-03-14 13:50:38.809 [WARN] [SessionManager:283] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:50:38.810 [INFO] [SessionManager:308] [Turn:6] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:50:49.936 [INFO] [SessionManager:314] [Turn:7] -> VAD listening started
+2026-03-14 13:50:50.907 [WARN] [SessionManager:283] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:50:50.907 [INFO] [SessionManager:308] [Turn:7] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:22.700 [INFO] [SessionManager:314] [Turn:8] -> VAD listening started
+2026-03-14 13:51:23.609 [WARN] [SessionManager:283] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:23.609 [INFO] [SessionManager:308] [Turn:8] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:26.486 [INFO] [SessionManager:314] [Turn:9] -> VAD listening started
+2026-03-14 13:51:27.409 [WARN] [SessionManager:283] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:27.410 [INFO] [SessionManager:308] [Turn:9] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:27.958 [INFO] [SessionManager:314] [Turn:10] -> VAD listening started
+2026-03-14 13:51:28.807 [WARN] [SessionManager:283] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:28.807 [INFO] [SessionManager:308] [Turn:10] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:35.910 [INFO] [SessionManager:314] [Turn:11] -> VAD listening started
+2026-03-14 13:51:36.911 [WARN] [SessionManager:283] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:36.911 [INFO] [SessionManager:308] [Turn:11] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:36.916 [INFO] [SessionManager:314] [Turn:12] -> VAD listening started
+2026-03-14 13:51:37.907 [WARN] [SessionManager:283] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:37.907 [INFO] [SessionManager:308] [Turn:12] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:38.033 [INFO] [SessionManager:314] [Turn:13] -> VAD listening started
+2026-03-14 13:51:39.509 [WARN] [SessionManager:283] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:39.509 [INFO] [SessionManager:308] [Turn:13] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:41.240 [INFO] [SessionManager:314] [Turn:14] -> VAD listening started
+2026-03-14 13:51:43.708 [WARN] [SessionManager:283] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:43.708 [INFO] [SessionManager:308] [Turn:14] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:44.486 [INFO] [SessionManager:314] [Turn:15] -> VAD listening started
+2026-03-14 13:51:47.609 [WARN] [SessionManager:283] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:47.609 [INFO] [SessionManager:308] [Turn:15] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:47.613 [INFO] [SessionManager:314] [Turn:16] -> VAD listening started
+2026-03-14 13:51:48.608 [WARN] [SessionManager:283] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:48.608 [INFO] [SessionManager:308] [Turn:16] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:49.894 [INFO] [SessionManager:314] [Turn:17] -> VAD listening started
+2026-03-14 13:51:51.809 [WARN] [SessionManager:283] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:51.809 [INFO] [SessionManager:308] [Turn:17] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:53.861 [INFO] [SessionManager:314] [Turn:18] -> VAD listening started
+2026-03-14 13:51:55.108 [WARN] [SessionManager:283] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:55.108 [INFO] [SessionManager:308] [Turn:18] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:55.130 [INFO] [SessionManager:314] [Turn:19] -> VAD listening started
+2026-03-14 13:51:56.007 [WARN] [SessionManager:283] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:56.007 [INFO] [SessionManager:308] [Turn:19] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:56.076 [INFO] [SessionManager:314] [Turn:20] -> VAD listening started
+2026-03-14 13:51:56.910 [WARN] [SessionManager:283] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:56.910 [INFO] [SessionManager:308] [Turn:20] turn_nack sent to frontend, skipped DB persistence
+2026-03-14 13:51:57.120 [INFO] [SessionManager:314] [Turn:21] -> VAD listening started
+2026-03-14 13:51:58.008 [WARN] [SessionManager:283] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+2026-03-14 13:51:58.009 [INFO] [SessionManager:308] [Turn:21] turn_nack sent to frontend, skipped DB persistence

@@ -7,11 +7,12 @@
 - 目标设备：近 5 年内、内存 8GB 或以上。
 - 不考虑过老/低配设备的兼容性优化。
 
-当前真实状态（基于 2026-03-09 代码扫描、运行验证与本轮会话核验）：
+当前真实状态（基于 2026-03-14 代码扫描、运行验证与本轮会话核验）：
 1. 后端主链路已经稳定在“单会话状态机 + 每个输入 turn 独立 ASR + 流式 LLM + 句级 TTS backlog 拼组”这一结构上。
 2. 前端聊天页已从单个大脚本拆为多个运行模块，`index.html` 主要承担页面装配和事件绑定。
-3. 项目已经具备公开配置、用户覆盖配置和前端配置抽屉，但这只是对话页的辅助能力，不是项目主功能。
-4. 当前仍有一个已定位但未修复的边缘问题：旧 turn 的 partial 用户气泡在被新 turn 顶掉后，可能因 stale 过滤而长期保持斜体。
+3. `messages` 已升级为分层消息模型：展示字段（`say/aside`）与调试字段（`action_json/raw_data/parse_error`）并存，支持 call 引用链字段（`ref_message_id/ref_action_slot`）。
+4. 聊天页已支持 `show more` 调试视图：可查看 observer/system 消息及 `action_json/parse_error/raw_data` 详情；默认仍仅展示 user/assistant。
+5. 旧 turn `partial` 气泡在 stale 场景下的收口边界问题仍待后续浏览器实机回归确认。
 
 ## 2. 当前目录结构（关键层级）
 > 已忽略噪音目录：`.git`、`node_modules`、`dist`、`build`、`.next`、`coverage` 等。
@@ -102,6 +103,7 @@ kagent/                                              # 仓库根目录
 1. 点击开始后，前端创建 Worker、建立 `/ws`、启动麦克风。
 2. 本地检测开口、停顿和抢话，必要时发送 `start_listen / interrupt / trigger_llm`。
 3. `asr_partial / asr_final` 更新用户气泡，`llm_delta / llm_final / tts_chunk` 更新 AI 回复和播放队列。
+4. 调试时可开启 `show more`：前端会在消息气泡补充时间语义字段，并展示 `action_json / parse_error / raw_data`。
 
 ### 4.2 后端
 1. 每个输入 turn 使用独立 ASR 连接。
@@ -130,6 +132,7 @@ kagent/                                              # 仓库根目录
 - 负责存储：`users/projects/threads/messages` 等。
 - **严格隔离**：后端 `SQLiteStore` 在建连时会强制锁定 `user_id`，查询历史记录、项目列表等操作均带 ID 过滤，防止跨用户数据泄漏。
 - `users` 表已扩展 `username` 与 `password_hash` 字段支持登录。
+- `messages` 表当前以 `say/aside/action_json/ref_message_id/ref_action_slot/raw_data/parse_error` 作为核心字段，并保留 `message_uid + seq + 时间语义字段` 作为可追溯主轴。
 
 3. 低价值高吞吐过程日志（operation，按用户按日分桶）：
 - 路径约定：`data/users/<user_id>/ops/<YYYYMMDD>.jsonl`
@@ -160,11 +163,12 @@ kagent/                                              # 仓库根目录
 - `surface_version` 用于 surface 升级后的 state 兼容与迁移判定；`surface_type` 用于分类（例如 `app`/`game`/`plan`）。
 
 ## 5. 最近关键变更摘要
-1. 对话页完成模块化拆分，`index.html` 从大脚本收敛为装配层。
-2. 新增公开配置与用户覆盖配置机制，前端可通过配置抽屉读取和保存部分运行参数。
-3. 会话停止和页面卸载时增加了 Worker 与音频链路的清理，避免旧连接和旧状态残留。
-4. 默认主库已切换为 `data/kagent.db`，并在启动时清理 legacy `chat_state.db*`；operation 过程日志以 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 按日分桶落盘。
-5. **身份认证系统落地**：新增 JWT 认证流（注册/登录/登出），前端对话页增加 Auth Guard 保护，后端实现严格的多用户数据物理隔离，防止 ID 劫持漏洞。
+1. 消息模型升级到 `say/aside/action_json/raw_data/parse_error`，并补齐 `ref_message_id/ref_action_slot` 引用链字段。
+2. assistant JSON envelope 增加后端解析与异常兜底（解析失败可回放 raw 文本并打标）。
+3. observer action 链路整理为 `call -> execute -> report`，并引入 followup pending 去抖（1 秒窗口）。
+4. 聊天页新增 `show more` 开关，可查看 observer/system 与调试字段详情。
+5. 默认主库为 `data/kagent.db`，operation 继续按 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 分桶落盘。
+6. 身份认证与多用户隔离保持生效（JWT + 用户维度数据强隔离）。
 
 ## 6. 项目术语表
 | 术语 | 定义（本项目语境） | 来源文件 | 状态 |
@@ -176,6 +180,11 @@ kagent/                                              # 仓库根目录
 | `thread` | 对话线/话题边界。当前实现默认只有一个 thread（`chat-default`）；规划为每个 project 下可有多个 thread。 | `plan/T0-26030901-chat-config-modularization-dev-plan.md`, `webui/json/config_info.json`, `main.go` | active |
 | `turn` | 一轮用户输入加对应 AI 回复，对应前后端都在使用的 `turn_id` 语义。 | `internal/session.go`, `webui/page/chat/chat-store.js` | active |
 | `message` | turn 内更细的消息单位，通常指聊天区里的单条用户或 AI 气泡。 | `webui/page/chat/chat-store.js` | active |
+| `say` | 消息主展示文本（气泡主体）。 | `internal/message_types.go`, `webui/page/chat/chat-store.js` | active |
+| `aside` | 消息附加小字说明（气泡次级文本）。 | `internal/message_types.go`, `webui/page/chat/chat-store.js` | active |
+| `action_json` | 消息关联动作的结构化 JSON，默认折叠，仅在 `show more` 或动作标识中体现。 | `internal/sqlite_store.go`, `webui/page/chat/chat-store.js` | active |
+| `raw_data` / `parse_error` | assistant 原始输出与解析异常信息，用于回放与调试。 | `internal/assistant_envelope.go`, `internal/session.go` | active |
+| `show more` | 聊天页调试开关，开启后展示 observer/system 消息与调试字段。 | `webui/page/chat/index.html`, `webui/page/chat/chat-store.js` | active |
 | `message_uid` | message 的跨系统稳定标识（现状：`messages.message_uid` 唯一约束；同时使用自增 `id` 作为查询游标）。 | `internal/sqlite_store.go` | active |
 | `抢话` / `barge-in` | AI 正在说话时，用户再次开口并打断当前回复。 | `internal/session.go`, `webui/page/chat/audio-capture.js` | active |
 | `空 turn` | 前端推进了 turn，但后端最终没有拿到有效文本，通常会收到 `turn_nack`。 | `internal/session.go`, `webui/page/chat/event-router.js` | active |
@@ -205,15 +214,13 @@ kagent/                                              # 仓库根目录
 ## 7. 待确认事项
 1. 旧 turn 的 partial 气泡在被新 turn 顶掉后，是否采用“允许旧 `asr_final` 收口 + superseded fallback”双层策略；当前还未正式修复。
 2. 配置抽屉后续开放给用户的字段范围仍需继续收敛，不宜把全部公开配置都暴露为可编辑项。
-3. 目前主要验证仍是 Go 测试、构建和前端模块语法检查，浏览器侧真实语音回归还需要继续补。
+3. 当前验证以 Go 测试、构建和前端模块语法检查为主，浏览器侧仍需补 `show more`、解析异常气泡、连续 action followup 等实机回归。
 4. `thread_summaries/memories/files/file_refs` 当前已建表但尚无稳定写入/读取链路，需要明确触发点与 UI/LLM 的使用场景后再补齐。
 
 ## 8. 文档更新时间与信息来源
-- 更新时间：2026-03-13 20:15 CST
+- 更新时间：2026-03-14 14:00 CST
 - 信息来源：
   - 仓库实时扫描与 `go test` 验证
-  - JWT 认证与数据隔离专项开发（`260313-auth-devplan.md`）
-  - 当前工作区代码核验（`main.go`、`internal/*.go`、`webui/page/chat/*.js`）
-  - `plan/260312-db-*.md`（存储机制与 schema 变更的规划/复盘记录）
-  - 本轮架构会话确认（彻底的 Client-Driven 驱动架构：后端瘦持久层，前端胖客户端接管所有 action_call；建立 `hostops` 的协同约束。）
-  - 本地验证（`go test ./...`、`go build -buildvcs=false ./...`、前端模块语法检查）
+  - 消息模型开发计划：`plan/260313-message-model-devplan.md`
+  - 当前工作区代码核验（`internal/message_types.go`、`internal/sqlite_store.go`、`internal/session.go`、`webui/page/chat/{index,chat-store,action-engine}.js`）
+  - 本地验证（`go test ./...`、`go build -buildvcs=false ./...`、`node --check webui/page/chat/{chat-store,action-engine,event-router,io-worker}.js`）

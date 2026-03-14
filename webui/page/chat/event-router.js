@@ -23,6 +23,30 @@ export function createEventRouter(options) {
     if (!type) return;
     syncCurrentTurn(msg);
 
+    if (type === "action_report") {
+      const payload = msg.payload && typeof msg.payload === "object" ? msg.payload : {};
+      chatStore.addChatMsg("observer", "", msg.turn_id || 0, false, app.sessionEpoch, {
+        actionJSON: JSON.stringify(payload),
+        aside: "",
+      });
+      return;
+    }
+
+    if (type === "state_change") {
+      const action = {
+        type: "state_change",
+        surface_id: msg.surface_id || "",
+        surface_type: msg.surface_type || "",
+        surface_version: msg.surface_version || "",
+        state_version: Number.isFinite(msg.state_version) ? msg.state_version : 0,
+        delta_or_state: msg.business_state && typeof msg.business_state === "object" ? msg.business_state : {},
+      };
+      chatStore.addChatMsg("observer", "", msg.turn_id || 0, false, app.sessionEpoch, {
+        actionJSON: JSON.stringify(action),
+      });
+      return;
+    }
+
     if (type === "status") {
       const value = msg.value || "";
       if ((value === "Thinking" || value === "Speaking") && (msg.turn_id || 0) > 0) {

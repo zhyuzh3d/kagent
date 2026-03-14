@@ -56,6 +56,7 @@ function sendControl(type, reason, turnId, text, extra) {
     if (Number.isFinite(extra.limit)) payload.limit = extra.limit;
     if (Number.isFinite(extra.before_id)) payload.before_id = extra.before_id;
     if (Number.isFinite(extra.cursor)) payload.cursor = extra.cursor;
+    if (typeof extra.show_more === "boolean") payload.show_more = extra.show_more;
   }
   ws.send(JSON.stringify(payload));
 }

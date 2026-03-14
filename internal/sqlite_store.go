@@ -197,6 +197,13 @@ func (s *SQLiteStore) init() error {
 			created_at_local_weekday TEXT NOT NULL,
 			created_at_local_lunar TEXT NOT NULL,
 			role TEXT NOT NULL,
+			say TEXT NOT NULL DEFAULT '',
+			aside TEXT NOT NULL DEFAULT '',
+			action_json TEXT NOT NULL DEFAULT '',
+			ref_message_id TEXT NOT NULL DEFAULT '',
+			ref_action_slot INTEGER NOT NULL DEFAULT 0,
+			raw_data TEXT NOT NULL DEFAULT '',
+			parse_error TEXT NOT NULL DEFAULT '',
 			category TEXT NOT NULL,
 			type TEXT NOT NULL,
 			content TEXT NOT NULL,
@@ -209,6 +216,10 @@ func (s *SQLiteStore) init() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(user_id, project_id, thread_id, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_anchor_id ON messages(user_id, project_id, thread_id, category, type, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_seq ON messages(user_id, project_id, thread_id, seq)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_turn_seq ON messages(user_id, project_id, thread_id, turn_id, seq)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_ref_chain ON messages(user_id, project_id, thread_id, ref_message_id, ref_action_slot, created_at_ms)`,
+		`CREATE INDEX IF NOT EXISTS idx_messages_role_time ON messages(user_id, project_id, thread_id, role, created_at_ms)`,
 		`CREATE INDEX IF NOT EXISTS idx_surfaces_status ON surfaces(status, surface_type, surface_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_surfaces_user_enabled ON user_surfaces(user_id, enabled, surface_id)`,
 		`DROP TABLE IF EXISTS surface_states`,
@@ -307,7 +318,7 @@ func (s *SQLiteStore) needsSchemaReset() (bool, error) {
 		return false, err
 	}
 	if msgExists {
-		required := []string{"id", "message_uid", "project_id", "thread_id"}
+		required := []string{"id", "message_uid", "project_id", "thread_id", "say", "aside", "action_json", "ref_message_id", "ref_action_slot", "raw_data", "parse_error"}
 		if msgCols["chat_id"] {
 			return true, nil
 		}
@@ -504,6 +515,13 @@ func (s *SQLiteStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 		TurnID:               msg.TurnID,
 		Seq:                  msg.Seq,
 		Role:                 msg.Role,
+		Say:                  msg.Say,
+		Aside:                msg.Aside,
+		ActionJSON:           msg.ActionJSON,
+		RefMessageID:         msg.RefMessageID,
+		RefActionSlot:        msg.RefActionSlot,
+		RawData:              msg.RawData,
+		ParseError:           msg.ParseError,
 		Category:             msg.Category,
 		MessageType:          msg.MessageType,
 		Content:              msg.Content,
@@ -532,9 +550,10 @@ func (s *SQLiteStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 		INSERT INTO messages(
 			message_uid, user_id, project_id, thread_id, turn_id, seq,
 			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
-			role, category, type, content, payload_schema_version, payload_json,
+			role, say, aside, action_json, ref_message_id, ref_action_slot, raw_data, parse_error,
+			category, type, content, payload_schema_version, payload_json,
 			completion_status, interrupt, interrupt_at_ms, partial_text
-		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		entry.MessageID,
 		s.userID,
@@ -548,6 +567,13 @@ func (s *SQLiteStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 		entry.CreatedAtLocalWeekday,
 		entry.CreatedAtLocalLunar,
 		entry.Role,
+		entry.Say,
+		entry.Aside,
+		entry.ActionJSON,
+		entry.RefMessageID,
+		entry.RefActionSlot,
+		entry.RawData,
+		entry.ParseError,
 		entry.Category,
 		entry.MessageType,
 		entry.Content,
@@ -575,22 +601,26 @@ func (s *SQLiteStore) AppendActionCall(call ActionCall, status string, manualCon
 	if s == nil || s.db == nil {
 		return nil
 	}
+	action := map[string]any{
+		"type":           TypeActionCall,
+		"id":             firstNonEmpty(call.ActionID, "act-"+newRequestID()),
+		"path":           call.ActionName,
+		"name":           call.ActionName,
+		"surface_id":     call.SurfaceID,
+		"followup":       normalizeFollowup(call.Followup),
+		"args":           clonePayloadMap(call.Args),
+		"status":         firstNonEmpty(status, "unknown"),
+		"manual_confirm": strings.TrimSpace(manualConfirm),
+		"block_reason":   strings.TrimSpace(blockReason),
+	}
 	_, err := s.AppendMessage(ChatMessage{
 		TurnID:      call.TurnID,
 		Role:        RoleObserver,
 		Category:    CategoryAIAction,
 		MessageType: TypeActionCall,
-		PayloadJSON: mustJSON(map[string]any{
-			"action_id":      firstNonEmpty(call.ActionID, "act-"+newRequestID()),
-			"action_name":    call.ActionName,
-			"name":           call.ActionName,
-			"surface_id":     call.SurfaceID,
-			"followup":       normalizeFollowup(call.Followup),
-			"args":           clonePayloadMap(call.Args),
-			"status":         firstNonEmpty(status, "unknown"),
-			"manual_confirm": strings.TrimSpace(manualConfirm),
-			"block_reason":   strings.TrimSpace(blockReason),
-		}),
+		Say:         "",
+		ActionJSON:  mustJSON(action),
+		PayloadJSON: mustJSON(action),
 		CreatedAtMS: call.RequestedAt,
 	})
 	return err
@@ -600,29 +630,37 @@ func (s *SQLiteStore) AppendActionReport(report ActionReport, _ string) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
+	action := map[string]any{
+		"type":            TypeActionReport,
+		"ref_message_id":  "",
+		"ref_action_slot": 0,
+		"report_id":       report.ReportID,
+		"origin":          report.Origin,
+		"action_id":       report.ActionID,
+		"path":            report.ActionName,
+		"name":            report.ActionName,
+		"surface_id":      report.SurfaceID,
+		"surface_type":    report.SurfaceType,
+		"surface_version": report.SurfaceVersion,
+		"followup":        normalizeFollowup(report.Followup),
+		"state":           report.Status,
+		"status":          report.Status,
+		"desc":            report.ResultSummary,
+		"result_summary":  report.ResultSummary,
+		"effect_summary":  report.EffectSummary,
+		"business_state":  clonePayloadMap(report.BusinessState),
+		"manual_confirm":  report.ManualConfirm,
+		"block_reason":    report.BlockReason,
+	}
 	_, err := s.AppendMessage(ChatMessage{
 		TurnID:      report.TurnID,
 		Role:        RoleObserver,
 		Category:    CategoryAIAction,
 		MessageType: TypeActionReport,
 		Content:     formatActionReportText(report),
-		PayloadJSON: mustJSON(map[string]any{
-			"report_id":       report.ReportID,
-			"origin":          report.Origin,
-			"action_id":       report.ActionID,
-			"action_name":     report.ActionName,
-			"name":            report.ActionName,
-			"surface_id":      report.SurfaceID,
-			"surface_type":    report.SurfaceType,
-			"surface_version": report.SurfaceVersion,
-			"followup":        normalizeFollowup(report.Followup),
-			"status":          report.Status,
-			"result_summary":  report.ResultSummary,
-			"effect_summary":  report.EffectSummary,
-			"business_state":  clonePayloadMap(report.BusinessState),
-			"manual_confirm":  report.ManualConfirm,
-			"block_reason":    report.BlockReason,
-		}),
+		Say:         "",
+		ActionJSON:  mustJSON(action),
+		PayloadJSON: mustJSON(action),
 		CreatedAtMS: report.CreatedAtMS,
 	})
 	return err
@@ -655,10 +693,10 @@ func (s *SQLiteStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([]Chat
 	rows, err := s.db.Query(`
 		SELECT id
 		FROM messages
-		WHERE user_id=? AND project_id=? AND thread_id=? AND category=? AND type IN (?, ?)
+		WHERE user_id=? AND project_id=? AND thread_id=? AND role IN (?, ?)
 		ORDER BY id DESC
 		LIMIT ?
-	`, s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, anchorLimit)
+	`, s.userID, s.projectID, s.threadID, RoleUser, RoleAssistant, anchorLimit)
 	if err != nil {
 		return nil, fmt.Errorf("load anchor window failed: %w", err)
 	}
@@ -685,7 +723,7 @@ func (s *SQLiteStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([]Chat
 	}
 	if count > totalLimit {
 		return s.loadByQuery(`
-			SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+			SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, say, aside, action_json, ref_message_id, ref_action_slot, raw_data, parse_error, category, type, content, payload_schema_version, payload_json,
 				created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
 				completion_status, interrupt, interrupt_at_ms, partial_text
 			FROM messages
@@ -695,7 +733,7 @@ func (s *SQLiteStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([]Chat
 		`, []any{s.userID, s.projectID, s.threadID, totalLimit}, true)
 	}
 	return s.loadByQuery(`
-		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, say, aside, action_json, ref_message_id, ref_action_slot, raw_data, parse_error, category, type, content, payload_schema_version, payload_json,
 			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
 			completion_status, interrupt, interrupt_at_ms, partial_text
 		FROM messages
@@ -712,25 +750,34 @@ func (s *SQLiteStore) LoadRecentContext(limit int) ([]ChatMessage, error) {
 }
 
 func (s *SQLiteStore) LoadContextBefore(beforeID int64, limit int) ([]ChatMessage, bool, error) {
+	return s.LoadContextBeforeWithMode(beforeID, limit, false)
+}
+
+func (s *SQLiteStore) LoadContextBeforeWithMode(beforeID int64, limit int, includeAllRoles bool) ([]ChatMessage, bool, error) {
 	if s == nil || s.db == nil {
 		return nil, false, nil
 	}
 	if limit <= 0 {
 		limit = 20
 	}
-	args := []any{s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, limit + 1}
+	args := []any{s.userID, s.projectID, s.threadID}
 	query := `
-		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, category, type, content, payload_schema_version, payload_json,
+		SELECT id, message_uid, project_id, thread_id, turn_id, seq, role, say, aside, action_json, ref_message_id, ref_action_slot, raw_data, parse_error, category, type, content, payload_schema_version, payload_json,
 			created_at_ms, created_at_iso, created_at_local_ymdhms, created_at_local_weekday, created_at_local_lunar,
 			completion_status, interrupt, interrupt_at_ms, partial_text
 		FROM messages
-		WHERE user_id=? AND project_id=? AND thread_id=? AND category=? AND type IN (?, ?)
+		WHERE user_id=? AND project_id=? AND thread_id=?
 	`
+	if !includeAllRoles {
+		query += ` AND role IN (?, ?)`
+		args = append(args, RoleUser, RoleAssistant)
+	}
 	if beforeID > 0 {
 		query += ` AND id < ?`
-		args = []any{s.userID, s.projectID, s.threadID, CategoryChat, TypeUserMessage, TypeAssistantMessage, beforeID, limit + 1}
+		args = append(args, beforeID)
 	}
 	query += ` ORDER BY id DESC LIMIT ?`
+	args = append(args, limit+1)
 	messages, err := s.loadByQuery(query, args, true)
 	if err != nil {
 		return nil, false, err
@@ -760,6 +807,13 @@ func (s *SQLiteStore) loadByQuery(query string, args []any, reverse bool) ([]Cha
 			&msg.TurnID,
 			&msg.Seq,
 			&msg.Role,
+			&msg.Say,
+			&msg.Aside,
+			&msg.ActionJSON,
+			&msg.RefMessageID,
+			&msg.RefActionSlot,
+			&msg.RawData,
+			&msg.ParseError,
 			&msg.Category,
 			&msg.MessageType,
 			&msg.Content,

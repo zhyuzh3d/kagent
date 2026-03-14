@@ -70,14 +70,17 @@ type Session struct {
 	interruptMu   sync.Mutex
 	turnInterrupt map[uint64]string
 
-	actionMu              sync.Mutex
-	userTurnActive        bool
-	continuationRunning   bool
-	continuationSeq       uint64
-	pendingFollowupReport []ActionReport
-	followupFlushTimer    *time.Timer
-	actionRateWindow      []int64
-	actionDedup           map[string]int64
+	actionMu            sync.Mutex
+	userTurnActive      bool
+	continuationRunning bool
+	continuationSeq     uint64
+	pendingFollowups    []ChatMessage
+	followupFlushTimer  *time.Timer
+	actionRateWindow    []int64
+	actionDedup         map[string]int64
+
+	actionRefMu      sync.Mutex
+	actionCallRefIDs map[string]string
 }
 
 func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, sqliteStore *SQLiteStore) *Session {
@@ -112,6 +115,7 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 		ttsQueue:           make(chan TTSChunk, ttsQueueSize),
 		asrFinalCh:         make(chan struct{}, 1),
 		actionDedup:        map[string]int64{},
+		actionCallRefIDs:   map[string]string{},
 		assistantDrafts:    map[uint64]string{},
 		assistantFinalized: map[uint64]struct{}{},
 		turnInterrupt:      map[uint64]string{},
@@ -373,7 +377,7 @@ func (s *Session) handleFetchHistory(ctrl ControlMessage) {
 	}
 
 	Debugf("received fetch_history: before_id=%d cursor=%d limit=%d", beforeID, ctrl.Cursor, limit)
-	history, hasMore, err := s.sqliteStore.LoadContextBefore(beforeID, limit)
+	history, hasMore, err := s.sqliteStore.LoadContextBeforeWithMode(beforeID, limit, ctrl.ShowMore)
 	if err != nil {
 		Errorf("fetch history failed: %v", err)
 		return
@@ -569,6 +573,7 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	if clean == "" {
 		return
 	}
+	s.clearPendingFollowupsForUserTurn()
 
 	s.turnMu.Lock()
 	if s.lastStartedTurnID == targetTurnID {
@@ -637,12 +642,15 @@ func (s *Session) stopAll() {
 	s.actionMu.Lock()
 	s.userTurnActive = false
 	s.continuationRunning = false
-	s.pendingFollowupReport = nil
+	s.pendingFollowups = nil
 	if s.followupFlushTimer != nil {
 		s.followupFlushTimer.Stop()
 		s.followupFlushTimer = nil
 	}
 	s.actionMu.Unlock()
+	s.actionRefMu.Lock()
+	s.actionCallRefIDs = map[string]string{}
+	s.actionRefMu.Unlock()
 	s.asrCancelMu.Lock()
 	if s.asrCancel != nil {
 		s.asrCancel()
@@ -884,12 +892,22 @@ func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, stat
 	s.assistantFinalized[turnID] = struct{}{}
 	s.draftMu.Unlock()
 
-	content := strings.TrimSpace(finalText)
+	rawText := firstNonEmpty(draft, strings.TrimSpace(finalText))
+	if rawText == "" {
+		return
+	}
+	env := parseAssistantEnvelope(rawText)
+	say := firstNonEmpty(strings.TrimSpace(env.Say), strings.TrimSpace(finalText))
+	aside := strings.TrimSpace(env.Aside)
+	content := strings.TrimSpace(composeMessageContent(say, aside))
 	if content == "" {
-		content = draft
+		content = strings.TrimSpace(finalText)
 	}
 	if content == "" {
-		return
+		content = strings.TrimSpace(env.Say)
+	}
+	if content == "" {
+		content = formatMalformedPreview(rawText)
 	}
 	normalizedStatus := normalizeCompletionStatus(status)
 	if normalizedStatus == "" {
@@ -900,11 +918,18 @@ func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, stat
 		normalizedInterrupt = InterruptNone
 	}
 	payload := map[string]any{
-		"text":              content,
+		"say":               say,
+		"aside":             aside,
+		"action":            jsonOrEmptyMap(env.ActionJSON),
+		"raw_data":          jsonOrEmptyMap(env.RawData),
+		"parse_error":       env.ParseError,
 		"completion_status": normalizedStatus,
 		"interrupt":         normalizedInterrupt,
 	}
-	if draft != "" && draft != content {
+	if content != "" {
+		payload["text"] = content
+	}
+	if draft != "" && draft != rawText {
 		payload["partial_text"] = draft
 	}
 	entry := ChatMessage{
@@ -912,6 +937,11 @@ func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, stat
 		Role:                 RoleAssistant,
 		Category:             CategoryChat,
 		MessageType:          TypeAssistantMessage,
+		Say:                  say,
+		Aside:                aside,
+		ActionJSON:           env.ActionJSON,
+		RawData:              env.RawData,
+		ParseError:           env.ParseError,
 		Content:              content,
 		CreatedAtMS:          nowMS(),
 		CompletionStatus:     normalizedStatus,
@@ -923,7 +953,12 @@ func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, stat
 	if raw, err := json.Marshal(payload); err == nil {
 		entry.PayloadJSON = string(raw)
 	}
-	s.appendHistoryMessage(entry)
+	msgID := s.appendHistoryMessage(entry)
+	if msgID != "" {
+		if actionID := actionIDFromJSON(env.ActionJSON); actionID != "" {
+			s.bindActionCallRef(actionID, msgID)
+		}
+	}
 	s.clearTurnInterrupt(turnID)
 }
 
@@ -936,6 +971,13 @@ func (s *Session) appendHistoryMessage(msg ChatMessage) string {
 		MessageID:            msg.MessageID,
 		TurnID:               msg.TurnID,
 		Role:                 msg.Role,
+		Say:                  msg.Say,
+		Aside:                msg.Aside,
+		ActionJSON:           msg.ActionJSON,
+		RefMessageID:         msg.RefMessageID,
+		RefActionSlot:        msg.RefActionSlot,
+		RawData:              msg.RawData,
+		ParseError:           msg.ParseError,
 		Category:             msg.Category,
 		MessageType:          msg.MessageType,
 		Content:              msg.Content,
@@ -1016,33 +1058,35 @@ func (s *Session) handleStateChange(ctrl ControlMessage) {
 		"updated_at_ms":   state.UpdatedAtMS,
 		"event_type":      firstNonEmpty(state.EventType, "state_change"),
 	}
-	if state.EventType == "surface_open" {
-		s.appendHistoryMessage(ChatMessage{
-			TurnID:      ctrl.TurnID,
-			Role:        RoleObserver,
-			Category:    CategorySurface,
-			MessageType: TypeSurfaceOpen,
-			PayloadJSON: mustJSON(statePayload),
-			CreatedAtMS: state.UpdatedAtMS,
-		})
-		s.appendHistoryMessage(ChatMessage{
-			TurnID:      ctrl.TurnID,
-			Role:        RoleObserver,
-			Category:    CategorySurface,
-			MessageType: TypeSurfaceState,
-			PayloadJSON: mustJSON(statePayload),
-			CreatedAtMS: state.UpdatedAtMS,
-		})
-	} else {
-		s.appendHistoryMessage(ChatMessage{
-			TurnID:      ctrl.TurnID,
-			Role:        RoleObserver,
-			Category:    CategorySurface,
-			MessageType: TypeSurfaceChange,
-			PayloadJSON: mustJSON(statePayload),
-			CreatedAtMS: state.UpdatedAtMS,
-		})
+	eventType := firstNonEmpty(state.EventType, "state_change")
+	actionPayload := map[string]any{
+		"type":                  TypeActionState,
+		"surface_id":            state.SurfaceID,
+		"surface_type":          state.SurfaceType,
+		"surface_version":       state.SurfaceVersion,
+		"surface_instance_name": firstNonEmpty(state.SurfaceID, state.VisibleText),
+		"event_type":            eventType,
+		"delta_or_state":        cloneAnyMap(state.BusinessState),
+		"state_version":         state.StateVersion,
+		"status":                state.Status,
+		"visible_text":          state.VisibleText,
+		"updated_at_ms":         state.UpdatedAtMS,
 	}
+	entry := ChatMessage{
+		TurnID:      ctrl.TurnID,
+		Role:        RoleObserver,
+		Category:    CategorySurface,
+		MessageType: TypeActionState,
+		Say:         "",
+		ActionJSON:  mustJSON(actionPayload),
+		PayloadJSON: mustJSON(statePayload),
+		CreatedAtMS: state.UpdatedAtMS,
+	}
+	if eventType == "surface_open" {
+		entry.MessageType = TypeSurfaceOpen
+	}
+	s.appendHistoryMessage(entry)
+	s.enqueueFollowupMessage(ChatMessage{Role: RoleObserver, ActionJSON: entry.ActionJSON}, true)
 	_ = s.sendEvent(EventMessage{
 		Type:           "state_change",
 		TsMS:           nowMS(),
@@ -1142,50 +1186,82 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 		MessageType:    "action_report",
 		Visibility:     "hidden",
 	}
-	call := ActionCall{
-		ActionID:    actionID,
-		ActionName:  actionName,
-		SurfaceID:   surfaceID,
-		TurnID:      turnID,
-		Followup:    followup,
-		Args:        cloneAnyMap(ctrl.ActionArgs),
-		RequestedAt: now,
+	callMessageID := s.resolveActionCallRef(actionID, actionName)
+	if callMessageID == "" {
+		callPayload := map[string]any{
+			"type":            TypeActionCall,
+			"id":              actionID,
+			"path":            actionName,
+			"name":            actionName,
+			"surface_id":      surfaceID,
+			"surface_type":    report.SurfaceType,
+			"surface_version": report.SurfaceVersion,
+			"followup":        followup,
+			"args":            cloneAnyMap(ctrl.ActionArgs),
+			"status":          status,
+			"manual_confirm":  manualConfirm,
+			"block_reason":    blockReason,
+			"trigger_reason":  firstNonEmpty(strings.TrimSpace(ctrl.Reason), "dispatch"),
+		}
+		callMessageID = s.appendHistoryMessage(ChatMessage{
+			TurnID:      turnID,
+			Role:        RoleObserver,
+			Category:    CategoryAIAction,
+			MessageType: TypeActionCall,
+			Say:         "",
+			ActionJSON:  mustJSON(callPayload),
+			PayloadJSON: mustJSON(callPayload),
+			CreatedAtMS: now,
+		})
+		if callMessageID != "" {
+			s.bindActionCallRef(actionID, callMessageID)
+		}
 	}
-	callPayload := map[string]any{
+	executePayload := map[string]any{
+		"type":            TypeActionExecute,
+		"ref_message_id":  callMessageID,
+		"ref_action_slot": 0,
 		"action_id":       actionID,
-		"action_name":     actionName,
+		"path":            actionName,
 		"name":            actionName,
-		"surface_id":      surfaceID,
-		"surface_type":    report.SurfaceType,
-		"surface_version": report.SurfaceVersion,
-		"followup":        followup,
-		"args":            cloneAnyMap(call.Args),
-		"status":          status,
-		"manual_confirm":  manualConfirm,
-		"block_reason":    blockReason,
-		"trigger_reason":  firstNonEmpty(strings.TrimSpace(ctrl.Reason), "dispatch"),
+		"status":          "running",
+		"dispatch_info": map[string]any{
+			"surface_id":      surfaceID,
+			"surface_type":    report.SurfaceType,
+			"surface_version": report.SurfaceVersion,
+			"trigger_reason":  firstNonEmpty(strings.TrimSpace(ctrl.Reason), "dispatch"),
+		},
 	}
 	s.appendHistoryMessage(ChatMessage{
-		TurnID:      turnID,
-		Role:        RoleObserver,
-		Category:    CategoryAIAction,
-		MessageType: TypeActionCall,
-		PayloadJSON: mustJSON(callPayload),
-		CreatedAtMS: now,
+		TurnID:        turnID,
+		Role:          RoleObserver,
+		Category:      CategoryAIAction,
+		MessageType:   TypeActionExecute,
+		Say:           "",
+		ActionJSON:    mustJSON(executePayload),
+		RefMessageID:  callMessageID,
+		RefActionSlot: 0,
+		PayloadJSON:   mustJSON(executePayload),
+		CreatedAtMS:   now,
 	})
 
 	reportText := formatActionReportText(report)
 	reportPayload := map[string]any{
+		"type":            TypeActionReport,
+		"ref_message_id":  callMessageID,
+		"ref_action_slot": 0,
 		"report_id":       report.ReportID,
 		"origin":          report.Origin,
 		"action_id":       actionID,
-		"action_name":     actionName,
+		"path":            actionName,
 		"name":            actionName,
 		"surface_id":      surfaceID,
 		"surface_type":    report.SurfaceType,
 		"surface_version": report.SurfaceVersion,
 		"followup":        followup,
+		"state":           reportStateFromStatus(status),
 		"status":          status,
+		"desc":            resultSummary,
 		"result_summary":  resultSummary,
 		"effect_summary":  effectSummary,
 		"result":          cloneAnyMap(ctrl.ActionResult),
@@ -1194,15 +1270,23 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 		"manual_confirm":  manualConfirm,
 		"block_reason":    blockReason,
 	}
-	s.appendHistoryMessage(ChatMessage{
-		TurnID:      turnID,
-		Role:        RoleObserver,
-		Category:    CategoryAIAction,
-		MessageType: TypeActionReport,
-		Content:     reportText,
-		PayloadJSON: mustJSON(reportPayload),
-		CreatedAtMS: now,
-	})
+	reportMsg := ChatMessage{
+		TurnID:        turnID,
+		Role:          RoleObserver,
+		Category:      CategoryAIAction,
+		MessageType:   TypeActionReport,
+		Say:           "",
+		ActionJSON:    mustJSON(reportPayload),
+		RefMessageID:  callMessageID,
+		RefActionSlot: 0,
+		Content:       reportText,
+		PayloadJSON:   mustJSON(reportPayload),
+		CreatedAtMS:   now,
+	}
+	s.appendHistoryMessage(reportMsg)
+	if callMessageID != "" {
+		s.bindActionCallRef(actionID, callMessageID)
+	}
 
 	_ = s.sendEvent(EventMessage{
 		Type:           "action_report",
@@ -1252,7 +1336,7 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 
 	Infof("[Turn:%d] action report generated: %s status=%s followup=%s", turnID, actionName, status, followup)
 	if followup == "report" && manualConfirm != "waiting" && manualConfirm != "cancel" {
-		s.enqueueFollowupReport(report, concurrentActionHint(ctrl.ActionResult) > 1)
+		s.enqueueFollowupMessage(reportMsg, concurrentActionHint(ctrl.ActionResult) > 1)
 	}
 }
 
@@ -1406,9 +1490,19 @@ func (s *Session) setUserTurnActive(active bool) {
 	s.actionMu.Unlock()
 }
 
-func (s *Session) enqueueFollowupReport(report ActionReport, aggregate bool) {
+func (s *Session) clearPendingFollowupsForUserTurn() {
 	s.actionMu.Lock()
-	s.pendingFollowupReport = append(s.pendingFollowupReport, report)
+	s.pendingFollowups = nil
+	if s.followupFlushTimer != nil {
+		s.followupFlushTimer.Stop()
+		s.followupFlushTimer = nil
+	}
+	s.actionMu.Unlock()
+}
+
+func (s *Session) enqueueFollowupMessage(message ChatMessage, aggregate bool) {
+	s.actionMu.Lock()
+	s.pendingFollowups = append(s.pendingFollowups, message)
 	if aggregate {
 		if s.followupFlushTimer != nil {
 			s.followupFlushTimer.Stop()
@@ -1434,19 +1528,18 @@ func (s *Session) tryStartContinuation() {
 		return
 	}
 	s.actionMu.Lock()
-	if s.userTurnActive || s.continuationRunning || len(s.pendingFollowupReport) == 0 || !s.started.Load() || s.followupFlushTimer != nil {
+	if s.userTurnActive || s.continuationRunning || len(s.pendingFollowups) == 0 || !s.started.Load() || s.followupFlushTimer != nil {
 		s.actionMu.Unlock()
 		return
 	}
-	reports := append([]ActionReport(nil), s.pendingFollowupReport...)
-	s.pendingFollowupReport = nil
+	s.pendingFollowups = nil
 	s.continuationRunning = true
 	s.continuationSeq++
 	continuationSeq := s.continuationSeq
 	s.actionMu.Unlock()
 
 	turnID := s.turnID.Add(1)
-	s.startContinuationTurn(turnID, reports, continuationSeq)
+	s.startContinuationTurn(turnID, continuationSeq)
 }
 
 func concurrentActionHint(result map[string]any) int {
@@ -1474,28 +1567,7 @@ func concurrentActionHint(result map[string]any) int {
 	}
 }
 
-func (s *Session) startContinuationTurn(turnID uint64, reports []ActionReport, continuationSeq uint64) {
-	if len(reports) > 1 {
-		names := make([]string, 0, len(reports))
-		for _, rep := range reports {
-			names = append(names, rep.ActionName)
-		}
-		summary := fmt.Sprintf("[action_report] aggregated=%d actions=%s", len(reports), strings.Join(uniqueStrings(names...), ","))
-		s.appendHistoryMessage(ChatMessage{
-			TurnID:      turnID,
-			Role:        RoleObserver,
-			Category:    CategoryAIAction,
-			MessageType: TypeActionReport,
-			Content:     summary,
-			PayloadJSON: mustJSON(map[string]any{
-				"aggregated": true,
-				"count":      len(reports),
-				"actions":    uniqueStrings(names...),
-			}),
-			Visibility:  "hidden",
-			CreatedAtMS: nowMS(),
-		})
-	}
+func (s *Session) startContinuationTurn(turnID uint64, continuationSeq uint64) {
 	history := s.getHistory()
 	ctx, cancel := context.WithCancel(s.rootCtx)
 
@@ -1601,6 +1673,86 @@ func cloneAnyMap(in map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
+}
+
+func jsonOrEmptyMap(raw string) map[string]any {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return map[string]any{}
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(clean), &out); err != nil {
+		return map[string]any{}
+	}
+	return out
+}
+
+func actionIDFromJSON(actionJSON string) string {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(actionJSON)), &payload); err != nil {
+		return ""
+	}
+	return firstNonEmpty(asTrimmedString(payload["id"]), asTrimmedString(payload["action_id"]))
+}
+
+func reportStateFromStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "ok", "success", "complete", "completed":
+		return "success"
+	case "pending", "blocked":
+		return "pending"
+	default:
+		return "fail"
+	}
+}
+
+func (s *Session) bindActionCallRef(actionID string, messageID string) {
+	cleanActionID := strings.TrimSpace(actionID)
+	cleanMessageID := strings.TrimSpace(messageID)
+	if cleanActionID == "" || cleanMessageID == "" {
+		return
+	}
+	s.actionRefMu.Lock()
+	if s.actionCallRefIDs == nil {
+		s.actionCallRefIDs = map[string]string{}
+	}
+	s.actionCallRefIDs[cleanActionID] = cleanMessageID
+	s.actionRefMu.Unlock()
+}
+
+func (s *Session) resolveActionCallRef(actionID string, actionName string) string {
+	cleanActionID := strings.TrimSpace(actionID)
+	if cleanActionID != "" {
+		s.actionRefMu.Lock()
+		if messageID := strings.TrimSpace(s.actionCallRefIDs[cleanActionID]); messageID != "" {
+			s.actionRefMu.Unlock()
+			return messageID
+		}
+		s.actionRefMu.Unlock()
+	}
+	targetName := strings.TrimSpace(actionName)
+	if targetName == "" {
+		return ""
+	}
+	history := s.getHistory()
+	for i := len(history) - 1; i >= 0; i-- {
+		msg := history[i]
+		if msg.Role != RoleAssistant {
+			continue
+		}
+		action := jsonOrEmptyMap(msg.ActionJSON)
+		if strings.ToLower(asTrimmedString(action["type"])) != TypeActionCall {
+			continue
+		}
+		path := firstNonEmpty(asTrimmedString(action["path"]), asTrimmedString(action["name"]))
+		if path != targetName {
+			continue
+		}
+		if msg.MessageID != "" {
+			return msg.MessageID
+		}
+	}
+	return ""
 }
 
 // getHistory returns a snapshot of the current conversation history.

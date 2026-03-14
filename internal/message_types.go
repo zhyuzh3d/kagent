@@ -24,8 +24,11 @@ const (
 	TypeUserMessage      = "user_message"
 	TypeAssistantMessage = "assistant_message"
 	TypeActionCall       = "call"
+	TypeActionExecute    = "execute"
 	TypeActionReport     = "report"
+	TypeActionProgress   = "progress"
 	TypeActionCombined   = "combined"
+	TypeActionState      = "state_change"
 	TypeSurfaceOpen      = "surface_open"
 	TypeSurfaceState     = "surface_state"
 	TypeSurfaceChange    = "surface_change"
@@ -57,6 +60,13 @@ type ChatMessage struct {
 	TurnID                uint64 `json:"turn_id,omitempty"`
 	Seq                   int64  `json:"seq,omitempty"`
 	Role                  string `json:"role"`
+	Say                   string `json:"say,omitempty"`
+	Aside                 string `json:"aside,omitempty"`
+	ActionJSON            string `json:"action_json,omitempty"`
+	RefMessageID          string `json:"ref_message_id,omitempty"`
+	RefActionSlot         int    `json:"ref_action_slot,omitempty"`
+	RawData               string `json:"raw_data,omitempty"`
+	ParseError            string `json:"parse_error,omitempty"`
 	Category              string `json:"category,omitempty"`
 	MessageType           string `json:"message_type,omitempty"`
 	Content               string `json:"content"`
@@ -79,6 +89,13 @@ type MessageWrite struct {
 	TurnID               uint64
 	Seq                  int64
 	Role                 string
+	Say                  string
+	Aside                string
+	ActionJSON           string
+	RefMessageID         string
+	RefActionSlot        int
+	RawData              string
+	ParseError           string
 	Category             string
 	MessageType          string
 	Content              string
@@ -94,8 +111,6 @@ type MessageWrite struct {
 
 func BuildMessage(in MessageWrite) (ChatMessage, error) {
 	role := normalizeMessageRole(in.Role)
-	category := normalizeMessageCategory(in.Category)
-	messageType := normalizeMessageType(category, in.MessageType, role)
 	payloadVersion := in.PayloadSchemaVersion
 	if payloadVersion <= 0 {
 		payloadVersion = PayloadSchemaVersion1
@@ -114,12 +129,58 @@ func BuildMessage(in MessageWrite) (ChatMessage, error) {
 	} else if len(payload) == 0 {
 		_ = json.Unmarshal([]byte(payloadJSON), &payload)
 	}
+	say := firstNonEmpty(strings.TrimSpace(in.Say), asTrimmedString(payload["say"]), asTrimmedString(payload["text"]), asTrimmedString(payload["content"]))
+	aside := firstNonEmpty(strings.TrimSpace(in.Aside), asTrimmedString(payload["aside"]))
+	actionFromPayload := ""
+	if actionMap := anyMap(payload["action"]); len(actionMap) > 0 {
+		b, err := json.Marshal(actionMap)
+		if err == nil {
+			actionFromPayload = string(b)
+		}
+	}
+	actionJSON := normalizeActionJSON(firstNonEmpty(strings.TrimSpace(in.ActionJSON), actionFromPayload))
+	rawData := normalizeRawDataJSON(strings.TrimSpace(in.RawData))
+	parseError := firstNonEmpty(strings.TrimSpace(in.ParseError), asTrimmedString(payload["parse_error"]))
+
 	content := strings.TrimSpace(in.Content)
 	if content == "" {
-		content = strings.TrimSpace(renderMessageContent(category, messageType, payload))
+		content = strings.TrimSpace(composeMessageContent(say, aside))
 	}
 	if content == "" {
-		return ChatMessage{}, fmt.Errorf("message content is empty for %s.%s", category, messageType)
+		content = strings.TrimSpace(renderMessageContent(normalizeMessageCategory(in.Category), strings.ToLower(strings.TrimSpace(in.MessageType)), payload))
+	}
+	if content == "" && strings.TrimSpace(actionJSON) != "" {
+		content = "[action]"
+	}
+	if content == "" {
+		return ChatMessage{}, fmt.Errorf("message content is empty for role=%s", role)
+	}
+
+	actionType := detectActionTypeFromJSON(actionJSON)
+	category := inferMessageCategory(normalizeMessageCategory(in.Category), actionType, role)
+	messageType := normalizeMessageType(category, in.MessageType, role)
+	if actionType != "" && strings.TrimSpace(in.MessageType) == "" {
+		messageType = actionType
+	}
+	refActionSlot := in.RefActionSlot
+	if refActionSlot < 0 {
+		refActionSlot = 0
+	}
+	if refActionSlot == 0 {
+		switch v := payload["ref_action_slot"].(type) {
+		case float64:
+			if v > 0 {
+				refActionSlot = int(v)
+			}
+		case int:
+			if v > 0 {
+				refActionSlot = v
+			}
+		case int64:
+			if v > 0 {
+				refActionSlot = int(v)
+			}
+		}
 	}
 	createdAtMS := in.CreatedAtMS
 	if createdAtMS <= 0 {
@@ -141,6 +202,13 @@ func BuildMessage(in MessageWrite) (ChatMessage, error) {
 		TurnID:                in.TurnID,
 		Seq:                   in.Seq,
 		Role:                  role,
+		Say:                   say,
+		Aside:                 aside,
+		ActionJSON:            actionJSON,
+		RefMessageID:          firstNonEmpty(strings.TrimSpace(in.RefMessageID), asTrimmedString(payload["ref_message_id"])),
+		RefActionSlot:         refActionSlot,
+		RawData:               rawData,
+		ParseError:            parseError,
 		Category:              category,
 		MessageType:           messageType,
 		Content:               content,
@@ -225,6 +293,87 @@ func normalizeMessageType(category string, messageType string, role string) stri
 	}
 }
 
+func inferMessageCategory(fallback string, actionType string, role string) string {
+	if fallback != "" && fallback != CategoryChat {
+		return fallback
+	}
+	switch strings.ToLower(strings.TrimSpace(actionType)) {
+	case TypeActionCall, TypeActionExecute, TypeActionReport, TypeActionProgress, TypeActionCombined:
+		if role == RoleUser {
+			return CategoryUserAction
+		}
+		return CategoryAIAction
+	case TypeActionState:
+		return CategorySurface
+	default:
+		return fallback
+	}
+}
+
+func composeMessageContent(say string, aside string) string {
+	main := strings.TrimSpace(say)
+	note := strings.TrimSpace(aside)
+	if main == "" {
+		return note
+	}
+	if note == "" {
+		return main
+	}
+	return main + "\n" + note
+}
+
+func normalizeActionJSON(raw string) string {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return ""
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(clean), &parsed); err != nil {
+		return clean
+	}
+	if len(parsed) == 0 {
+		return ""
+	}
+	if asTrimmedString(parsed["type"]) == "" {
+		if asTrimmedString(parsed["path"]) != "" || asTrimmedString(parsed["name"]) != "" {
+			parsed["type"] = TypeActionCall
+		}
+	}
+	compact, err := json.Marshal(parsed)
+	if err != nil {
+		return clean
+	}
+	return string(compact)
+}
+
+func detectActionTypeFromJSON(actionJSON string) string {
+	clean := strings.TrimSpace(actionJSON)
+	if clean == "" {
+		return ""
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(clean), &parsed); err != nil {
+		return ""
+	}
+	return strings.ToLower(asTrimmedString(parsed["type"]))
+}
+
+func normalizeRawDataJSON(raw string) string {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return ""
+	}
+	var parsed any
+	if err := json.Unmarshal([]byte(clean), &parsed); err != nil {
+		return mustJSON(map[string]any{"raw_text": clean})
+	}
+	b, err := json.Marshal(parsed)
+	if err != nil {
+		return clean
+	}
+	return string(b)
+}
+
 func normalizeCompletionStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case CompletionStatusComplete:
@@ -254,14 +403,24 @@ func normalizeInterrupt(interrupt string) string {
 }
 
 func messageVisibility(role string, category string, messageType string) string {
-	if category == CategoryChat && (messageType == TypeUserMessage || messageType == TypeAssistantMessage) {
+	_ = category
+	_ = messageType
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case RoleUser, RoleAssistant:
 		return "visible"
+	default:
+		return "hidden"
 	}
-	return "hidden"
 }
 
 func isAnchorMessage(msg ChatMessage) bool {
-	return msg.Category == CategoryChat && (msg.MessageType == TypeUserMessage || msg.MessageType == TypeAssistantMessage)
+	if msg.Role != RoleUser && msg.Role != RoleAssistant {
+		return false
+	}
+	if strings.TrimSpace(msg.Content) != "" || strings.TrimSpace(msg.Say) != "" {
+		return true
+	}
+	return strings.TrimSpace(msg.RawData) != ""
 }
 
 func isUIVisibleMessage(msg ChatMessage) bool {
@@ -269,8 +428,19 @@ func isUIVisibleMessage(msg ChatMessage) bool {
 }
 
 func semanticPromptContent(msg ChatMessage) string {
-	content := strings.TrimSpace(msg.Content)
+	content := strings.TrimSpace(composeMessageContent(msg.Say, msg.Aside))
 	if content == "" {
+		content = strings.TrimSpace(msg.Content)
+	}
+	actionJSON := strings.TrimSpace(msg.ActionJSON)
+	if actionJSON != "" {
+		if content == "" {
+			content = "[action] " + actionJSON
+		} else {
+			content += "\n[action] " + actionJSON
+		}
+	}
+	if strings.TrimSpace(content) == "" {
 		return ""
 	}
 	parts := make([]string, 0, 3)
@@ -292,7 +462,7 @@ func semanticPromptContent(msg ChatMessage) string {
 func renderMessageContent(category string, messageType string, payload map[string]any) string {
 	switch category {
 	case CategoryChat:
-		return firstNonEmpty(asTrimmedString(payload["text"]), asTrimmedString(payload["content"]))
+		return firstNonEmpty(asTrimmedString(payload["say"]), asTrimmedString(payload["text"]), asTrimmedString(payload["content"]), asTrimmedString(payload["aside"]))
 	case CategoryAIAction, CategoryUserAction:
 		return renderActionContent(category, messageType, payload)
 	case CategorySurface:
@@ -318,6 +488,10 @@ func renderActionContent(category string, messageType string, payload map[string
 	switch messageType {
 	case TypeActionCall:
 		return fmt.Sprintf("准备执行动作：%s。（%s.call name=%s followup=%s args=%s）", name, category, name, followup, argsText)
+	case TypeActionExecute:
+		return fmt.Sprintf("开始执行动作：%s。（%s.execute name=%s args=%s）", name, category, name, argsText)
+	case TypeActionProgress:
+		return fmt.Sprintf("动作执行中：%s。（%s.progress name=%s status=%s）", name, category, name, status)
 	case TypeActionCombined:
 		return fmt.Sprintf("动作已执行：%s。（%s.combined name=%s status=%s followup=%s result=%s effect=%s）", name, category, name, status, followup, resultText, effectText)
 	default:

@@ -15,8 +15,8 @@ import (
 const chatSurfaceActionPromptSuffix = "" +
 	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.<surface_id>.<action_name>。\n" +
 	"当你需要动作时，必须只输出 JSON（可以是纯 JSON 或 ```json 代码块），不能在 JSON 外再输出任何解释文字。\n" +
-	"格式：{\"content\":\"给用户看的自然语言\",\"action\":{\"id\":\"可选\",\"name\":\"动作名\",\"args\":{\"target\":\"surface_id或surface名称\",\"surface_id\":\"surface_id\",\"...\":\"动作参数\"},\"followup\":\"none|report\"}}\n" +
-	"硬性约束：content 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/[action_report]/ai_action.call 等协议字段片段。\n" +
+	"格式：{\"say\":\"给用户看的主内容\",\"aside\":\"可选的小字说明\",\"action\":null|{\"type\":\"call\",\"id\":\"可选\",\"path\":\"动作名\",\"args\":{\"target\":\"surface_id或surface名称\",\"surface_id\":\"surface_id\",\"...\":\"动作参数\"},\"followup\":\"none|report\"}}\n" +
+	"硬性约束：say 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/协议字段片段。\n" +
 	"流程约束：\n" +
 	"1) 用户要求打开某个 surface：先调用 get_surfaces 且 followup=report；拿到列表后若命中目标再调用 open_surface(target) 且 followup=report；若不存在则直接回复找不到且不发动作。\n" +
 	"2) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
@@ -24,7 +24,7 @@ const chatSurfaceActionPromptSuffix = "" +
 	"4) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
 	"如果不需要动作，输出普通自然文本即可，不要伪造动作执行结果。"
 
-const continuationUserPrompt = "请基于最新的 action_report 继续推理并回复用户。只输出用户可读结论，禁止复述协议字段或 [action_report] 原文。"
+const continuationUserPrompt = "请基于最新 observer 事件继续推理并回复用户。只输出用户可读结论，禁止复述协议字段原文。"
 
 type LLMClient interface {
 	Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error)
@@ -132,10 +132,14 @@ func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input str
 }
 
 func shouldIncludeInLLMHistory(msg ChatMessage) bool {
-	if strings.TrimSpace(msg.Content) == "" {
+	if strings.TrimSpace(semanticPromptContent(msg)) == "" {
 		return false
 	}
-	if msg.Category == CategoryAIAction && msg.MessageType == TypeActionCall {
+	switch detectActionTypeFromJSON(msg.ActionJSON) {
+	case TypeActionCall, TypeActionExecute:
+		return false
+	}
+	if msg.MessageType == TypeActionCall {
 		return false
 	}
 	return true

@@ -37,12 +37,16 @@ function extractContentPreview(rawText) {
 
   let s = source;
   const objIdx = s.indexOf("{");
-  if (objIdx > 0 && s.includes('"content"')) {
+  if (objIdx > 0 && (s.includes('\"say\"') || s.includes('\"content\"'))) {
     s = s.slice(objIdx);
   }
 
-  const key = '"content"';
-  const keyIdx = s.indexOf(key);
+  let key = '\"say\"';
+  let keyIdx = s.indexOf(key);
+  if (keyIdx < 0) {
+    key = '\"content\"';
+    keyIdx = s.indexOf(key);
+  }
   if (keyIdx < 0) return { found: false, complete: false, value: "" };
   let i = keyIdx + key.length;
   while (i < s.length && /\s/.test(s[i])) i += 1;
@@ -94,7 +98,7 @@ function looksLikeJSONEnvelope(rawText) {
   const text = rawText.trimStart();
   if (!text) return false;
   if (text.startsWith("{") || text.startsWith("```")) return true;
-  return text.includes('"content"') || text.includes('"action"');
+  return text.includes('"say"') || text.includes('"aside"') || text.includes('"content"') || text.includes('"action"');
 }
 
 function normalizeFollowup(rawFollowup) {
@@ -103,7 +107,11 @@ function normalizeFollowup(rawFollowup) {
 
 function normalizeAction(rawAction, payload) {
   if (!rawAction || typeof rawAction !== "object") return null;
-  const nameRaw = typeof rawAction.name === "string" ? rawAction.name.trim() : "";
+  const typeRaw = typeof rawAction.type === "string" ? rawAction.type.trim().toLowerCase() : "";
+  if (typeRaw && typeRaw !== "call") return null;
+  const nameRaw = typeof rawAction.path === "string" && rawAction.path.trim()
+    ? rawAction.path.trim()
+    : (typeof rawAction.name === "string" ? rawAction.name.trim() : "");
   if (!nameRaw) return null;
   const args = rawAction.args && typeof rawAction.args === "object" ? rawAction.args : {};
 
@@ -130,6 +138,7 @@ function normalizeAction(rawAction, payload) {
   const followup = normalizeFollowup(rawAction.followup || payload.followup);
   const normalized = {
     id: typeof rawAction.id === "string" && rawAction.id.trim() ? rawAction.id.trim() : `act-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+    path: canonical,
     name: canonical,
     followup,
     args: {},
@@ -275,7 +284,7 @@ export function createChatActionEngine(options) {
     }
     for (const candidate of candidates) {
       const payload = parseJSONBlock(candidate);
-      if (payload && typeof payload === "object" && ("content" in payload || pickActionObject(payload))) {
+      if (payload && typeof payload === "object" && ("say" in payload || "aside" in payload || "content" in payload || pickActionObject(payload))) {
         return payload;
       }
     }
@@ -290,7 +299,7 @@ export function createChatActionEngine(options) {
     if (actionRateWindow.length >= rateLimit) {
       return "rate_limit";
     }
-    const key = `${action.name}|${stableObjectString(action.args || {})}`;
+    const key = `${action.path}|${stableObjectString(action.args || {})}`;
     const last = actionDedup.get(key) || 0;
     if (now - last <= dedupeMs) {
       return "quota_limit";
@@ -302,7 +311,7 @@ export function createChatActionEngine(options) {
 
   async function requestManualConfirm(blockReason, action) {
     const reasonText = blockReason === "rate_limit" ? "动作调用频率过高" : "检测到短时间重复动作";
-    const actionText = `${action.name} ${JSON.stringify(action.args || {})}`;
+    const actionText = `${action.path} ${JSON.stringify(action.args || {})}`;
     const ok = window.confirm(`${reasonText}。是否仍继续执行？\n\n${actionText}`);
     return ok ? "confirm" : "cancel";
   }
@@ -310,7 +319,7 @@ export function createChatActionEngine(options) {
   async function executeAction(turnId, action, contentText) {
     const blockReason = evaluateActionGuard(action);
     let manualConfirm = "";
-    const targetSurfaceID = inferActionSurfaceID(action.name, action.args);
+    const targetSurfaceID = inferActionSurfaceID(action.path, action.args);
     inflightActions += 1;
     const concurrentHint = inflightActions;
     if (blockReason) {
@@ -321,7 +330,7 @@ export function createChatActionEngine(options) {
           turnId,
           actionId: action.id,
           category: "dispatch",
-          actionName: action.name,
+          actionName: action.path,
           actionSurfaceID: targetSurfaceID,
           actionSurfaceType: "app",
           actionSurfaceVersion: "1",
@@ -350,7 +359,7 @@ export function createChatActionEngine(options) {
           turnId,
           actionId: action.id,
           category: "dispatch",
-          actionName: action.name,
+          actionName: action.path,
           actionSurfaceID: result && result.surface_id ? result.surface_id : targetSurfaceID,
           actionSurfaceType: result && typeof result.surface_type === "string" ? result.surface_type : "app",
           actionSurfaceVersion: result && typeof result.surface_version === "string" ? result.surface_version : "1",
@@ -367,14 +376,14 @@ export function createChatActionEngine(options) {
         return;
       }
 
-      appendDebug("INFO", "ActionEngine", turnId, JSON.stringify(action.args || {}), `action executed: ${action.name}`);
+      appendDebug("INFO", "ActionEngine", turnId, JSON.stringify(action.args || {}), `action executed: ${action.path}`);
       const finalResult = result.result && typeof result.result === "object" ? { ...result.result } : {};
       finalResult.concurrent_actions = concurrentHint;
       reportActionRecord({
         turnId,
         actionId: action.id,
         category: "dispatch",
-        actionName: action.name,
+        actionName: action.path,
         actionSurfaceID: result.surface_id || targetSurfaceID,
         actionSurfaceType: typeof result.surface_type === "string" ? result.surface_type : "app",
         actionSurfaceVersion: typeof result.surface_version === "string" ? result.surface_version : "1",
@@ -395,25 +404,47 @@ export function createChatActionEngine(options) {
 
   async function handleAssistantFinal(turnId, finalText) {
     const payload = resolveFinalPayload(turnId, finalText);
+    const state = streamStates.get(turnId);
+    const rawText = (state && typeof state.raw === "string" && state.raw.trim()) ? state.raw.trim() : String(finalText || "").trim();
+    const rawData = JSON.stringify({ raw_text: rawText, llm: {}, extra: {} });
     if (!payload) {
+      if (looksLikeJSONEnvelope(rawText)) {
+        const preview = rawText.length > 12 ? `${rawText.slice(0, 12)}...` : rawText;
+        chatStore.setAIMsgMeta(turnId, {
+          say: preview ? `消息格式异常：${preview}` : "消息格式异常",
+          parseError: "assistant output is not valid json envelope",
+          rawData,
+          actionJSON: "",
+        });
+      }
       streamStates.delete(turnId);
       return;
     }
-    const state = streamStates.get(turnId);
-    let content = typeof payload.content === "string" ? payload.content.trim() : "";
-    if (!content && state && typeof state.content === "string") {
-      content = state.content.trim();
+    let say = typeof payload.say === "string" ? payload.say.trim() : "";
+    if (!say) {
+      say = typeof payload.content === "string" ? payload.content.trim() : "";
     }
+    if (!say && state && typeof state.content === "string") {
+      say = state.content.trim();
+    }
+    const aside = typeof payload.aside === "string" ? payload.aside.trim() : "";
     const rawAction = pickActionObject(payload);
-    if (!content && rawAction) {
-      const rawName = typeof rawAction.name === "string" ? rawAction.name : "unknown_action";
-      content = `已执行动作：${rawName}`;
+    if (!say && rawAction) {
+      const rawName = typeof rawAction.path === "string" ? rawAction.path : (typeof rawAction.name === "string" ? rawAction.name : "unknown_action");
+      say = `已执行动作：${rawName}`;
     }
-    if (content) {
-      chatStore.setAIMsgText(turnId, content);
+    const actionJSON = rawAction ? JSON.stringify(rawAction) : "";
+    if (say || aside || actionJSON) {
+      chatStore.setAIMsgMeta(turnId, {
+        say,
+        aside,
+        actionJSON,
+        rawData,
+        parseError: "",
+      });
     }
     if (!rawAction) {
-      appendDebug("INFO", "ActionEngine", turnId, content, "parsed envelope without action");
+      appendDebug("INFO", "ActionEngine", turnId, say, "parsed envelope without action");
       streamStates.delete(turnId);
       return;
     }
@@ -422,17 +453,18 @@ export function createChatActionEngine(options) {
     if (!action) {
       appendDebug("WARN", "ActionEngine", turnId, null, "invalid or unsupported action");
       appendSystem("检测到不合法 action，已忽略。");
+      const actionName = typeof rawAction.path === "string" && rawAction.path ? rawAction.path : (typeof rawAction.name === "string" ? rawAction.name : "invalid_action");
       reportActionRecord({
         turnId,
         actionId: typeof rawAction.id === "string" ? rawAction.id : "",
         category: "dispatch",
-        actionName: typeof rawAction.name === "string" ? rawAction.name : "invalid_action",
-        actionSurfaceID: inferActionSurfaceID(typeof rawAction.name === "string" ? rawAction.name : "", rawAction && typeof rawAction.args === "object" ? rawAction.args : {}),
+        actionName,
+        actionSurfaceID: inferActionSurfaceID(actionName, rawAction && typeof rawAction.args === "object" ? rawAction.args : {}),
         actionSurfaceType: "app",
         actionSurfaceVersion: "1",
         status: "fail",
         followup: normalizeFollowup(rawAction.followup || payload.followup),
-        content,
+        content: say,
         args: rawAction && typeof rawAction.args === "object" ? rawAction.args : {},
         result: { reason: "invalid_or_unsupported_action" },
         effect: {},
@@ -443,7 +475,7 @@ export function createChatActionEngine(options) {
     }
 
     try {
-      await executeAction(turnId, action, content);
+      await executeAction(turnId, action, say);
     } finally {
       streamStates.delete(turnId);
     }

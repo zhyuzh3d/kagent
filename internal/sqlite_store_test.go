@@ -31,6 +31,9 @@ func TestSQLiteStoreModernFlow(t *testing.T) {
 	if userMsg.MessageID == "" || userMsg.Seq == 0 || userMsg.StoreID <= 0 {
 		t.Fatalf("unexpected user message: %#v", userMsg)
 	}
+	if userMsg.Say != "你好" {
+		t.Fatalf("expected say persisted, got %#v", userMsg)
+	}
 
 	if err := store.AppendActionCall(ActionCall{
 		ActionID:    "act-1",
@@ -93,6 +96,9 @@ func TestSQLiteStoreModernFlow(t *testing.T) {
 	}
 	if history[1].Category != CategoryAIAction || history[2].Category != CategoryAIAction {
 		t.Fatalf("expected action messages to stay in session window: %#v", history)
+	}
+	if history[2].ActionJSON == "" {
+		t.Fatalf("expected action_json in action report: %#v", history[2])
 	}
 
 	visible, hasMore, err := store.LoadContextBefore(0, 10)
@@ -250,4 +256,3 @@ func TestUserDataStrictIsolation(t *testing.T) {
 		t.Fatalf("Expected empty history for new user-b, got %d messages", len(history))
 	}
 }
-

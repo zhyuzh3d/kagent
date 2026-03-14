@@ -341,3 +341,30 @@
   - 安全规避：严格禁止在数据库初始化阶段推断 UserID，必须由认证上下文显式传入并锁定。
 - 下一步：
   - 考虑为用户增加默认随机头像，提升 UI 个人化程度。
+
+## [2026-03-14 14:00 CST] 消息模型统一与 show more 调试视图落地
+- 时间范围：2026-03-13 20:20 CST -> 2026-03-14 14:00 CST
+- 主要变更：
+  - 按 `plan/260313-message-model-prd.md` 完成消息主结构升级：后端消息对象与 SQLite `messages` 表新增 `say/aside/action_json/ref_message_id/ref_action_slot/raw_data/parse_error`。
+  - 落地 assistant JSON envelope 解析与异常兜底：解析失败写入 `parse_error` 与 `raw_data`，并提供“消息格式异常”预览文本。
+  - 调整 action 落盘链路为可追溯结构：在 observer 侧补齐 `execute -> report` 串联，并通过 `ref_message_id` 关联 call。
+  - 调整 followup 机制：引入 pending 缓冲与 1 秒去抖；用户新 turn 到来时清空 pending continuation 触发机会。
+  - 前端 chat 页新增 show more 切换，支持查看 observer/system 消息及 `action_json/parse_error/raw_data` 调试信息。
+- 关键文件/模块：
+  - `internal/message_types.go`
+  - `internal/sqlite_store.go`
+  - `internal/session.go`
+  - `internal/assistant_envelope.go`
+  - `webui/page/chat/chat-store.js`
+  - `webui/page/chat/action-engine.js`
+  - `webui/page/chat/index.html`
+  - `webui/page/chat/io-worker.js`
+- 开发结果：
+  - 成功：`go test ./...`、`go build -buildvcs=false ./...`、`node --check webui/page/chat/{chat-store,action-engine,event-router,io-worker}.js` 均通过。
+  - 失败/问题：未做浏览器端完整语音回归（当前仍以后端测试与前端语法检查为主）。
+- 经验与结论：
+  - 有效实践：将“展示字段（say/aside）”与“调试字段（raw_data/parse_error/action_json）”分层落库，能同时降低 UI 复杂度并提高排障效率。
+  - 失败教训：消息模型升级涉及前后端与 DB 三端联动，若不先统一字段语义，容易在 action 链路中出现引用断点。
+  - 后续规避：后续继续迭代消息协议时，先保持 `message_id + ref_*` 的稳定约束，再做 UI 展示扩展。
+- 下一步：
+  - 补一轮浏览器实机回归，重点覆盖 show more 切换、解析失败气泡、action 调度与 followup 去抖场景。

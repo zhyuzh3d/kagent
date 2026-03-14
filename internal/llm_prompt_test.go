@@ -47,8 +47,8 @@ func TestBuildLLMInputMessages_AddsContinuationUserTail(t *testing.T) {
 		t.Fatalf("last role should be user, got=%#v", last)
 	}
 	content, _ := last["content"].(string)
-	if !strings.Contains(content, "action_report") {
-		t.Fatalf("continuation tail should mention action_report, got=%q", content)
+	if !strings.Contains(content, "observer") {
+		t.Fatalf("continuation tail should mention observer events, got=%q", content)
 	}
 	for _, msg := range msgs {
 		text, _ := msg["content"].(string)

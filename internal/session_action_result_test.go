@@ -20,12 +20,19 @@ func TestSessionHandleActionResult_PersistAndHistory(t *testing.T) {
 	})
 
 	history := s.getHistory()
-	if len(history) == 0 {
+	if len(history) < 2 {
 		t.Fatalf("history should contain action observation")
 	}
+	execute := history[len(history)-2]
 	last := history[len(history)-1]
+	if execute.MessageType != TypeActionExecute {
+		t.Fatalf("expected execute before report, got %#v", execute)
+	}
 	if last.Role != "observer" || !strings.Contains(last.Content, "[action_report]") {
 		t.Fatalf("unexpected last history: %#v", last)
+	}
+	if last.RefMessageID == "" {
+		t.Fatalf("expected report ref_message_id, got %#v", last)
 	}
 }
 

@@ -453,7 +453,7 @@ func (p *llmContentProjector) Push(delta string) string {
 	p.raw.WriteString(delta)
 	raw := p.raw.String()
 
-	found, _, content := extractLLMEnvelopeContentPreview(raw)
+	found, _, content := extractLLMEnvelopeSayPreview(raw)
 	if found {
 		p.mode = llmProjectModeJSON
 		if strings.HasPrefix(content, p.lastContent) {
@@ -497,7 +497,7 @@ func looksLikeLLMEnvelope(raw string) bool {
 	if strings.HasPrefix(text, "{") || strings.HasPrefix(text, "```") {
 		return true
 	}
-	return strings.Contains(text, `"content"`) || strings.Contains(text, `"action"`)
+	return strings.Contains(text, `"say"`) || strings.Contains(text, `"aside"`) || strings.Contains(text, `"content"`) || strings.Contains(text, `"action"`)
 }
 
 func normalizeLLMEnvelopeRaw(raw string) string {
@@ -513,20 +513,24 @@ func normalizeLLMEnvelopeRaw(raw string) string {
 	return text
 }
 
-func extractLLMEnvelopeContentPreview(raw string) (found bool, complete bool, value string) {
+func extractLLMEnvelopeSayPreview(raw string) (found bool, complete bool, value string) {
 	source := normalizeLLMEnvelopeRaw(raw)
 	if source == "" {
 		return false, false, ""
 	}
 
-	if idx := strings.Index(source, "{"); idx > 0 && strings.Contains(source, `"content"`) {
+	if idx := strings.Index(source, "{"); idx > 0 && (strings.Contains(source, `"say"`) || strings.Contains(source, `"content"`)) {
 		source = source[idx:]
 	}
 
-	const key = `"content"`
+	key := `"say"`
 	keyIdx := strings.Index(source, key)
 	if keyIdx < 0 {
-		return false, false, ""
+		key = `"content"`
+		keyIdx = strings.Index(source, key)
+		if keyIdx < 0 {
+			return false, false, ""
+		}
 	}
 	i := keyIdx + len(key)
 	for i < len(source) && isJSONSpace(source[i]) {

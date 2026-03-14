@@ -1,3 +1,23 @@
+function prettyJSON(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch (_) {
+    return raw;
+  }
+}
+
+function actionBadgeText(actionJSON) {
+  if (!actionJSON || typeof actionJSON !== "string") return "";
+  try {
+    const parsed = JSON.parse(actionJSON);
+    const t = String(parsed.type || "").trim();
+    return t ? `A:${t}` : "A";
+  } catch (_) {
+    return "A";
+  }
+}
+
 export function createChatStore(options) {
   const { app, chatArea } = options;
 
@@ -22,11 +42,10 @@ export function createChatStore(options) {
     jumpModeActive = false;
     jumpBtn.style.display = "none";
     clearForJump();
-    app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: (app.pullHistorySize || 10) * 5, before_id: 0 } });
+    app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: (app.pullHistorySize || 10) * 5, before_id: 0, show_more: !!app.showMore } });
   });
 
   chatArea.addEventListener("scroll", () => {
-    // 1. Check for pulling old history
     if (chatArea.scrollTop < 20 && !app.isFetchingHistory && app.hasMoreHistory && app.running) {
       app.isFetchingHistory = true;
       app.historyLoadingEl = document.createElement("div");
@@ -36,10 +55,9 @@ export function createChatStore(options) {
       chatArea.prepend(app.historyLoadingEl);
 
       const beforeID = getOldestBeforeID();
-      app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: app.pullHistorySize || 10, before_id: beforeID } });
+      app.workerSend({ type: "send_control", control: "fetch_history", extra: { limit: app.pullHistorySize || 10, before_id: beforeID, show_more: !!app.showMore } });
     }
 
-    // 2. Hide jump button if scrolled to bottom
     if (chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 50) {
       if (jumpModeActive) {
         jumpModeActive = false;
@@ -52,7 +70,7 @@ export function createChatStore(options) {
     if (chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight > 100) {
       jumpModeActive = true;
       jumpBtn.style.display = "block";
-      return true; // We intercepted the scroll
+      return true;
     }
     return false;
   }
@@ -61,17 +79,126 @@ export function createChatStore(options) {
     return type === "llm_delta" || type === "llm_final" || type === "tts_chunk";
   }
 
-  function addChatMsg(role, text, turnId, isPartial = false, sessionEpoch = app.sessionEpoch) {
+  function isDefaultVisibleRole(role) {
+    return role === "user" || role === "assistant" || role === "ai";
+  }
+
+  function applyRoleVisibility(msg) {
+    if (!msg || !msg.element) return;
+    if (app.showMore) {
+      msg.element.style.display = "";
+      return;
+    }
+    msg.element.style.display = isDefaultVisibleRole(msg.role) ? "" : "none";
+  }
+
+  function buildDebugText(msg) {
+    const lines = [];
+    if (msg.createdLocalYMDHMS || msg.createdLocalWeekday || msg.createdLocalLunar) {
+      lines.push([msg.createdLocalYMDHMS, msg.createdLocalWeekday, msg.createdLocalLunar].filter(Boolean).join(" "));
+    }
+    if (msg.actionJSON) {
+      lines.push("action_json:");
+      lines.push(prettyJSON(msg.actionJSON));
+    }
+    if (msg.parseError) {
+      lines.push(`parse_error: ${msg.parseError}`);
+    }
+    if (msg.rawData) {
+      lines.push("raw_data:");
+      lines.push(prettyJSON(msg.rawData));
+    }
+    return lines.join("\n");
+  }
+
+  function renderMessage(msg) {
+    if (!msg) return;
+    const mainText = typeof msg.say === "string" ? msg.say : (typeof msg.text === "string" ? msg.text : "");
+    msg.text = mainText;
+    msg.say = mainText;
+
+    msg.element.className = `msg ${msg.role} ${msg.isPartial ? "partial" : ""}`.trim();
+    msg.element.dataset.turnId = msg.turnId || 0;
+    msg.element.dataset.msgId = msg.msgId || "";
+    msg.element.dataset.storeId = msg.storeId || 0;
+    msg.element.dataset.sessionEpoch = msg.sessionEpoch || 0;
+
+    msg.mainEl.textContent = mainText || "";
+    msg.metaEl.textContent = msg.aside || "";
+    msg.metaEl.style.display = msg.aside ? "block" : "none";
+
+    const badge = actionBadgeText(msg.actionJSON || "");
+    msg.actionBadgeEl.textContent = badge;
+    msg.actionBadgeEl.style.display = badge ? "inline-flex" : "none";
+
+    msg.element.classList.toggle("malformed", !!msg.parseError);
+
+    const debugText = buildDebugText(msg);
+    msg.debugEl.textContent = debugText;
+    msg.debugEl.style.display = app.showMore && debugText ? "block" : "none";
+
+    applyRoleVisibility(msg);
+  }
+
+  function createMessageRecord(input) {
+    const msg = {
+      role: input.role || "system",
+      say: typeof input.say === "string" ? input.say : (typeof input.text === "string" ? input.text : ""),
+      text: typeof input.say === "string" ? input.say : (typeof input.text === "string" ? input.text : ""),
+      aside: typeof input.aside === "string" ? input.aside : "",
+      actionJSON: typeof input.actionJSON === "string" ? input.actionJSON : "",
+      rawData: typeof input.rawData === "string" ? input.rawData : "",
+      parseError: typeof input.parseError === "string" ? input.parseError : "",
+      turnId: Number.isFinite(input.turnId) ? input.turnId : 0,
+      sessionEpoch: Number.isFinite(input.sessionEpoch) ? input.sessionEpoch : app.sessionEpoch,
+      msgId: typeof input.msgId === "string" ? input.msgId : "",
+      storeId: Number.isFinite(input.storeId) ? input.storeId : 0,
+      createdLocalYMDHMS: typeof input.createdLocalYMDHMS === "string" ? input.createdLocalYMDHMS : "",
+      createdLocalWeekday: typeof input.createdLocalWeekday === "string" ? input.createdLocalWeekday : "",
+      createdLocalLunar: typeof input.createdLocalLunar === "string" ? input.createdLocalLunar : "",
+      isPartial: !!input.isPartial,
+    };
+
     const div = document.createElement("div");
-    div.className = `msg ${role} ${isPartial ? "partial" : ""}`;
-    div.dataset.turnId = turnId;
-    div.dataset.sessionEpoch = sessionEpoch;
-    div.textContent = text;
-    chatArea.appendChild(div);
+    const mainEl = document.createElement("div");
+    mainEl.className = "msg-main";
+    const metaEl = document.createElement("div");
+    metaEl.className = "msg-aside";
+    const actionBadgeEl = document.createElement("span");
+    actionBadgeEl.className = "msg-action-badge";
+    const debugEl = document.createElement("pre");
+    debugEl.className = "msg-debug";
+
+    div.appendChild(actionBadgeEl);
+    div.appendChild(mainEl);
+    div.appendChild(metaEl);
+    div.appendChild(debugEl);
+
+    msg.element = div;
+    msg.mainEl = mainEl;
+    msg.metaEl = metaEl;
+    msg.actionBadgeEl = actionBadgeEl;
+    msg.debugEl = debugEl;
+    renderMessage(msg);
+    return msg;
+  }
+
+  function addChatMsg(role, text, turnId, isPartial = false, sessionEpoch = app.sessionEpoch, extra = {}) {
+    const msg = createMessageRecord({
+      role,
+      say: text,
+      turnId,
+      isPartial,
+      sessionEpoch,
+      aside: typeof extra.aside === "string" ? extra.aside : "",
+      actionJSON: typeof extra.actionJSON === "string" ? extra.actionJSON : "",
+      rawData: typeof extra.rawData === "string" ? extra.rawData : "",
+      parseError: typeof extra.parseError === "string" ? extra.parseError : "",
+    });
+    chatArea.appendChild(msg.element);
     if (!maybeShowJump()) {
       chatArea.scrollTop = chatArea.scrollHeight;
     }
-    const msg = { role, text, turnId, sessionEpoch, element: div, isPartial };
     app.messages.push(msg);
     return msg;
   }
@@ -92,8 +219,10 @@ export function createChatStore(options) {
     if (!msg) {
       msg = addChatMsg("user", text, turnId, true);
     } else {
+      msg.say = text;
       msg.text = text;
-      msg.element.textContent = text;
+      msg.isPartial = true;
+      renderMessage(msg);
       if (!maybeShowJump()) {
         chatArea.scrollTop = chatArea.scrollHeight;
       }
@@ -103,15 +232,15 @@ export function createChatStore(options) {
   function finalizeASR(text, turnId) {
     const msg = findUserMsg(turnId);
     if (msg) {
-      msg.text = text;
+      msg.say = text || "";
+      msg.text = text || "";
       msg.isPartial = false;
-      if (text) {
-        msg.element.textContent = text;
-      } else {
+      if (!text) {
         msg.element.remove();
         app.messages = app.messages.filter((item) => item !== msg);
+      } else {
+        renderMessage(msg);
       }
-      msg.element.classList.remove("partial");
       return;
     }
     if (text) {
@@ -119,30 +248,31 @@ export function createChatStore(options) {
     }
   }
 
-  function appendAIDelta(text, turnId) {
-    if (!app.currentAIMsg || app.currentAIMsg.turnId !== turnId || app.currentAIMsg.sessionEpoch !== app.sessionEpoch) {
-      app.currentAIMsg = addChatMsg("ai", "", turnId);
-    }
-    app.currentAIMsg.text += text;
-    app.currentAIMsg.element.textContent = app.currentAIMsg.text;
-    if (!maybeShowJump()) {
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-  }
-
   function findAIMsg(turnId, sessionEpoch = app.sessionEpoch) {
     for (let i = app.messages.length - 1; i >= 0; i--) {
       const msg = app.messages[i];
-      if (msg.role === "ai" && msg.turnId === turnId && msg.sessionEpoch === sessionEpoch) {
+      if ((msg.role === "assistant" || msg.role === "ai") && msg.turnId === turnId && msg.sessionEpoch === sessionEpoch) {
         return msg;
       }
     }
     return null;
   }
 
+  function appendAIDelta(text, turnId) {
+    if (!app.currentAIMsg || app.currentAIMsg.turnId !== turnId || app.currentAIMsg.sessionEpoch !== app.sessionEpoch) {
+      app.currentAIMsg = addChatMsg("assistant", "", turnId);
+    }
+    app.currentAIMsg.say += text;
+    app.currentAIMsg.text = app.currentAIMsg.say;
+    renderMessage(app.currentAIMsg);
+    if (!maybeShowJump()) {
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+  }
+
   function getAIMsgText(turnId) {
     const msg = findAIMsg(turnId);
-    return msg ? msg.text : "";
+    return msg ? msg.say : "";
   }
 
   function setAIMsgText(turnId, text) {
@@ -150,17 +280,32 @@ export function createChatStore(options) {
     let msg = findAIMsg(turnId);
     if (!msg) {
       if (!clean) return;
-      msg = addChatMsg("ai", clean, turnId);
+      msg = addChatMsg("assistant", clean, turnId);
       if (app.currentAIMsg && app.currentAIMsg.turnId === turnId) {
         app.currentAIMsg = msg;
       }
       return;
     }
+    msg.say = clean;
     msg.text = clean;
-    msg.element.textContent = clean;
+    renderMessage(msg);
     if (!maybeShowJump()) {
       chatArea.scrollTop = chatArea.scrollHeight;
     }
+  }
+
+  function setAIMsgMeta(turnId, meta = {}) {
+    const msg = findAIMsg(turnId);
+    if (!msg) return;
+    if (typeof meta.say === "string") {
+      msg.say = meta.say;
+      msg.text = meta.say;
+    }
+    if (typeof meta.aside === "string") msg.aside = meta.aside;
+    if (typeof meta.actionJSON === "string") msg.actionJSON = meta.actionJSON;
+    if (typeof meta.rawData === "string") msg.rawData = meta.rawData;
+    if (typeof meta.parseError === "string") msg.parseError = meta.parseError;
+    renderMessage(msg);
   }
 
   function removeAIMsg(turnId) {
@@ -204,22 +349,25 @@ export function createChatStore(options) {
     const fragment = document.createDocumentFragment();
     const batch = [];
     for (const m of historyMessages) {
-      const div = document.createElement("div");
-      div.className = `msg ${m.role}`;
-      div.dataset.msgId = m.message_id || "";
-      div.dataset.storeId = m.store_id || 0;
-      div.textContent = m.content;
-      fragment.appendChild(div);
-      batch.push({
-        role: m.role,
-        text: m.content,
-        msgId: m.message_id,
-        storeId: m.store_id,
-        turnId: 0,
+      const role = (m.role === "assistant") ? "assistant" : (m.role || "system");
+      const say = (typeof m.say === "string" && m.say) ? m.say : (typeof m.content === "string" ? m.content : "");
+      const record = createMessageRecord({
+        role,
+        say,
+        aside: typeof m.aside === "string" ? m.aside : "",
+        actionJSON: typeof m.action_json === "string" ? m.action_json : "",
+        rawData: typeof m.raw_data === "string" ? m.raw_data : "",
+        parseError: typeof m.parse_error === "string" ? m.parse_error : "",
+        msgId: m.message_id || "",
+        storeId: Number.isFinite(m.store_id) ? m.store_id : 0,
+        turnId: Number.isFinite(m.turn_id) ? m.turn_id : 0,
         sessionEpoch: 0,
-        element: div,
-        isPartial: false
+        createdLocalYMDHMS: m.created_at_local_ymdhms || "",
+        createdLocalWeekday: m.created_at_local_weekday || "",
+        createdLocalLunar: m.created_at_local_lunar || "",
       });
+      fragment.appendChild(record.element);
+      batch.push(record);
     }
 
     chatArea.prepend(fragment);
@@ -233,19 +381,15 @@ export function createChatStore(options) {
       app.historyNoMoreEl.textContent = "— 已显示全部历史 —";
       chatArea.prepend(app.historyNoMoreEl);
     }
-
-    trimDOMNodes();
   }
 
-  function trimDOMNodes() {
-    const maxNodes = (app.pullHistorySize || 10) * 5;
-    if (app.messages.length > maxNodes) {
-      // Very basic trim to prevent complete tab freeze
-      // A more complete sliding window requires intersection observers.
-      // For now, if we exceed limits significantly, we trim older messages (if scrolling down)
-      // or newer messages (if scrolling up).
-      // Let's rely on jumpToBottom for resetting when new messages arrive.
-    }
+  function rerenderAll() {
+    app.messages.forEach((msg) => renderMessage(msg));
+  }
+
+  function setShowMore(enabled) {
+    app.showMore = !!enabled;
+    rerenderAll();
   }
 
   function getOldestBeforeID() {
@@ -256,7 +400,7 @@ export function createChatStore(options) {
   }
 
   function clearForJump() {
-    app.messages.forEach(m => {
+    app.messages.forEach((m) => {
       if (m.element) m.element.remove();
     });
     app.messages = [];
@@ -281,10 +425,12 @@ export function createChatStore(options) {
     appendAIDelta,
     getAIMsgText,
     setAIMsgText,
+    setAIMsgMeta,
     removeAIMsg,
     finalizeAI,
     handleHistorySync,
     getOldestBeforeID,
     clearForJump,
+    setShowMore,
   };
 }

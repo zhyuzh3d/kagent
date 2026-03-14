@@ -175,12 +175,12 @@ func TestTurnPipelineFailsIfNoAudioProduced(t *testing.T) {
 }
 
 func TestLLMEnvelopeContentPreview(t *testing.T) {
-	found, complete, value := extractLLMEnvelopeContentPreview(`{"content":"你好，世界。","action":{"name":"x"}}`)
+	found, complete, value := extractLLMEnvelopeSayPreview(`{"content":"你好，世界。","action":{"name":"x"}}`)
 	if !found || !complete || value != "你好，世界。" {
 		t.Fatalf("unexpected parse result found=%v complete=%v value=%q", found, complete, value)
 	}
 
-	found, complete, value = extractLLMEnvelopeContentPreview("```json\n{\"content\":\"abc\"}\n```")
+	found, complete, value = extractLLMEnvelopeSayPreview("```json\n{\"content\":\"abc\"}\n```")
 	if !found || !complete || value != "abc" {
 		t.Fatalf("unexpected fenced parse result found=%v complete=%v value=%q", found, complete, value)
 	}
