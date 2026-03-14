@@ -85,6 +85,7 @@ func main() {
 		app.Errorf("load config failed: %v", err)
 		os.Exit(1)
 	}
+	aiServiceCfg := cfg.EffectiveAIService()
 	runtimeCfg, err := app.NewRuntimeConfigManager(publicConfigPathResolved, userConfigPathResolved)
 	if err != nil {
 		app.Errorf("load runtime config failed: %v", err)
@@ -118,6 +119,29 @@ func main() {
 
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
+	localProviderFactory := app.NewLocalProviderFactory()
+	var aiServiceManager *app.AIServiceManager
+	if app.IsServiceMode(cfg) {
+		aiServiceManager = app.NewAIServiceManager(aiServiceCfg)
+		if err := aiServiceManager.Start(appCtx); err != nil {
+			app.Warnf("ai service manager start failed, fallback to local provider: %v", err)
+		}
+		if aiServiceManager != nil {
+			ok := aiServiceManager.WaitForHealthy(appCtx, time.Duration(aiServiceCfg.StartupGracePeriodMS)*time.Millisecond)
+			if ok {
+				app.Infof("ai service is healthy at startup: %s", aiServiceCfg.BaseURL)
+			} else {
+				app.Warnf("ai service startup health check timeout, fallback to local provider until service is healthy")
+			}
+			defer aiServiceManager.Stop()
+		}
+	}
+	selectProviderFactory := func() app.ProviderFactory {
+		if app.IsServiceMode(cfg) && aiServiceManager != nil && aiServiceManager.IsHealthy() {
+			return app.NewServiceProviderFactory(aiServiceCfg)
+		}
+		return localProviderFactory
+	}
 
 	ver, verr := app.LoadVersionInfo(versionPath)
 	if verr != nil {
@@ -671,6 +695,56 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("/api/admin/services", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		activeFactory := selectProviderFactory().Name()
+		if aiServiceManager == nil {
+			writeJSON(w, map[string]any{
+				"active_provider": activeFactory,
+				"services":        []any{},
+			})
+			return
+		}
+		writeJSON(w, map[string]any{
+			"active_provider": activeFactory,
+			"services":        []any{aiServiceManager.Snapshot()},
+		})
+	})
+
+	mux.HandleFunc("/api/admin/services/ai-doubao/restart", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if aiServiceManager == nil {
+			http.Error(w, "service mode is disabled", http.StatusBadRequest)
+			return
+		}
+		if err := aiServiceManager.Restart(); err != nil {
+			http.Error(w, "restart failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok":      true,
+			"service": aiServiceManager.Snapshot(),
+		})
+	})
+
 	mux.HandleFunc("/surfacefs/static/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
@@ -782,7 +856,9 @@ func main() {
 			conn.Close()
 			return
 		}
-		s := app.NewSession(conn, cfg, runtimeCfg, userStore)
+		providerFactory := selectProviderFactory()
+		app.Infof("create session with provider factory=%s user=%s project=%s thread=%s", providerFactory.Name(), claims.UserID, pID, tID)
+		s := app.NewSession(conn, cfg, runtimeCfg, userStore, providerFactory)
 		go func() {
 			ctx, cancel := context.WithCancel(appCtx)
 			defer cancel()

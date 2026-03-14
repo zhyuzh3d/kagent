@@ -85,11 +85,13 @@ type Session struct {
 	actionCallRefIDs map[string]string
 }
 
-func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, sqliteStore *SQLiteStore) *Session {
-	activeCfg := cfg.ActiveChat()
+func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, sqliteStore *SQLiteStore, providerFactory ProviderFactory) *Session {
 	publicCfg := defaultPublicConfig()
 	if runtimeConfig != nil {
 		publicCfg = runtimeConfig.Snapshot()
+	}
+	if providerFactory == nil {
+		providerFactory = NewLocalProviderFactory()
 	}
 	audioQueueSize := publicCfg.Chat.Session.UpstreamAudioQueueSize
 	if audioQueueSize <= 0 {
@@ -108,9 +110,9 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 		cfg:                cfg,
 		runtimeConfig:      runtimeConfig,
 		sqliteStore:        sqliteStore,
-		asr:                NewDoubaoASRClient(cfg.ASR, runtimeConfig),
-		llm:                NewDoubaoLLMClient(activeCfg, runtimeConfig),
-		tts:                NewDoubaoTTSClient(cfg.TTS, runtimeConfig),
+		asr:                providerFactory.NewASRClient(cfg, runtimeConfig),
+		llm:                providerFactory.NewLLMClient(cfg, runtimeConfig),
+		tts:                providerFactory.NewTTSClient(cfg, runtimeConfig),
 		state:              StateIdle,
 		audioIn:            make(chan []byte, audioQueueSize),
 		control:            make(chan ControlMessage, controlQueueSize),
@@ -812,7 +814,6 @@ func significantEnergy(frame []byte) bool {
 	avg := sum / int64(count)
 	return avg > 420
 }
-
 
 func (s *Session) consumeLastASRText() string {
 	s.lastASRTextMu.Lock()

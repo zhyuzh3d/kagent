@@ -6,11 +6,11 @@ import (
 )
 
 func TestShouldInterruptOnStartListen(t *testing.T) {
-	if !shouldInterruptOnStartListen(StateSpeaking) {
-		t.Fatalf("expected start_listen to interrupt while speaking")
-	}
 	if shouldInterruptOnStartListen(StateThinking) {
 		t.Fatalf("did not expect start_listen to interrupt while thinking")
+	}
+	if shouldInterruptOnStartListen(StateSpeaking) {
+		t.Fatalf("did not expect start_listen to interrupt while speaking")
 	}
 	if shouldInterruptOnStartListen(StateListening) {
 		t.Fatalf("did not expect start_listen to interrupt while listening")
