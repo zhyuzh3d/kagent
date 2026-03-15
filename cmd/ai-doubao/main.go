@@ -66,6 +66,47 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("/service/tools", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, app.AIServiceListToolsResponse{
+			ServiceID: "ai-doubao",
+			Tools: []app.AIServiceToolDescriptor{
+				{
+					Name:                 "ai.asr.stream",
+					Description:          "Stream PCM16 audio and receive ASR partial/final/endpoint events.",
+					InputSchema:          map[string]any{"type": "object", "properties": map[string]any{"audio": map[string]any{"type": "string", "description": "binary PCM stream via websocket frames"}}},
+					OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"type": map[string]any{"type": "string"}, "text": map[string]any{"type": "string"}}},
+					SideEffect:           "read",
+					CapabilitiesRequired: []string{"ai.asr"},
+					Idempotency:          "unknown",
+					TimeoutMSDefault:     60000,
+					Streaming:            "ws_binary",
+				},
+				{
+					Name:                 "ai.llm.stream",
+					Description:          "Stream text deltas and final response from LLM.",
+					InputSchema:          map[string]any{"type": "object", "properties": map[string]any{"input": map[string]any{"type": "string"}}},
+					OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"type": map[string]any{"type": "string"}, "text": map[string]any{"type": "string"}}},
+					SideEffect:           "none",
+					CapabilitiesRequired: []string{"ai.llm"},
+					Idempotency:          "idempotent",
+					TimeoutMSDefault:     65000,
+					Streaming:            "sse",
+				},
+				{
+					Name:                 "ai.tts.synthesize",
+					Description:          "Synthesize text to speech audio bytes.",
+					InputSchema:          map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}},
+					OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"audio_base64": map[string]any{"type": "string"}, "format": map[string]any{"type": "string"}}},
+					SideEffect:           "read",
+					CapabilitiesRequired: []string{"ai.tts"},
+					Idempotency:          "idempotent",
+					TimeoutMSDefault:     35000,
+					Streaming:            "none",
+				},
+			},
+		})
+	})
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  32 * 1024,
 		WriteBufferSize: 32 * 1024,
@@ -76,12 +117,14 @@ func main() {
 	}
 
 	mux.HandleFunc("/v1/asr/stream", func(w http.ResponseWriter, r *http.Request) {
+		reqID := firstNonEmpty(strings.TrimSpace(r.Header.Get("X-Request-ID")), "svc-"+app.NewRequestID())
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			http.Error(w, "upgrade failed", http.StatusBadRequest)
 			return
 		}
 		defer conn.Close()
+		app.Debugf("[ai-doubao] asr stream open request_id=%s", reqID)
 
 		mt, payload, err := conn.ReadMessage()
 		if err != nil || mt != websocket.TextMessage {
@@ -152,7 +195,10 @@ func main() {
 		<-sendDone
 		if runErr != nil && ctx.Err() == nil {
 			_ = conn.WriteJSON(app.AIServiceASREvent{Type: "error", Error: runErr.Error()})
+			app.Warnf("[ai-doubao] asr stream failed request_id=%s turn_id=%d err=%v", firstNonEmpty(startReq.RequestID, reqID), startReq.TurnID, runErr)
+			return
 		}
+		app.Debugf("[ai-doubao] asr stream closed request_id=%s turn_id=%d", firstNonEmpty(startReq.RequestID, reqID), startReq.TurnID)
 	})
 
 	mux.HandleFunc("/v1/llm/stream", func(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +212,8 @@ func main() {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+		reqID := firstNonEmpty(req.RequestID, strings.TrimSpace(r.Header.Get("X-Request-ID")), "svc-"+app.NewRequestID())
+		app.Debugf("[ai-doubao] llm stream request_id=%s turn_id=%d", reqID, req.TurnID)
 
 		llm := app.NewDoubaoLLMClient(cfg.ActiveChat(), nil)
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -205,9 +253,11 @@ func main() {
 		}
 		if err != nil {
 			pushEvent(app.AIServiceLLMStreamEvent{Type: "error", Error: err.Error()})
+			app.Warnf("[ai-doubao] llm stream failed request_id=%s turn_id=%d err=%v", reqID, req.TurnID, err)
 			return
 		}
 		pushEvent(app.AIServiceLLMStreamEvent{Type: "final", Text: finalText})
+		app.Debugf("[ai-doubao] llm stream finished request_id=%s turn_id=%d", reqID, req.TurnID)
 	})
 
 	mux.HandleFunc("/v1/tts/synthesize", func(w http.ResponseWriter, r *http.Request) {
@@ -221,16 +271,20 @@ func main() {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
+		reqID := firstNonEmpty(req.RequestID, strings.TrimSpace(r.Header.Get("X-Request-ID")), "svc-"+app.NewRequestID())
+		app.Debugf("[ai-doubao] tts synth request_id=%s turn_id=%d", reqID, req.TurnID)
 		tts := app.NewDoubaoTTSClient(cfg.TTS, nil)
 		audio, format, err := tts.Synthesize(r.Context(), req.Text)
 		if err != nil {
 			http.Error(w, "tts synth failed: "+err.Error(), http.StatusBadRequest)
+			app.Warnf("[ai-doubao] tts synth failed request_id=%s turn_id=%d err=%v", reqID, req.TurnID, err)
 			return
 		}
 		writeJSON(w, app.AIServiceTTSSynthesizeResponse{
 			AudioBase64: base64.StdEncoding.EncodeToString(audio),
 			Format:      format,
 		})
+		app.Debugf("[ai-doubao] tts synth finished request_id=%s turn_id=%d bytes=%d", reqID, req.TurnID, len(audio))
 	})
 
 	server := &http.Server{
@@ -248,4 +302,14 @@ func main() {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

@@ -12,3 +12,7 @@ func newRequestID() string {
 	}
 	return hex.EncodeToString(b[:])
 }
+
+func NewRequestID() string {
+	return newRequestID()
+}

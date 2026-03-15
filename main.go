@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +49,21 @@ type surfaceFSDeleteRequest struct {
 	SurfaceID       string `json:"surface_id"`
 	Path            string `json:"path"`
 	Recursive       bool   `json:"recursive"`
+}
+
+type blobPutRequest struct {
+	DataBase64 string `json:"data_base64"`
+	MIME       string `json:"mime"`
+	TTLSeconds int    `json:"ttl_seconds,omitempty"`
+}
+
+type blobGetRequest struct {
+	BlobID string `json:"blob_id"`
+}
+
+type blobSignURLRequest struct {
+	BlobID     string `json:"blob_id"`
+	TTLSeconds int    `json:"ttl_seconds,omitempty"`
 }
 
 func main() {
@@ -111,6 +128,11 @@ func main() {
 		app.Errorf("init surfacefs failed: %v", err)
 		os.Exit(1)
 	}
+	blobService, err := app.NewBlobService(dataRoot)
+	if err != nil {
+		app.Errorf("init blob service failed: %v", err)
+		os.Exit(1)
+	}
 	authService, err := app.NewAuthService(dataRoot)
 	if err != nil {
 		app.Errorf("init auth service failed: %v", err)
@@ -119,6 +141,23 @@ func main() {
 
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-appCtx.Done():
+				return
+			case <-ticker.C:
+				deleted, err := blobService.GC(time.Now())
+				if err != nil {
+					app.Warnf("blob gc failed: %v", err)
+				} else if deleted > 0 {
+					app.Infof("blob gc deleted=%d", deleted)
+				}
+			}
+		}
+	}()
 	localProviderFactory := app.NewLocalProviderFactory()
 	var aiServiceManager *app.AIServiceManager
 	if app.IsServiceMode(cfg) {
@@ -138,7 +177,7 @@ func main() {
 	}
 	selectProviderFactory := func() app.ProviderFactory {
 		if app.IsServiceMode(cfg) && aiServiceManager != nil && aiServiceManager.IsHealthy() {
-			return app.NewServiceProviderFactory(aiServiceCfg)
+			return app.NewServiceProviderFactory(aiServiceCfg, aiServiceManager)
 		}
 		return localProviderFactory
 	}
@@ -695,6 +734,166 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("/api/blob/put", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var req blobPutRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid blob put payload", http.StatusBadRequest)
+			return
+		}
+		raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(req.DataBase64))
+		if err != nil {
+			http.Error(w, "invalid data_base64", http.StatusBadRequest)
+			return
+		}
+		ttl := 24 * time.Hour
+		if req.TTLSeconds > 0 {
+			ttl = time.Duration(req.TTLSeconds) * time.Second
+		}
+		meta, err := blobService.Put(claims.UserID, req.MIME, raw, ttl)
+		if err != nil {
+			http.Error(w, "blob put failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"blob_id":       meta.BlobID,
+			"size":          meta.Size,
+			"sha256":        meta.SHA256,
+			"mime":          meta.MIME,
+			"expires_at_ms": meta.ExpiresAtMS,
+		})
+	})
+
+	mux.HandleFunc("/api/blob/get", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var req blobGetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid blob get payload", http.StatusBadRequest)
+			return
+		}
+		raw, meta, err := blobService.Get(claims.UserID, req.BlobID)
+		if err != nil {
+			http.Error(w, "blob get failed: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"blob_id":       meta.BlobID,
+			"size":          meta.Size,
+			"sha256":        meta.SHA256,
+			"mime":          meta.MIME,
+			"expires_at_ms": meta.ExpiresAtMS,
+			"data_base64":   base64.StdEncoding.EncodeToString(raw),
+		})
+	})
+
+	mux.HandleFunc("/api/blob/sign_url", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		claims, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var req blobSignURLRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid blob sign_url payload", http.StatusBadRequest)
+			return
+		}
+		ttl := 5 * time.Minute
+		if req.TTLSeconds > 0 {
+			ttl = time.Duration(req.TTLSeconds) * time.Second
+		}
+		token, expMS, err := blobService.SignDownloadURL(claims.UserID, req.BlobID, ttl)
+		if err != nil {
+			http.Error(w, "blob sign url failed: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"blob_id":       req.BlobID,
+			"expires_at_ms": expMS,
+			"url":           fmt.Sprintf("/api/blob/download/%s?st=%s", url.PathEscape(req.BlobID), url.QueryEscape(token)),
+		})
+	})
+
+	mux.HandleFunc("/api/blob/download/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		st := strings.TrimSpace(r.URL.Query().Get("st"))
+		if st == "" {
+			http.Error(w, "missing st token", http.StatusUnauthorized)
+			return
+		}
+		blobID := strings.TrimPrefix(r.URL.Path, "/api/blob/download/")
+		blobID = strings.TrimSpace(blobID)
+		if blobID == "" {
+			http.Error(w, "missing blob_id", http.StatusBadRequest)
+			return
+		}
+		meta, err := blobService.VerifyDownloadToken(blobID, st)
+		if err != nil {
+			http.Error(w, "blob token invalid: "+err.Error(), http.StatusUnauthorized)
+			return
+		}
+		raw, _, err := blobService.ReadByID(blobID)
+		if err != nil {
+			http.Error(w, "blob read failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		contentType := strings.TrimSpace(meta.MIME)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
+		_, _ = w.Write(raw)
+	})
+
+	mux.HandleFunc("/api/admin/blob/gc", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		deleted, err := blobService.GC(time.Now())
+		if err != nil {
+			http.Error(w, "blob gc failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok":      true,
+			"deleted": deleted,
+		})
+	})
+
 	mux.HandleFunc("/api/admin/services", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
@@ -720,6 +919,32 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("/api/admin/services/tools", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if aiServiceManager == nil {
+			writeJSON(w, map[string]any{
+				"active_provider": selectProviderFactory().Name(),
+				"tools":           []any{},
+			})
+			return
+		}
+		snap := aiServiceManager.Snapshot()
+		writeJSON(w, map[string]any{
+			"active_provider": selectProviderFactory().Name(),
+			"service_id":      "ai-doubao",
+			"tools":           snap.Tools,
+		})
+	})
+
 	mux.HandleFunc("/api/admin/services/ai-doubao/restart", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
@@ -739,6 +964,53 @@ func main() {
 			http.Error(w, "restart failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		writeJSON(w, map[string]any{
+			"ok":      true,
+			"service": aiServiceManager.Snapshot(),
+		})
+	})
+
+	mux.HandleFunc("/api/admin/services/ai-doubao/start", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if aiServiceManager == nil {
+			http.Error(w, "service mode is disabled", http.StatusBadRequest)
+			return
+		}
+		if err := aiServiceManager.StartProcess(); err != nil {
+			http.Error(w, "start failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"ok":      true,
+			"service": aiServiceManager.Snapshot(),
+		})
+	})
+
+	mux.HandleFunc("/api/admin/services/ai-doubao/stop", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := extractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if aiServiceManager == nil {
+			http.Error(w, "service mode is disabled", http.StatusBadRequest)
+			return
+		}
+		aiServiceManager.Stop()
 		writeJSON(w, map[string]any{
 			"ok":      true,
 			"service": aiServiceManager.Snapshot(),

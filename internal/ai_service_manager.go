@@ -12,16 +12,18 @@ import (
 )
 
 type AIServiceStatus struct {
-	Mode             string         `json:"mode"`
-	BaseURL          string         `json:"base_url"`
-	AutoStart        bool           `json:"auto_start"`
-	Running          bool           `json:"running"`
-	PID              int            `json:"pid"`
-	Healthy          bool           `json:"healthy"`
-	LastCheckMS      int64          `json:"last_check_ms"`
-	LastError        string         `json:"last_error,omitempty"`
-	LastTransitionMS int64          `json:"last_transition_ms"`
-	Info             *AIServiceInfo `json:"info,omitempty"`
+	Mode             string                    `json:"mode"`
+	BaseURL          string                    `json:"base_url"`
+	AutoStart        bool                      `json:"auto_start"`
+	Running          bool                      `json:"running"`
+	PID              int                       `json:"pid"`
+	Healthy          bool                      `json:"healthy"`
+	LastCheckMS      int64                     `json:"last_check_ms"`
+	LastError        string                    `json:"last_error,omitempty"`
+	LastTransitionMS int64                     `json:"last_transition_ms"`
+	Info             *AIServiceInfo            `json:"info,omitempty"`
+	Tools            []AIServiceToolDescriptor `json:"tools,omitempty"`
+	RecentCalls      []ServiceCallRecord       `json:"recent_calls,omitempty"`
 }
 
 type AIServiceManager struct {
@@ -32,6 +34,7 @@ type AIServiceManager struct {
 	cmd    *exec.Cmd
 
 	httpClient *http.Client
+	callCap    int
 }
 
 func NewAIServiceManager(cfg AIServiceConfig) *AIServiceManager {
@@ -48,6 +51,7 @@ func NewAIServiceManager(cfg AIServiceConfig) *AIServiceManager {
 			LastTransitionMS: nowMS(),
 		},
 		httpClient: &http.Client{Timeout: time.Duration(c.HealthTimeoutMS) * time.Millisecond},
+		callCap:    200,
 	}
 }
 
@@ -142,6 +146,12 @@ func (m *AIServiceManager) Snapshot() AIServiceStatus {
 		info := *m.status.Info
 		cp.Info = &info
 	}
+	if len(m.status.Tools) > 0 {
+		cp.Tools = append([]AIServiceToolDescriptor(nil), m.status.Tools...)
+	}
+	if len(m.status.RecentCalls) > 0 {
+		cp.RecentCalls = append([]ServiceCallRecord(nil), m.status.RecentCalls...)
+	}
 	return cp
 }
 
@@ -207,7 +217,12 @@ func (m *AIServiceManager) probeOnce(ctx context.Context) {
 		m.setProbeFailure(err)
 		return
 	}
-	m.setProbeSuccess(info)
+	tools, err := m.fetchTools(ctx, base)
+	if err != nil {
+		m.setProbeFailure(err)
+		return
+	}
+	m.setProbeSuccess(info, tools)
 }
 
 func (m *AIServiceManager) fetchInfo(ctx context.Context, base string) (*AIServiceInfo, error) {
@@ -231,6 +246,28 @@ func (m *AIServiceManager) fetchInfo(ctx context.Context, base string) (*AIServi
 		return nil, err
 	}
 	return &info, nil
+}
+
+func (m *AIServiceManager) fetchTools(ctx context.Context, base string) ([]AIServiceToolDescriptor, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, m.httpClient.Timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, base+"/service/tools", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("service tools status %d", resp.StatusCode)
+	}
+	var out AIServiceListToolsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out.Tools, nil
 }
 
 func (m *AIServiceManager) startProcessLocked() error {
@@ -270,13 +307,14 @@ func (m *AIServiceManager) startProcessLocked() error {
 	return nil
 }
 
-func (m *AIServiceManager) setProbeSuccess(info *AIServiceInfo) {
+func (m *AIServiceManager) setProbeSuccess(info *AIServiceInfo, tools []AIServiceToolDescriptor) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.status.Healthy = true
 	m.status.LastError = ""
 	m.status.LastCheckMS = nowMS()
 	m.status.Info = info
+	m.status.Tools = append([]AIServiceToolDescriptor(nil), tools...)
 }
 
 func (m *AIServiceManager) setProbeFailure(err error) {
@@ -286,5 +324,17 @@ func (m *AIServiceManager) setProbeFailure(err error) {
 	m.status.LastCheckMS = nowMS()
 	if err != nil {
 		m.status.LastError = err.Error()
+	}
+}
+
+func (m *AIServiceManager) RecordCall(record ServiceCallRecord) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.status.RecentCalls = append(m.status.RecentCalls, record)
+	if len(m.status.RecentCalls) > m.callCap {
+		m.status.RecentCalls = append([]ServiceCallRecord(nil), m.status.RecentCalls[len(m.status.RecentCalls)-m.callCap:]...)
 	}
 }

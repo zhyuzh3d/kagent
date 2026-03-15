@@ -9,6 +9,23 @@ type AIServiceInfo struct {
 	Transport    string   `json:"transport"`
 }
 
+type AIServiceToolDescriptor struct {
+	Name                 string         `json:"name"`
+	Description          string         `json:"description"`
+	InputSchema          map[string]any `json:"input_schema"`
+	OutputSchema         map[string]any `json:"output_schema"`
+	SideEffect           string         `json:"side_effect"`
+	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
+	Idempotency          string         `json:"idempotency,omitempty"`
+	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
+	Streaming            string         `json:"streaming,omitempty"`
+}
+
+type AIServiceListToolsResponse struct {
+	ServiceID string                    `json:"service_id"`
+	Tools     []AIServiceToolDescriptor `json:"tools"`
+}
+
 type AIServiceHealth struct {
 	OK        bool   `json:"ok"`
 	Timestamp int64  `json:"timestamp_ms"`
@@ -16,8 +33,10 @@ type AIServiceHealth struct {
 }
 
 type AIServiceASRStart struct {
-	Type    string        `json:"type"`
-	History []ChatMessage `json:"history,omitempty"`
+	Type      string        `json:"type"`
+	RequestID string        `json:"request_id,omitempty"`
+	TurnID    uint64        `json:"turn_id,omitempty"`
+	History   []ChatMessage `json:"history,omitempty"`
 }
 
 type AIServiceASRControl struct {
@@ -31,8 +50,10 @@ type AIServiceASREvent struct {
 }
 
 type AIServiceLLMStreamRequest struct {
-	Input   string        `json:"input"`
-	History []ChatMessage `json:"history,omitempty"`
+	RequestID string        `json:"request_id,omitempty"`
+	TurnID    uint64        `json:"turn_id,omitempty"`
+	Input     string        `json:"input"`
+	History   []ChatMessage `json:"history,omitempty"`
 }
 
 type AIServiceLLMStreamEvent struct {
@@ -42,7 +63,9 @@ type AIServiceLLMStreamEvent struct {
 }
 
 type AIServiceTTSSynthesizeRequest struct {
-	Text string `json:"text"`
+	RequestID string `json:"request_id,omitempty"`
+	TurnID    uint64 `json:"turn_id,omitempty"`
+	Text      string `json:"text"`
 }
 
 type AIServiceTTSSynthesizeResponse struct {

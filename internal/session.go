@@ -543,6 +543,7 @@ func (s *Session) startASRTurn(turnID uint64) {
 	}
 
 	ctx, cancel := context.WithCancel(s.rootCtx)
+	ctx = WithTurnID(ctx, turnID)
 	s.asrCancelMu.Lock()
 	s.asrCancel = cancel
 	s.asrCancelMu.Unlock()
@@ -603,6 +604,7 @@ func (s *Session) startTurn(text string, targetTurnID uint64) {
 	s.interruptTurnWithReason(InterruptOther)
 	// Removed s.turnID.Add(1) - TurnID is now incremented upon receiving the first ASREventPartial for a new utterance
 	ctx, cancel := context.WithCancel(s.rootCtx)
+	ctx = WithTurnID(ctx, targetTurnID)
 	s.turnMu.Lock()
 	s.turnCancel = cancel
 	s.turnMu.Unlock()
