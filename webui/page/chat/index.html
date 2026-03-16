@@ -1210,7 +1210,7 @@
   </script>
 
   <script type="module">
-    fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Script module start' }) }).catch(() => {});
+    fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Script module start', source: 'PAGE', page: 'chat' }) }).catch(() => {});
     import { createAudioCapture } from './audio-capture.js';
     import { createAudioPlayback } from './audio-playback.js';
     import { createChatActionEngine } from './action-engine.js';
@@ -1329,14 +1329,24 @@
         fetch('/api/debug/log', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: 'CRITICAL', module: 'Browser', content: `JS Error: ${msg} at ${url}:${line}:${col}. Error: ${error ? error.stack : ''}` })
+          body: JSON.stringify({
+            level: 'CRITICAL',
+            module: 'Browser',
+            content: `JS Error: ${msg} at ${url}:${line}:${col}. Error: ${error ? error.stack : ''}`,
+            source: 'PAGE'
+          })
         }).catch(() => {});
       };
       window.onunhandledrejection = function(event) {
         fetch('/api/debug/log', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: 'CRITICAL', module: 'Browser', content: `Unhandled Promise Rejection: ${event.reason}` })
+          body: JSON.stringify({
+            level: 'CRITICAL',
+            module: 'Browser',
+            content: `Unhandled Promise Rejection: ${event.reason}`,
+            source: 'PAGE'
+          })
         }).catch(() => {});
       };
 
@@ -1406,18 +1416,46 @@
       return '"' + clean + '"';
     }
 
+    const PAGE_NAME = 'chat';
+
     // New format: 2026-03-08 10:45:12 [INFO] [AudioPipeline] [Turn:54] "你好，请..." -> TTS start sending...
-    function appendDebug(level, module, turnId, text, action) {
-      if (!action) {
-        action = text;
-        text = null;
+    function appendDebug(level, module, turnId, text, action, source = 'PAGE') {
+      let finalAction = action;
+      let finalText = text;
+      let finalTurnId = turnId;
+
+      // Handle variable argument patterns
+      if (arguments.length === 3) {
+        // appendDebug(level, module, action)
+        finalAction = turnId;
+        finalTurnId = null;
+        finalText = null;
+      } else if (arguments.length === 4) {
+        // Maybe appendDebug(level, module, action, source)
+        // or appendDebug(level, module, turnId, action)
+        if (text === 'PAGE' || text === 'SURF') {
+          finalAction = turnId;
+          finalTurnId = null;
+          finalText = null;
+          source = text;
+        } else {
+          finalAction = text;
+          finalTurnId = turnId;
+          finalText = null;
+        }
       }
 
       // Forward to backend for debugging
       fetch('/api/debug/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: level, module: module || 'Client', content: action })
+        body: JSON.stringify({
+          level: level,
+          module: module || 'Client',
+          content: finalAction || finalText || 'empty',
+          source: source,
+          page: PAGE_NAME
+        })
       }).catch(() => {});
 
       if (!el.debugPanel) return;
@@ -1437,15 +1475,15 @@
       if (module) parts.push(`[${module}]`);
 
       // 4. TurnID
-      if (turnId !== undefined && turnId !== null) {
-        parts.push(`[Turn:${turnId}]`);
+      if (finalTurnId !== undefined && finalTurnId !== null) {
+        parts.push(`[Turn:${finalTurnId}]`);
       }
 
       // 5. Text Snippet & Action
-      if (text !== null && text !== undefined) {
-        parts.push(`${snippet(text)} -> ${action}`);
+      if (finalText !== null && finalText !== undefined) {
+        parts.push(`${snippet(finalText)} -> ${finalAction}`);
       } else {
-        parts.push(`-> ${action}`);
+        parts.push(`-> ${finalAction}`);
       }
 
       el.debug.textContent += parts.join(' ') + '\n';
@@ -1654,7 +1692,7 @@
 
     const surfaceBridge = createSurfaceBridge({
       root: el.surfaceFloatRoot,
-      appendDebug,
+      appendDebug: (...args) => appendDebug(...args, 'SURF'),
       appendSystem: (text) => chatStore.addChatMsg('system', text, 0),
       reportActionRecord,
       onSurfaceEvent: (evt) => {

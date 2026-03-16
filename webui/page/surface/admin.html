@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Surface Admin</title>
+  <style>
+    :root {
+      --bg: #f2f5ef;
+      --card: #ffffff;
+      --line: #d7dfd1;
+      --text: #1f2b1d;
+      --muted: #5f6f5b;
+      --ok: #2a8f45;
+      --warn: #af7b00;
+      --err: #b73622;
+      --accent: #115e59;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(17, 94, 89, 0.1), transparent 35%),
+        radial-gradient(circle at 80% 10%, rgba(245, 158, 11, 0.12), transparent 38%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+
+    .topbar h1 { margin: 0; font-size: 16px; flex: 1; }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 1.1fr) minmax(300px, 0.9fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 13px;
+      color: var(--accent);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .body { padding: 10px 12px; }
+    .stack { display: grid; gap: 10px; }
+    .mono { font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace; font-size: 12px; }
+
+    button {
+      border: 1px solid #9ab3a0;
+      border-radius: 8px;
+      background: #eff4ec;
+      color: #1f2b1d;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover { border-color: #587865; }
+    button.primary { background: #0f766e; color: #fff; border-color: #0f766e; }
+    button.warn { background: #b45309; color: #fff; border-color: #b45309; }
+
+    .surface-list {
+      max-height: 420px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .surface-item {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 6px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .surface-item.active { background: #edf8f4; }
+    .surface-item:last-child { border-bottom: 0; }
+    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .row .muted { color: var(--muted); font-size: 12px; }
+
+    .status-ok { color: var(--ok); }
+    .status-warn { color: var(--warn); }
+    .status-err { color: var(--err); }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 10px;
+      font-size: 12px;
+      align-items: start;
+    }
+    .kv label { color: var(--muted); }
+    pre {
+      margin: 0;
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fbfcfa;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <h1>Surface Admin Console</h1>
+    <button id="refreshBtn" class="primary">Refresh</button>
+    <button id="rescanBtn" class="warn">Rescan</button>
+    <button id="rebindBtn">Rebind</button>
+    <span id="globalStatus" class="badge">idle</span>
+  </div>
+
+  <div class="layout">
+    <section class="card">
+      <h2>Registry</h2>
+      <div class="body stack">
+        <div id="surfaceList" class="surface-list"></div>
+        <div id="warnings" class="mono"></div>
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="card">
+        <h2>Permissions</h2>
+        <div class="body stack">
+          <div class="row">
+            <button id="issueSessionBtn">Issue Session</button>
+            <button id="issueCapabilityBtn">Issue Capability</button>
+          </div>
+          <div class="kv">
+            <label>Surface</label><div id="permSurface" class="mono">-</div>
+            <label>Session Token</label><div id="sessionToken" class="mono">-</div>
+            <label>Capability Token</label><div id="capabilityToken" class="mono">-</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Runtime</h2>
+        <div class="body stack">
+          <div class="row">
+            <button id="runtimeBtn">Load Runtime</button>
+            <button id="logsBtn">Load Logs</button>
+          </div>
+          <pre id="runtimePanel" class="mono">(empty)</pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Storage</h2>
+        <div class="body stack">
+          <div class="kv">
+            <label>Scope</label><div class="mono">surface</div>
+            <label>Path</label><div id="storagePath" class="mono">data/user/&lt;uid&gt;/surface/&lt;surface_id&gt;/</div>
+            <label>Tips</label><div class="mono">Use capability token via /api/tool/call (ui.surface.* / storage.*)</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Debug</h2>
+        <div class="body">
+          <pre id="debugPanel" class="mono">(empty)</pre>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      globalStatus: document.getElementById("globalStatus"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      rescanBtn: document.getElementById("rescanBtn"),
+      rebindBtn: document.getElementById("rebindBtn"),
+      surfaceList: document.getElementById("surfaceList"),
+      warnings: document.getElementById("warnings"),
+      permSurface: document.getElementById("permSurface"),
+      sessionToken: document.getElementById("sessionToken"),
+      capabilityToken: document.getElementById("capabilityToken"),
+      issueSessionBtn: document.getElementById("issueSessionBtn"),
+      issueCapabilityBtn: document.getElementById("issueCapabilityBtn"),
+      runtimeBtn: document.getElementById("runtimeBtn"),
+      logsBtn: document.getElementById("logsBtn"),
+      runtimePanel: document.getElementById("runtimePanel"),
+      storagePath: document.getElementById("storagePath"),
+      debugPanel: document.getElementById("debugPanel"),
+    };
+
+    const state = {
+      surfaces: [],
+      selected: null,
+      sessionToken: "",
+      capabilityToken: "",
+    };
+
+    function setStatus(text, type = "") {
+      els.globalStatus.textContent = text;
+      els.globalStatus.className = "badge " + (type ? `status-${type}` : "");
+    }
+
+    async function callTool(toolID, args = {}) {
+      const resp = await fetch("/api/tool/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool_id: toolID, args }),
+      });
+      const raw = await resp.text();
+      let data = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
+      if (!resp.ok || !data || data.ok !== true) {
+        const msg = (data && data.error && data.error.message) || (data && data.error) || raw || `http ${resp.status}`;
+        throw new Error(msg);
+      }
+      return data.result || {};
+    }
+
+    function renderList() {
+      if (!Array.isArray(state.surfaces) || state.surfaces.length === 0) {
+        els.surfaceList.innerHTML = '<div class="surface-item"><div class="muted">no surfaces</div></div>';
+        return;
+      }
+      els.surfaceList.innerHTML = state.surfaces.map((it) => {
+        const statusCls = it.status === "ok" ? "status-ok" : (it.status === "missing" || it.status === "invalid" ? "status-err" : "status-warn");
+        const active = state.selected && state.selected.surface_id === it.surface_id ? "active" : "";
+        return `
+          <div class="surface-item ${active}" data-id="${it.surface_id}">
+            <div class="row">
+              <strong>${it.name || it.surface_id}</strong>
+              <span class="mono muted">${it.surface_id}</span>
+            </div>
+            <div class="row">
+              <span class="${statusCls}">${it.status}</span>
+              <span class="muted">enabled=${it.enabled}</span>
+              <span class="muted">available=${it.available}</span>
+              <button type="button" data-enable="${it.surface_id}" data-next="${it.enabled ? "0" : "1"}">${it.enabled ? "Disable" : "Enable"}</button>
+            </div>
+            <div class="row"><span class="muted">${it.desc || ""}</span></div>
+          </div>
+        `;
+      }).join("");
+      for (const el of els.surfaceList.querySelectorAll(".surface-item[data-id]")) {
+        el.addEventListener("click", () => selectSurface(el.dataset.id));
+      }
+      for (const btn of els.surfaceList.querySelectorAll("button[data-enable]")) {
+        btn.addEventListener("click", async (evt) => {
+          evt.stopPropagation();
+          const sid = btn.dataset.enable;
+          const enabled = btn.dataset.next === "1";
+          try {
+            await callTool("ui.surface.enable_set", { surface_id: sid, enabled });
+            await loadSurfaces();
+          } catch (err) {
+            setStatus(err.message || String(err), "err");
+          }
+        });
+      }
+    }
+
+    async function loadSurfaces() {
+      setStatus("loading...");
+      const result = await callTool("ui.surface.catalog_list", {});
+      state.surfaces = (result && result.items) || [];
+      if (state.selected) {
+        state.selected = state.surfaces.find((x) => x.surface_id === state.selected.surface_id) || null;
+      }
+      renderList();
+      renderWarnings();
+      setStatus(`surfaces=${state.surfaces.length}`, "ok");
+    }
+
+    function renderWarnings() {
+      const warns = [];
+      for (const it of state.surfaces) {
+        if (it.status && it.status !== "ok") {
+          warns.push(`[${it.surface_id}] status=${it.status} ${it.error || ""}`);
+        }
+      }
+      els.warnings.textContent = warns.length ? warns.join("\n") : "no warnings";
+    }
+
+    function selectSurface(surfaceID) {
+      state.selected = state.surfaces.find((x) => x.surface_id === surfaceID) || null;
+      state.sessionToken = "";
+      state.capabilityToken = "";
+      renderList();
+      syncPermissionPanel();
+    }
+
+    function syncPermissionPanel() {
+      const sid = state.selected ? state.selected.surface_id : "-";
+      els.permSurface.textContent = sid;
+      els.sessionToken.textContent = state.sessionToken || "-";
+      els.capabilityToken.textContent = state.capabilityToken || "-";
+      if (state.selected) {
+        els.storagePath.textContent = `data/user/<user_id>/surface/${state.selected.surface_id}/`;
+      }
+    }
+
+    async function issueSessionToken() {
+      if (!state.selected) return setStatus("请选择 surface", "warn");
+      const sid = state.selected.surface_id;
+      const result = await callTool("ui.surface.session_issue", { surface_id: sid });
+      state.sessionToken = (result && result.surface_session_token) || "";
+      state.capabilityToken = "";
+      syncPermissionPanel();
+      setStatus("session token issued", "ok");
+    }
+
+    async function issueCapabilityToken() {
+      if (!state.selected) return setStatus("请选择 surface", "warn");
+      if (!state.sessionToken) return setStatus("请先签发 session token", "warn");
+      const result = await callTool("ui.surface.capability_issue", {
+        surface_session_token: state.sessionToken,
+        scope: "fs.*",
+        path_prefix: ".",
+        ttl_seconds: 300,
+      });
+      state.capabilityToken = (result && result.capability_token) || "";
+      syncPermissionPanel();
+      setStatus("capability token issued", "ok");
+    }
+
+    async function loadRuntime() {
+      if (!state.selected) return setStatus("请选择 surface", "warn");
+      const sid = state.selected.surface_id;
+      const result = await callTool("ui.surface.runtime_status", { surface_id: sid });
+      els.runtimePanel.textContent = JSON.stringify(result, null, 2);
+      setStatus("runtime loaded", "ok");
+    }
+
+    async function loadLogs() {
+      if (!state.selected) return setStatus("请选择 surface", "warn");
+      const sid = state.selected.surface_id;
+      const result = await callTool("ui.surface.logs_query", { surface_id: sid, limit: 80 });
+      els.runtimePanel.textContent = JSON.stringify(result, null, 2);
+      setStatus("logs loaded", "ok");
+    }
+
+    async function callAdminAction(toolID) {
+      const result = await callTool(toolID, {});
+      els.debugPanel.textContent = JSON.stringify(result, null, 2);
+      await loadSurfaces();
+    }
+
+    els.refreshBtn.addEventListener("click", () => loadSurfaces().catch((err) => setStatus(err.message, "err")));
+    els.rescanBtn.addEventListener("click", () => callAdminAction("ui.surface.rescan").catch((err) => setStatus(err.message, "err")));
+    els.rebindBtn.addEventListener("click", () => callAdminAction("ui.surface.rebind").catch((err) => setStatus(err.message, "err")));
+    els.issueSessionBtn.addEventListener("click", () => issueSessionToken().catch((err) => setStatus(err.message, "err")));
+    els.issueCapabilityBtn.addEventListener("click", () => issueCapabilityToken().catch((err) => setStatus(err.message, "err")));
+    els.runtimeBtn.addEventListener("click", () => loadRuntime().catch((err) => setStatus(err.message, "err")));
+    els.logsBtn.addEventListener("click", () => loadLogs().catch((err) => setStatus(err.message, "err")));
+
+    loadSurfaces().then(syncPermissionPanel).catch((err) => setStatus(err.message || String(err), "err"));
+  </script>
+</body>
+
+</html>

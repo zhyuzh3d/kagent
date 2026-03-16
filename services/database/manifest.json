@@ -1,0 +1,7 @@
+{
+  "service_id": "database",
+  "service_name": "Database Service",
+  "version": "1.0.0",
+  "reliability": "verified",
+  "visibility": "public"
+}

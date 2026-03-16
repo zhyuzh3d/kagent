@@ -1,3 +1,5 @@
+import { callTool } from "./tool-call.js";
+
 function createPanel(root) {
   const panel = document.createElement("div");
   panel.className = "surface-float-panel";
@@ -70,27 +72,6 @@ function parseSurfaceCallName(name) {
     surfaceID: parts[2],
     actionName: parts.slice(3).join("."),
   };
-}
-
-async function fetchJSON(url, options = {}) {
-  const resp = await fetch(url, options);
-  const text = await resp.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch (_) {
-    data = null;
-  }
-  if (!resp.ok) {
-    const message = data && data.error ? data.error : (text || `http ${resp.status}`);
-    throw new Error(message);
-  }
-  return data;
-}
-
-function encodePathSegments(path) {
-  const raw = String(path || "").split("/").filter(Boolean);
-  return raw.map((seg) => encodeURIComponent(seg)).join("/");
 }
 
 export function createSurfaceBridge(options) {
@@ -264,10 +245,9 @@ export function createSurfaceBridge(options) {
         const surfaceID = itemEl.getAttribute("data-surface-id");
         const enabled = !!ev.target.checked;
         try {
-          await fetchJSON(`/api/surfaces/${encodeURIComponent(surfaceID)}/enable`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
+          await callTool("ui.surface.enable_set", {
+            surface_id: surfaceID,
+            enabled,
           });
           const current = registry.get(surfaceID);
           if (current) current.enabled = enabled;
@@ -320,8 +300,8 @@ export function createSurfaceBridge(options) {
   }
 
   async function refreshRegistry() {
-    const data = await fetchJSON("/api/surfaces", { cache: "no-store" });
-    const items = Array.isArray(data && data.items) ? data.items : [];
+    const result = await callTool("ui.surface.catalog_list", {});
+    const items = Array.isArray(result && result.items) ? result.items : [];
     registry.clear();
     for (const item of items) {
       if (!item || typeof item !== "object") continue;
@@ -357,15 +337,11 @@ export function createSurfaceBridge(options) {
     if (cached && Number.isFinite(cached.exp_ms) && cached.exp_ms - Date.now() > 1000) {
       return cached.token;
     }
-    const payload = await fetchJSON("/api/surfacefs/capability", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        surface_session_token: runtime.sessionToken,
-        scope,
-        path_prefix: pathPrefix,
-        ttl_seconds: 300,
-      }),
+    const payload = await callTool("ui.surface.capability_issue", {
+      surface_session_token: runtime.sessionToken,
+      scope,
+      path_prefix: pathPrefix,
+      ttl_seconds: 300,
     });
     const token = payload && typeof payload.capability_token === "string" ? payload.capability_token : "";
     if (!token) throw new Error("surfacefs capability token is empty");
@@ -383,10 +359,10 @@ export function createSurfaceBridge(options) {
     try {
       if (op === "read") {
         const capabilityToken = await ensureCapability(runtime, "fs.read", ".");
-        const payload = await fetchJSON("/api/surfacefs/read", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ capability_token: capabilityToken, surface_id: runtime.surfaceID, path: relPath }),
+        const payload = await callTool("ui.surface.fs_read", {
+          capability_token: capabilityToken,
+          surface_id: runtime.surfaceID,
+          path: relPath,
         });
         runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
         return;
@@ -394,48 +370,47 @@ export function createSurfaceBridge(options) {
       if (op === "write") {
         const capabilityToken = await ensureCapability(runtime, "fs.write", ".");
         const dataBase64 = typeof msg.data_base64 === "string" ? msg.data_base64 : "";
-        const payload = await fetchJSON("/api/surfacefs/write", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            capability_token: capabilityToken,
-            surface_id: runtime.surfaceID,
-            path: relPath,
-            data_base64: dataBase64,
-          }),
+        const payload = await callTool("ui.surface.fs_write", {
+          capability_token: capabilityToken,
+          surface_id: runtime.surfaceID,
+          path: relPath,
+          data_base64: dataBase64,
         });
         runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
         return;
       }
       if (op === "list") {
         const capabilityToken = await ensureCapability(runtime, "fs.list", ".");
-        const payload = await fetchJSON("/api/surfacefs/list", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ capability_token: capabilityToken, surface_id: runtime.surfaceID, path: relPath }),
+        const payload = await callTool("ui.surface.fs_list", {
+          capability_token: capabilityToken,
+          surface_id: runtime.surfaceID,
+          path: relPath,
         });
         runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
         return;
       }
       if (op === "delete") {
         const capabilityToken = await ensureCapability(runtime, "fs.delete", ".");
-        const payload = await fetchJSON("/api/surfacefs/delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            capability_token: capabilityToken,
-            surface_id: runtime.surfaceID,
-            path: relPath,
-            recursive: !!msg.recursive,
-          }),
+        const payload = await callTool("ui.surface.fs_delete", {
+          capability_token: capabilityToken,
+          surface_id: runtime.surfaceID,
+          path: relPath,
+          recursive: !!msg.recursive,
         });
         runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
         return;
       }
       if (op === "sign_static") {
         const capabilityToken = await ensureCapability(runtime, "fs.static", relPath);
-        const urlPath = encodePathSegments(relPath);
-        const signedURL = `/surfacefs/static/${encodeURIComponent(runtime.surfaceID)}/${urlPath}?st=${encodeURIComponent(capabilityToken)}`;
+        const payload = await callTool("ui.surface.fs_sign_static", {
+          capability_token: capabilityToken,
+          surface_id: runtime.surfaceID,
+          path: relPath,
+        });
+        const signedURL = payload && typeof payload.url === "string" ? payload.url : "";
+        if (!signedURL) {
+          throw new Error("sign_static result url is empty");
+        }
         runtime.port.postMessage({
           type: "surfacefs_response",
           request_id: requestID,
@@ -577,10 +552,8 @@ export function createSurfaceBridge(options) {
   }
 
   async function createRuntime(item) {
-    const sessionPayload = await fetchJSON(`/api/surfaces/${encodeURIComponent(item.surface_id)}/session-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
+    const sessionPayload = await callTool("ui.surface.session_issue", {
+      surface_id: item.surface_id,
     });
     const sessionToken = sessionPayload && typeof sessionPayload.surface_session_token === "string"
       ? sessionPayload.surface_session_token

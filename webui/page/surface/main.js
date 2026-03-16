@@ -5,6 +5,8 @@ import { createRecordStore } from "./record-store.js";
 import { createSurfaceManager } from "./surface-manager.js";
 import { createID, sleep } from "./utils.js";
 
+fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Surface Manager module start', source: 'SURF', page: 'surface' }) }).catch(() => {});
+
 const els = {
   globalStatus: document.getElementById("globalStatus"),
   surfaceUrlInput: document.getElementById("surfaceUrlInput"),

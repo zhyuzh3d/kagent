@@ -1,0 +1,7 @@
+{
+  "service_id": "surface-manager",
+  "service_name": "Surface Manager",
+  "version": "1.0.0",
+  "reliability": "verified",
+  "visibility": "public"
+}

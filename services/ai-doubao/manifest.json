@@ -1,0 +1,7 @@
+{
+  "service_id": "ai-doubao",
+  "service_name": "Doubao AI Service",
+  "version": "1.0.0",
+  "reliability": "verified",
+  "visibility": "public"
+}

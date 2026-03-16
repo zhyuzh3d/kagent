@@ -446,3 +446,180 @@
   - 核心原则：坚持 Client-Driven，避免前后端状态分裂。
 - 下一步：
   - 进行全场景浏览器实机回归测试。
+
+## [2026-03-15 23:42 CST] Hub/Service 目录硬拆分、旧单体清理与全链路回归
+- 时间范围：2026-03-14 16:15 CST -> 2026-03-15 23:42 CST
+- 主要变更：
+  - 完成运行入口硬切换：Hub 入口迁移到 `hub/cmd/hub`，chat/ai 入口迁移到 `services/chat-server/cmd/chat-server`、`services/ai-doubao/cmd/ai-doubao`。
+  - 删除旧单体路径：移除根目录 `main.go`、`cmd/*`、`internal/*`，消除“新旧并行入口”状态。
+  - 升级部署链路：`scripts/deploy.sh` 构建目标改为新目录并保持 `ai-doubao -> chat-server` 启动顺序。
+  - 执行数据库全量重置：`scripts/reset_db.sh` 清空 `data/*` 并重建 `data/users/default`。
+  - 完成回归验证：`go test ./...` 通过；deploy 成功；`/api/auth/register`、`/api/auth/me`、`/api/projects`、`/api/projects/{id}/threads`、`/ws` smoke 成功。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `hub/cmd/hub/chat_proxy.go`
+  - `hub/internal/app/*`
+  - `services/chat-server/cmd/chat-server/main.go`
+  - `services/chat-server/internal/app/*`
+  - `services/ai-doubao/cmd/ai-doubao/main.go`
+  - `services/ai-doubao/internal/app/*`
+  - `scripts/deploy.sh`
+  - `scripts/reset_db.sh`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：目录架构已从根单体切换为 `hub + services` 主运行结构；chat 主链路验证通过。
+  - 失败/问题：在沙箱内执行部署时出现 `bind: operation not permitted`，需提权运行本地端口监听验证；该问题为执行环境限制，非代码逻辑故障。
+- 经验与结论：
+  - 有效实践：采用“先切入口、再删旧代码、最后跑 deploy+smoke”的门禁顺序，可避免误删导致不可运行。
+  - 失败教训：在受限沙箱中进行本地服务监听验证会产生假失败，需尽早切换到提权执行验证路径。
+  - 后续规避：后续重构阶段继续保持“删除动作以可运行回归结果作为前置条件”。
+- 下一步：
+  - 按计划继续将 `file/database/auth/surface-manager` 从占位形态推进为独立可执行服务实现。
+  - 对 `services/*/internal/app` 进行职责细分，进一步降低服务间重复代码。
+
+## [2026-03-16 00:06 CST] 多服务架构补全（auth/file/database/surface-manager）与 Hub 路由代理落地
+- 时间范围：2026-03-15 23:42 CST -> 2026-03-16 00:06 CST
+- 主要变更：
+  - 新增 4 个独立可执行服务：`services/auth/cmd/auth/main.go`、`services/file/cmd/file/main.go`、`services/database/cmd/database/main.go`、`services/surface-manager/cmd/surface-manager/main.go`。
+  - 为新服务补齐独立依赖目录：`services/{auth,file,database,surface-manager}/internal/app/*`，确保每个服务在自身子项目内可独立构建运行。
+  - Hub 新增路径级代理：`hub/cmd/hub/service_proxy.go`，并在 `hub/cmd/hub/main.go` 前置拦截并转发以下路径：
+    - `/api/auth/*` -> auth-service
+    - `/api/storage/file/*`、`/api/blob/*`、`/api/admin/blob/gc` -> file-service
+    - `/api/storage/database/*` -> database-service
+    - `/api/surfaces*`、`/api/surfacefs/*`、`/api/admin/surfaces*`、`/surfacefs/static/*` -> surface-manager
+  - Hub 移除 builtin service 注册，改为依赖真实 service 注册，消除 `service_id` 冲突状态。
+  - 升级 `scripts/deploy.sh`：支持 7 服务统一 build/start/healthcheck/log/pid 管理；Hub 启动参数新增 4 个 service URL。
+  - 升级 `scripts/reset_db.sh`：停机范围扩展到 7 服务并清理新增 pid 文件。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `hub/cmd/hub/service_proxy.go`
+  - `services/auth/cmd/auth/main.go`
+  - `services/file/cmd/file/main.go`
+  - `services/database/cmd/database/main.go`
+  - `services/surface-manager/cmd/surface-manager/main.go`
+  - `scripts/deploy.sh`
+  - `scripts/reset_db.sh`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：7 服务部署成功；Hub 代理链路可用；chat/page/surface 关键后端接口在新架构下通过回归。
+  - 成功：`go test ./...` 通过。
+  - 成功：`register -> me -> project/thread -> ws`、`storage.file.*`、`storage.database.*`、`/api/surfaces` 经 Hub 代理调用成功。
+  - 问题：执行环境中服务进程在命令结束后不持久，需要在同一提权命令内完成 deploy+smoke 验证；该问题为执行环境限制。
+- 经验与结论：
+  - 有效实践：先通过 Hub 前置路径代理切流，再逐步清理 Hub 旧实现，可在不回退页面功能的前提下完成架构迁移。
+  - 有效实践：将多服务验证串联到单条命令（deploy+smoke+reset），可规避环境进程生命周期差异导致的假失败。
+  - 后续规避：后续清理阶段继续以“可运行 smoke 通过”为删减门禁，避免一次性过度删除导致回归。
+- 下一步：
+  - 继续瘦身 Hub，移除已被代理接管的历史本地 handler 代码块。
+  - 逐服务收敛 `internal/app` 重复代码，形成更小的服务内依赖集。
+
+## [2026-03-16 00:55 CST] 项目废弃文件清理与环境瘦身
+- 时间范围：2026-03-16 00:06 CST -> 2026-03-16 00:55 CST
+- 主要变更：
+  - **废弃目录清理**：彻底删除 build 产物目录 `bin/`、历史分析目录 `ana/`、运行时日志目录 `logs/` 与进程 PID 目录 `run/`。
+  - **冗余文件清除**：删除根目录残留日志 `log.txt`, `log.txt.bak` 及二进制文件 `kagent`。
+  - **Surface 资源精简**：删除 `webui/surface/buildin/counter/demo-counter.html` 残留演示文件。
+  - **工作流卫生**：全项目扫描并清理所有 `.DS_Store` 噪音文件。
+- 关键文件/模块：
+  - `bin/`, `ana/`, `logs/`, `run/`
+  - `log.txt`, `log.txt.bak`, `kagent`, `demo-counter.html`
+- 开发结果：
+  - 成功：成功清理了所有已确认的无用文件与文件夹，仓库环境恢复纯净。
+  - 成功：经核验，被清理的文件均不影响 Hub 及各独立服务的构建与运行路由。
+- 经验与结论：
+  - 有效实践：定期清理 Git 忽略但实际存在的本地构建产物，能有效防止 AI 在上下文分析中被过期的 .log 或 .bak 文件干扰。
+  - 核心原则：保持“代码即文档，源码即事实”，除 `data/` 目录外的非源码文件应保持最小化。
+- 下一步：
+  - 维持此纯净状态，后续重构产生的临时文件应及时入 `plan/` 或执行清理。
+
+## [2026-03-16 01:05 CST] 架构改进 PRD 撰写与需求定义
+- 时间范围：2026-03-16 00:55 -> 2026-03-16 01:05
+- 主要变更：
+  - 撰写 `plan/260316-hub-service-platform-architecture-prd.md`，定义架构改进的需求描述文档。
+  - 整理 Hub 的 5 大核心功能：统一入口、服务治理、工具聚合与路由、三层安全鉴权、审计与观测。
+  - 提炼 Service 的 5 大设计理念：逻辑路径唯一、无感知透明、独立配置边界、Manifest 驱动、Session 绑定。
+  - 定义 6 个核心服务的具体需求设计（Chat, AI, Auth, File, Database, Surface）。
+  - 确立全平台重构的完成标准（DoD）。
+- 关键文件/模块：
+  - `plan/260316-hub-service-platform-architecture-prd.md`
+- 开发结果：
+  - 成功：产出了指导后续重构的架构需求文档。
+- 经验与结论：
+  - 有效实践：在进入详细设计前，先对 Hub/Service 的职责边界进行 PRD 维度的固化，能有效避免重构过程中的逻辑漂移。
+- 下一步：
+  - 基于 PRD 开展具体服务的工具协议 (Tool Protocol) 详细设计。
+
+## [2026-03-16 01:10 CST] PRD 完善：级联退出与反向心跳机制定义
+- 时间范围：2026-03-16 01:07 -> 2026-03-16 01:10
+- 主要变更：
+  - 更新 `plan/260316-hub-service-platform-architecture-prd.md`，整合服务生命周期管理需求。
+  - 新增 **Hub 级联退出** 功能需求：Hub 退出前需尝试正常终止所有已注册 Service。
+  - 新增 **Service 反向心跳监测** 需求：Service 每 3 秒自检 Hub 状态，Hub 异常则自律退出。
+  - 新增 **启动预清理** 需求：Hub 启动新 Service 实例前需确保同 ID 旧实例已清理。
+- 关键文件/模块：
+  - `plan/260316-hub-service-platform-architecture-prd.md`
+- 开发结果：
+  - 成功：在架构需求层面锁定了服务级的生命周期协同逻辑，增强了本地平台的鲁棒性。
+- 经验与结论：
+  - 有效实践：对于本地分布式小架构，通过“Hub 级联杀”+“Service 自守心跳”的双向保险，可以有效防止“僵尸进程”堆积。
+- 下一步：
+  - 为服务骨干代码增加反向心跳监测逻辑模板。
+
+## [2026-03-16 20:41 CST] 修复 ASR 401 鉴权故障（分服配置密钥丢失问题）
+- 时间范围：2026-03-16 20:33 -> 2026-03-16 20:41
+- 主要变更：
+  - **故障定位**：确认 `/page/chat` 语音识别无反应是由于 `ai-doubao` 服务在重构后使用独立的 `services/ai-doubao/config/configx.json`，而该文件仅包含占位符，导致 ASR 请求返回 401。
+  - **密钥同步**：将根目录 `config/configx.json` 中的真实 ASR/TTS/Chat 密钥同步至 `services/ai-doubao/config/configx.json` 和 `services/chat-server/config/configx.json`。
+  - **服务重启**：执行 `deploy.sh` 重新构建并部署全部 7 个服务。
+  - **验证**：通过 deploy 脚本自带的 smoke 检查（Auth + Tool Calls），并确认 `ai-doubao` 服务 normal 注册。
+- 关键文件/模块：
+  - `services/ai-doubao/config/configx.json`
+  - `services/chat-server/config/configx.json`
+- 开发结果：
+  - 成功：解决了重构导致的密钥丢失问题，恢复了 ASR/TTS 核心能力。
+- 经验与结论：
+  - 有效实践：多服务架构下，密钥配置的分散虽然增加了安全性，但也带来了同步成本。后续应考虑在 `deploy.sh` 中增加密钥占位符检查或自动同步机制。
+- 下一步：
+  - 观察用户实机反馈，确认 ASR 识别流是否恢复顺畅。
+
+## [2026-03-16 20:53 CST] 优化 Hub 日志展示：增加前端来源标签并过滤冗余日志
+- 时间范围：2026-03-16 20:48 -> 2026-03-16 20:53
+- 主要变更：
+  - **前端来源标记**：更新 Hub `/api/debug/log` 接口及前端 `appendDebug` 函数，支持 `source` 字段，将原有 `[HUB] [FRONTEND]` 格式改为更精确的 `[PAGE]` 或 `[SURF]` 标签。
+  - **日志静默过滤**：在 Hub 访问日志中间件中增加过滤逻辑，对于所有以 `/debug/log` 结尾的请求不再在终端打印访问日志，减少高频调试带来的控制台干扰。
+  - **组件化适配**：在 `index.html` 中通过闭包包装，确保 `SurfaceBridge` 发出的所有日志自动带上 `SURF` 来源，常规页面逻辑带上 `PAGE` 来源。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `webui/page/chat/index.html`
+  - `webui/page/surface/main.js`
+- 开发结果：
+  - 成功：控制台日志更加清爽，且能清晰分辨日志来源于主聊天页面还是 Surface 插件。
+- 经验与结论：
+  - 有效实践：对于跨屏/跨组件协作的 Web 应用，在统一日志网关中引入 context/source 字段对排查跨端协作问题至关重要。
+- 下一步：
+  - 检查其他潜在的高频日志点（如心跳反馈），视情况进一步过滤。
+
+## [2026-03-16 21:03 CST] 进一步收紧日志格式：移除冗余 Level 并增加 Page:Module 命名空间
+- 时间范围：2026-03-16 20:58 -> 2026-03-16 21:03
+- 主要变更：
+  - **移除重复 INFO**：修改 Hub `/api/debug/log` 处理器，不再在内容中打印 `[body.Level]`，因为 Hub 日志前缀已经包含级别。
+  - **结构化命名空间**：更新前端 `appendDebug` 与 Hub，支持 `page` 字段。输出格式统一为 `[TIMESTAMP] [LEVEL] [TAG] page:module:action`。
+  - **语义化对齐**：将 chat 状态变更的 module 名从 `AppState` 改为更具动作感的 `status_update`，满足 `chat:status_update:Listening` 格式要求。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `webui/page/chat/index.html`
+  - `webui/page/chat/event-router.js`
+- 开发结果：
+  - 成功：日志输出极其精简且具备完整的命名空间信息，方便在大规模并发调试时快速过滤。
+- 下一步：
+  - 持续观察是否有其他模块需要类似的语义化重命名。
+
+## [2026-03-16 21:24 CST] 优化 deploy.sh 构建流程：构建先行，失败不关服务
+- 时间范围：2026-03-16 21:22 -> 2026-03-16 21:24
+- 主要变更：
+  - **调整执行顺序**：将 `go build` 逻辑移至 `stop_service` 之前。
+  - **安全性增强**：由于脚本开启了 `set -e`，若任何一个服务构建失败，脚本将立即退出，不会触发后续的停止旧服务动作。
+- 关键文件/模块：
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：实现了“构建成功才切换”的部署逻辑，避免了因代码编译错误导致的服务意外停机。

@@ -1,8 +1,13 @@
 .DS_Store
 
 # Secrets / private local config (must not be committed)
-config/configx.json
-data/users/**/user_custom_config.json
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+**/configx.json
 
 # Local build/runtime artifacts
 bin/

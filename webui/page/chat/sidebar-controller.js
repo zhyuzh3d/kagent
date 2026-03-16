@@ -1,3 +1,5 @@
+import { callTool } from "./tool-call.js";
+
 export function createSidebarController(options) {
   const {
     app,
@@ -13,82 +15,58 @@ export function createSidebarController(options) {
 
   async function init() {
     appendDebug('INFO', 'Sidebar', null, null, 'Initializing sidebar...');
-    await fetchProjects();
-    appendDebug('INFO', 'Sidebar', null, null, `Found ${projects.length} projects`);
-    // Auto-select or create if none
-    if (projects.length === 0) {
-      appendDebug('INFO', 'Sidebar', null, null, 'No projects found, creating default...');
-      await createDefaultProject();
-    } else {
-      // Find default or first
-      currentProjectId = projects[0].project_id;
-      appendDebug('INFO', 'Sidebar', null, null, `Selecting first project: ${currentProjectId}`);
-      const threads = await fetchThreads(currentProjectId);
-      appendDebug('INFO', 'Sidebar', null, null, `Found ${threads.length} threads for project`);
-      if (threads.length === 0) {
-        currentThreadId = await createDefaultThread(currentProjectId);
+    try {
+      await fetchProjects();
+      appendDebug('INFO', 'Sidebar', null, null, `Found ${projects.length} projects`);
+      // Auto-select or create if none
+      if (projects.length === 0) {
+        appendDebug('INFO', 'Sidebar', null, null, 'No projects found, creating default...');
+        await createDefaultProject();
       } else {
-        currentThreadId = threads[0].thread_id;
+        // Find default or first
+        currentProjectId = projects[0].project_id;
+        appendDebug('INFO', 'Sidebar', null, null, `Selecting first project: ${currentProjectId}`);
+        const threads = await fetchThreads(currentProjectId);
+        appendDebug('INFO', 'Sidebar', null, null, `Found ${threads.length} threads for project`);
+        if (threads.length === 0) {
+          currentThreadId = await createDefaultThread(currentProjectId);
+        } else {
+          currentThreadId = threads[0].thread_id;
+        }
       }
+      appendDebug('INFO', 'Sidebar', null, null, `Final context: proj=${currentProjectId} thd=${currentThreadId}`);
+      await render();
+      syncHeader();
+      appendDebug('INFO', 'Sidebar', null, null, 'Sidebar initialization complete');
+    } catch (err) {
+      appendDebug('ERROR', 'Sidebar', null, null, `sidebar init failed: ${err.message}`);
+      throw err;
     }
-    appendDebug('INFO', 'Sidebar', null, null, `Final context: proj=${currentProjectId} thd=${currentThreadId}`);
-    await render();
-    syncHeader();
-    appendDebug('INFO', 'Sidebar', null, null, 'Sidebar initialization complete');
   }
 
   async function fetchProjects() {
-    try {
-      const resp = await fetch('/api/projects');
-      if (!resp.ok) throw new Error('fetch projects failed');
-      projects = (await resp.json()) || [];
-    } catch (err) {
-      appendDebug('ERROR', 'Sidebar', null, null, `fetch projects failed: ${err.message}`);
-      projects = [];
-    }
+    const result = await callTool("app.chat.project_list");
+    projects = Array.isArray(result && result.items) ? result.items : [];
   }
 
   async function fetchThreads(projectId) {
-    try {
-      const resp = await fetch(`/api/projects/${projectId}/threads`);
-      if (!resp.ok) throw new Error('fetch threads failed');
-      const data = await resp.json();
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      appendDebug('ERROR', 'Sidebar', null, null, `fetch threads failed: ${err.message}`);
-      return [];
-    }
+    const result = await callTool("app.chat.thread_list", { project_id: projectId });
+    return Array.isArray(result && result.items) ? result.items : [];
   }
 
   async function createDefaultProject() {
-    try {
-      const resp = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Default Project' })
-      });
-      const data = await resp.json();
-      currentProjectId = data.project_id;
-      await fetchProjects();
-      currentThreadId = await createDefaultThread(currentProjectId);
-    } catch (err) {
-      appendDebug('ERROR', 'Sidebar', null, null, `create default project failed: ${err.message}`);
-    }
+    const result = await callTool("app.chat.project_create", { title: "Default Project" });
+    currentProjectId = (result && result.project_id) || "";
+    await fetchProjects();
+    currentThreadId = await createDefaultThread(currentProjectId);
   }
 
   async function createDefaultThread(projectId) {
-    try {
-      const resp = await fetch(`/api/projects/${projectId}/threads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Default Thread' })
-      });
-      const data = await resp.json();
-      return data.thread_id;
-    } catch (err) {
-      appendDebug('ERROR', 'Sidebar', null, null, `create default thread failed: ${err.message}`);
-      return "";
-    }
+    const result = await callTool("app.chat.thread_create", {
+      project_id: projectId,
+      title: "Default Thread",
+    });
+    return (result && result.thread_id) || "";
   }
 
   function syncHeader() {
@@ -257,15 +235,9 @@ export function createSidebarController(options) {
     const title = prompt("请输入项目名称", "新项目");
     if (!title) return;
     try {
-      const resp = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
-      });
-      if (resp.ok) {
-        await fetchProjects();
-        render();
-      }
+      await callTool("app.chat.project_create", { title });
+      await fetchProjects();
+      render();
     } catch (err) {
       alert("创建失败: " + err.message);
     }
@@ -275,16 +247,12 @@ export function createSidebarController(options) {
     const title = prompt("请输入会话名称", "新会话");
     if (!title) return;
     try {
-      const resp = await fetch(`/api/projects/${projectId}/threads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+      const result = await callTool("app.chat.thread_create", {
+        project_id: projectId,
+        title,
       });
-      if (resp.ok) {
-        const data = await resp.json();
-        await render(); // Refresh list
-        switchThread(projectId, data.thread_id, title);
-      }
+      await render(); // Refresh list
+      switchThread(projectId, (result && result.thread_id) || "", title);
     } catch (err) {
       alert("创建失败: " + err.message);
     }
@@ -296,16 +264,14 @@ export function createSidebarController(options) {
     const title = prompt("修改项目名称", p.title);
     if (!title || title === p.title) return;
     try {
-      const resp = await fetch(`/api/projects/${projectId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, order_index: p.order_index })
+      await callTool("app.chat.project_update", {
+        project_id: projectId,
+        title,
+        order_index: p.order_index,
       });
-      if (resp.ok) {
-        await fetchProjects();
-        render();
-        if (currentProjectId === projectId) syncHeader();
-      }
+      await fetchProjects();
+      render();
+      if (currentProjectId === projectId) syncHeader();
     } catch (err) {
       alert("修改失败: " + err.message);
     }
@@ -314,26 +280,24 @@ export function createSidebarController(options) {
   async function handleDeleteProject(projectId) {
     if (!confirm("确定删除该项目及其所有会话吗？此操作不可撤销。")) return;
     try {
-      const resp = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-      if (resp.ok) {
-        await fetchProjects();
-        if (currentProjectId === projectId) {
-          // If we deleted current project, try to find another one
-          if (projects.length > 0) {
-            const firstProj = projects[0];
-            const threads = await fetchThreads(firstProj.project_id);
-            if (threads.length > 0) {
-              await switchThread(firstProj.project_id, threads[0].thread_id, threads[0].title);
-            } else {
-              const tid = await createDefaultThread(firstProj.project_id);
-              await switchThread(firstProj.project_id, tid, "Default Thread");
-            }
+      await callTool("app.chat.project_delete", { project_id: projectId });
+      await fetchProjects();
+      if (currentProjectId === projectId) {
+        // If we deleted current project, try to find another one
+        if (projects.length > 0) {
+          const firstProj = projects[0];
+          const threads = await fetchThreads(firstProj.project_id);
+          if (threads.length > 0) {
+            await switchThread(firstProj.project_id, threads[0].thread_id, threads[0].title);
           } else {
-            await createDefaultProject();
+            const tid = await createDefaultThread(firstProj.project_id);
+            await switchThread(firstProj.project_id, tid, "Default Thread");
           }
+        } else {
+          await createDefaultProject();
         }
-        render();
       }
+      render();
     } catch (err) {
       alert("删除失败: " + err.message);
     }
@@ -343,17 +307,15 @@ export function createSidebarController(options) {
     const title = prompt("修改会话名称");
     if (!title) return;
     try {
-      const resp = await fetch(`/api/threads/${threadId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, project_id: currentProjectId })
+      await callTool("app.chat.thread_update", {
+        thread_id: threadId,
+        title,
+        project_id: currentProjectId,
       });
-      if (resp.ok) {
-        if (currentThreadId === threadId) {
-          el.currentThreadName.textContent = title;
-        }
-        render();
+      if (currentThreadId === threadId) {
+        el.currentThreadName.textContent = title;
       }
+      render();
     } catch (err) {
       alert("修改失败: " + err.message);
     }
@@ -362,20 +324,18 @@ export function createSidebarController(options) {
   async function handleDeleteThread(threadId) {
     if (!confirm("确定删除该会话吗？")) return;
     try {
-      const resp = await fetch(`/api/threads/${threadId}`, { method: 'DELETE' });
-      if (resp.ok) {
-        if (currentThreadId === threadId) {
-          // Find another thread in same project
-          const threads = await fetchThreads(currentProjectId);
-          if (threads.length > 0) {
-            await switchThread(currentProjectId, threads[0].thread_id, threads[0].title);
-          } else {
-            const tid = await createDefaultThread(currentProjectId);
-            await switchThread(currentProjectId, tid, "Default Thread");
-          }
+      await callTool("app.chat.thread_delete", { thread_id: threadId });
+      if (currentThreadId === threadId) {
+        // Find another thread in same project
+        const threads = await fetchThreads(currentProjectId);
+        if (threads.length > 0) {
+          await switchThread(currentProjectId, threads[0].thread_id, threads[0].title);
+        } else {
+          const tid = await createDefaultThread(currentProjectId);
+          await switchThread(currentProjectId, tid, "Default Thread");
         }
-        render();
       }
+      render();
     } catch (err) {
       alert("删除失败: " + err.message);
     }
@@ -453,15 +413,13 @@ export function createSidebarController(options) {
         }
 
         try {
-          const resp = await fetch(`/api/threads/${draggedId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_id: destProjId, order_index: newOrderIndex })
+          await callTool("app.chat.thread_update", {
+            thread_id: draggedId,
+            project_id: destProjId,
+            order_index: newOrderIndex,
           });
-          if (resp.ok) {
-            if (currentThreadId === draggedId) currentProjectId = destProjId;
-            render();
-          }
+          if (currentThreadId === draggedId) currentProjectId = destProjId;
+          render();
         } catch (err) {
           appendDebug('ERROR', 'Sidebar', null, null, `drop thread failed: ${err.message}`);
         }
@@ -473,15 +431,12 @@ export function createSidebarController(options) {
         if (!targetProj) return;
 
         try {
-          const resp = await fetch(`/api/projects/${draggedId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_index: targetProj.order_index })
+          await callTool("app.chat.project_update", {
+            project_id: draggedId,
+            order_index: targetProj.order_index,
           });
-          if (resp.ok) {
-            await fetchProjects();
-            render();
-          }
+          await fetchProjects();
+          render();
         } catch (err) {
           appendDebug('ERROR', 'Sidebar', null, null, `drop project failed: ${err.message}`);
         }

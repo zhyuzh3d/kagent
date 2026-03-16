@@ -1,0 +1,7 @@
+{
+  "service_id": "chat-server",
+  "service_name": "Chat Server",
+  "version": "1.0.0",
+  "reliability": "trusted",
+  "visibility": "public"
+}

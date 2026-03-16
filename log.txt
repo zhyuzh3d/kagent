@@ -1,369 +1,119 @@
-=== DEPLOY id=7170f0af-3434-47a0-bfaa-e7b6db9bd4f4 ts=2026-03-15 10:24:23 CST backend=26031403 pid=? ===
-=== DEPLOY id=7170f0af-3434-47a0-bfaa-e7b6db9bd4f4 ts=2026-03-15 10:24:23 CST backend=26031403 pid=63656 started ===
-2026-03-15 10:24:25.226 [DEBUG] [sqlite_store.go:317] initDefaultIDs: user default ensured
-2026-03-15 10:24:25.226 [DEBUG] [sqlite_store.go:324] initDefaultIDs: project project-default ensured for user default
-2026-03-15 10:24:25.226 [DEBUG] [sqlite_store.go:331] initDefaultIDs: thread chat-default ensured for proj project-default
-2026-03-15 10:24:25.227 [INFO] [System:190] kagent version backend=26031403 webui=26031402
-2026-03-15 10:24:25.227 [INFO] [System:1158] kagent server root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent listening=http://127.0.0.1:18080
-2026-03-15 10:24:25.301 [INFO] [System:198] → GET /version
-2026-03-15 10:24:25.301 [INFO] [System:200] ← GET /version (60.292µs)
-2026-03-15 10:24:25.715 [INFO] [System:198] → GET /page/chat/
-2026-03-15 10:24:25.716 [INFO] [System:200] ← GET /page/chat/ (659.333µs)
-2026-03-15 10:24:25.730 [INFO] [System:198] → GET /.well-known/appspecific/com.chrome.devtools.json
-2026-03-15 10:24:25.730 [INFO] [System:200] ← GET /.well-known/appspecific/com.chrome.devtools.json (186.125µs)
-2026-03-15 10:24:25.747 [INFO] [System:198] → GET /api/auth/me
-2026-03-15 10:24:25.748 [INFO] [System:200] ← GET /api/auth/me (195.208µs)
-2026-03-15 10:24:25.768 [INFO] [System:198] → GET /page/chat/action-engine.js
-2026-03-15 10:24:25.768 [INFO] [System:200] ← GET /page/chat/action-engine.js (189.041µs)
-2026-03-15 10:24:25.769 [INFO] [System:198] → GET /page/chat/audio-playback.js
-2026-03-15 10:24:25.769 [INFO] [System:200] ← GET /page/chat/audio-playback.js (152.584µs)
-2026-03-15 10:24:25.769 [INFO] [System:198] → GET /page/chat/config-store.js
-2026-03-15 10:24:25.769 [INFO] [System:200] ← GET /page/chat/config-store.js (111.334µs)
-2026-03-15 10:24:25.770 [INFO] [System:198] → GET /page/chat/audio-capture.js
-2026-03-15 10:24:25.771 [INFO] [System:198] → GET /page/chat/config-drawer.js
-2026-03-15 10:24:25.771 [INFO] [System:200] ← GET /page/chat/config-drawer.js (111.208µs)
-2026-03-15 10:24:25.771 [INFO] [System:198] → GET /page/chat/chat-store.js
-2026-03-15 10:24:25.771 [INFO] [System:198] → GET /page/chat/event-router.js
-2026-03-15 10:24:25.771 [INFO] [System:200] ← GET /page/chat/chat-store.js (134.834µs)
-2026-03-15 10:24:25.771 [INFO] [System:198] → GET /page/chat/surface-bridge.js
-2026-03-15 10:24:25.771 [INFO] [System:200] ← GET /page/chat/audio-capture.js (793.625µs)
-2026-03-15 10:24:25.773 [INFO] [System:200] ← GET /page/chat/surface-bridge.js (1.700375ms)
-2026-03-15 10:24:25.773 [INFO] [System:198] → GET /page/chat/session-controller.js
-2026-03-15 10:24:25.773 [INFO] [System:200] ← GET /page/chat/event-router.js (2.393042ms)
-2026-03-15 10:24:25.773 [INFO] [System:198] → GET /page/chat/sidebar-controller.js
-2026-03-15 10:24:25.774 [INFO] [System:200] ← GET /page/chat/session-controller.js (1.184458ms)
-2026-03-15 10:24:25.774 [INFO] [System:200] ← GET /page/chat/sidebar-controller.js (1.159458ms)
-2026-03-15 10:24:25.780 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.780 [INFO] [System:217] [FRONTEND] [INFO] [System] Script module start
-2026-03-15 10:24:25.781 [INFO] [System:200] ← POST /api/debug/log (569.584µs)
-2026-03-15 10:24:25.783 [INFO] [System:198] → GET /json/config_info.json
-2026-03-15 10:24:25.783 [INFO] [System:198] → GET /api/config
-2026-03-15 10:24:25.783 [INFO] [System:200] ← GET /api/config (470.959µs)
-2026-03-15 10:24:25.789 [INFO] [System:200] ← GET /json/config_info.json (5.965917ms)
-2026-03-15 10:24:25.805 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.805 [INFO] [System:217] [FRONTEND] [INFO] [System] runtime config loaded
-2026-03-15 10:24:25.805 [INFO] [System:200] ← POST /api/debug/log (76.917µs)
-2026-03-15 10:24:25.806 [INFO] [System:198] → GET /version
-2026-03-15 10:24:25.807 [INFO] [System:200] ← GET /version (198.875µs)
-2026-03-15 10:24:25.808 [INFO] [System:198] → GET /favicon.ico
-2026-03-15 10:24:25.809 [INFO] [System:200] ← GET /favicon.ico (435.709µs)
-2026-03-15 10:24:25.810 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.810 [INFO] [System:217] [FRONTEND] [INFO] [System] version b26031403 ui26031402
-2026-03-15 10:24:25.810 [INFO] [System:200] ← POST /api/debug/log (40.542µs)
-2026-03-15 10:24:25.810 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.810 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Initializing sidebar...
-2026-03-15 10:24:25.810 [INFO] [System:200] ← POST /api/debug/log (59.333µs)
-2026-03-15 10:24:25.811 [INFO] [System:198] → GET /api/projects
-2026-03-15 10:24:25.812 [INFO] [System:200] ← GET /api/projects (624.042µs)
-2026-03-15 10:24:25.812 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.812 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Found 1 projects
-2026-03-15 10:24:25.813 [INFO] [System:200] ← POST /api/debug/log (42.166µs)
-2026-03-15 10:24:25.813 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.813 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Selecting first project: prj-d6aca0d8e691dd809239b1a54fa895de
-2026-03-15 10:24:25.813 [INFO] [System:200] ← POST /api/debug/log (25.5µs)
-2026-03-15 10:24:25.814 [INFO] [System:198] → GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads
-2026-03-15 10:24:25.814 [INFO] [System:200] ← GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads (418.25µs)
-2026-03-15 10:24:25.815 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.815 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Found 2 threads for project
-2026-03-15 10:24:25.815 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.815 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Final context: proj=prj-d6aca0d8e691dd809239b1a54fa895de thd=thd-45a46b92c123c750a9848a896aec9900
-2026-03-15 10:24:25.815 [INFO] [System:200] ← POST /api/debug/log (33.125µs)
-2026-03-15 10:24:25.815 [INFO] [System:200] ← POST /api/debug/log (194.834µs)
-2026-03-15 10:24:25.816 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.816 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Rendering sidebar UI...
-2026-03-15 10:24:25.816 [INFO] [System:200] ← POST /api/debug/log (55.666µs)
-2026-03-15 10:24:25.816 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.816 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Rendering 1 projects in loop
-2026-03-15 10:24:25.816 [INFO] [System:200] ← POST /api/debug/log (50.167µs)
-2026-03-15 10:24:25.817 [INFO] [System:198] → GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads
-2026-03-15 10:24:25.817 [INFO] [System:200] ← GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads (143.375µs)
-2026-03-15 10:24:25.819 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.819 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Sidebar initialization complete
-2026-03-15 10:24:25.819 [INFO] [System:200] ← POST /api/debug/log (29.417µs)
-2026-03-15 10:24:25.820 [INFO] [System:198] → GET /page/chat/io-worker.js
-2026-03-15 10:24:25.820 [INFO] [System:200] ← GET /page/chat/io-worker.js (81.417µs)
-2026-03-15 10:24:25.825 [INFO] [System:198] → GET /ws
-2026-03-15 10:24:25.826 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.826 [INFO] [System:217] [FRONTEND] [INFO] [Network] ws connected (via worker), fetching history sliding window limit=20
-2026-03-15 10:24:25.827 [INFO] [System:200] ← POST /api/debug/log (109.417µs)
-2026-03-15 10:24:25.827 [DEBUG] [sqlite_store.go:317] initDefaultIDs: user usr-c9595993b61e52ff92d24efad3cb6575 ensured
-2026-03-15 10:24:25.827 [DEBUG] [sqlite_store.go:324] initDefaultIDs: project prj-d6aca0d8e691dd809239b1a54fa895de ensured for user usr-c9595993b61e52ff92d24efad3cb6575
-2026-03-15 10:24:25.827 [DEBUG] [sqlite_store.go:331] initDefaultIDs: thread thd-45a46b92c123c750a9848a896aec9900 ensured for proj prj-d6aca0d8e691dd809239b1a54fa895de
-2026-03-15 10:24:25.827 [INFO] [System:1132] create session with provider factory=local user=usr-c9595993b61e52ff92d24efad3cb6575 project=prj-d6aca0d8e691dd809239b1a54fa895de thread=thd-45a46b92c123c750a9848a896aec9900
-2026-03-15 10:24:25.828 [INFO] [System:200] ← GET /ws (2.444334ms)
-2026-03-15 10:24:25.828 [DEBUG] [SessionManager:378] received fetch_history: before_id=0 cursor=0 limit=20
-2026-03-15 10:24:25.829 [DEBUG] [SessionManager:385] fetch_history returning 20 messages, hasMore=true
-2026-03-15 10:24:25.829 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:25.830 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Connecting
-2026-03-15 10:24:25.830 [INFO] [System:200] ← POST /api/debug/log (98.875µs)
-2026-03-15 10:24:28.478 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:28.483 [INFO] [System:217] [FRONTEND] [INFO] [System] reconnecting with proj=prj-d6aca0d8e691dd809239b1a54fa895de thd=thd-0cce33d7de3aff82a173961d8bd023bc
-2026-03-15 10:24:28.483 [INFO] [System:200] ← POST /api/debug/log (5.2825ms)
-2026-03-15 10:24:28.483 [DEBUG] [SessionManager:182] read ws failed: websocket: close 1005 (no status)
-2026-03-15 10:24:28.489 [INFO] [System:198] → GET /ws
-2026-03-15 10:24:28.491 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:28.491 [INFO] [System:217] [FRONTEND] [INFO] [Network] ws connected (via worker), fetching history sliding window limit=20
-2026-03-15 10:24:28.491 [INFO] [System:200] ← POST /api/debug/log (163.625µs)
-2026-03-15 10:24:28.491 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:28.491 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Rendering sidebar UI...
-2026-03-15 10:24:28.491 [INFO] [System:200] ← POST /api/debug/log (59.584µs)
-2026-03-15 10:24:28.492 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:28.492 [INFO] [System:217] [FRONTEND] [INFO] [Sidebar] Rendering 1 projects in loop
-2026-03-15 10:24:28.492 [INFO] [System:200] ← POST /api/debug/log (68µs)
-2026-03-15 10:24:28.492 [DEBUG] [sqlite_store.go:317] initDefaultIDs: user usr-c9595993b61e52ff92d24efad3cb6575 ensured
-2026-03-15 10:24:28.492 [DEBUG] [sqlite_store.go:324] initDefaultIDs: project prj-d6aca0d8e691dd809239b1a54fa895de ensured for user usr-c9595993b61e52ff92d24efad3cb6575
-2026-03-15 10:24:28.492 [DEBUG] [sqlite_store.go:331] initDefaultIDs: thread thd-0cce33d7de3aff82a173961d8bd023bc ensured for proj prj-d6aca0d8e691dd809239b1a54fa895de
-2026-03-15 10:24:28.492 [INFO] [System:1132] create session with provider factory=local user=usr-c9595993b61e52ff92d24efad3cb6575 project=prj-d6aca0d8e691dd809239b1a54fa895de thread=thd-0cce33d7de3aff82a173961d8bd023bc
-2026-03-15 10:24:28.492 [INFO] [System:198] → GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads
-2026-03-15 10:24:28.493 [INFO] [System:200] ← GET /api/projects/prj-d6aca0d8e691dd809239b1a54fa895de/threads (185.125µs)
-2026-03-15 10:24:28.493 [INFO] [System:200] ← GET /ws (3.467542ms)
-2026-03-15 10:24:28.493 [DEBUG] [SessionManager:378] received fetch_history: before_id=0 cursor=0 limit=20
-2026-03-15 10:24:28.494 [DEBUG] [SessionManager:385] fetch_history returning 20 messages, hasMore=true
-2026-03-15 10:24:28.494 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:28.494 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Connecting
-2026-03-15 10:24:28.494 [INFO] [System:200] ← POST /api/debug/log (44.125µs)
-2026-03-15 10:24:30.789 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:30.790 [INFO] [System:217] [FRONTEND] [INFO] [Network] ws connected (via worker), skip history fetch (messages.len=20)
-2026-03-15 10:24:30.790 [INFO] [System:200] ← POST /api/debug/log (264.709µs)
-2026-03-15 10:24:31.052 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:31.052 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] audio path: AudioWorklet
-2026-03-15 10:24:31.052 [INFO] [System:200] ← POST /api/debug/log (216.584µs)
-2026-03-15 10:24:31.054 [DEBUG] [SessionManager:555] [Turn:0] Connecting dedicated ASR WebSocket
-2026-03-15 10:24:31.055 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:31.055 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:31.055 [INFO] [System:200] ← POST /api/debug/log (107.042µs)
-2026-03-15 10:24:33.525 [INFO] [SessionManager:313] [Turn:1] -> VAD listening started
-2026-03-15 10:24:33.525 [DEBUG] [SessionManager:555] [Turn:1] Connecting dedicated ASR WebSocket
-2026-03-15 10:24:33.526 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:33.526 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:24:33.533 [INFO] [System:200] ← POST /api/debug/log (231.125µs)
-2026-03-15 10:24:33.535 [DEBUG] [SessionManager:584] [Turn:0] Dedicated ASR connection closed
-2026-03-15 10:24:33.535 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:33.535 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:33.535 [INFO] [System:200] ← POST /api/debug/log (176.5µs)
-2026-03-15 10:24:34.172 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:34.172 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:34.172 [INFO] [System:200] ← POST /api/debug/log (353.792µs)
-2026-03-15 10:24:34.513 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:34.513 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:34.513 [INFO] [System:200] ← POST /api/debug/log (294.458µs)
-2026-03-15 10:24:34.845 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:34.845 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:34.845 [INFO] [System:200] ← POST /api/debug/log (516.292µs)
-2026-03-15 10:24:35.055 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:24:35.057 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:35.057 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:24:35.058 [INFO] [System:200] ← POST /api/debug/log (253.333µs)
-2026-03-15 10:24:35.220 [INFO] [SessionManager:434] [Turn:1] "起来吃饭了，吃饭了。" -> ASR final (segment), full="起来吃饭了，吃饭了。"
-2026-03-15 10:24:35.224 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:35.224 [DEBUG] [SessionManager:280] [Turn:1] ASR final received for trigger_llm
-2026-03-15 10:24:35.225 [INFO] [SessionManager:294] [Turn:1] "起来吃饭了，吃饭了。" -> LLM Triggered
-2026-03-15 10:24:35.225 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:35.225 [INFO] [System:200] ← POST /api/debug/log (949.166µs)
-2026-03-15 10:24:35.224 [DEBUG] [SessionManager:584] [Turn:1] Dedicated ASR connection closed
-2026-03-15 10:24:35.228 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:35.228 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Thinking
-2026-03-15 10:24:35.228 [INFO] [System:200] ← POST /api/debug/log (166.208µs)
-2026-03-15 10:24:37.428 [INFO] [AudioPipeline:92] [Turn:1] "好哒这就起来啦，今天..." -> TTS start sending...
-2026-03-15 10:24:37.428 [INFO] [AudioPipeline:172] [Turn:1] -> TTS finished sending
-2026-03-15 10:24:37.433 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:37.433 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Speaking
-2026-03-15 10:24:37.433 [INFO] [System:200] ← POST /api/debug/log (257.625µs)
-2026-03-15 10:24:37.444 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:37.444 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:37.444 [INFO] [System:200] ← POST /api/debug/log (220.667µs)
-2026-03-15 10:24:41.534 [INFO] [SessionManager:313] [Turn:2] -> VAD listening started
-2026-03-15 10:24:41.535 [DEBUG] [SessionManager:555] [Turn:2] Connecting dedicated ASR WebSocket
-2026-03-15 10:24:41.536 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:41.536 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:24:41.536 [INFO] [System:200] ← POST /api/debug/log (282.75µs)
-2026-03-15 10:24:41.545 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:41.545 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:41.545 [INFO] [System:200] ← POST /api/debug/log (305.708µs)
-2026-03-15 10:24:42.169 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:42.169 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:42.169 [INFO] [System:200] ← POST /api/debug/log (161.291µs)
-2026-03-15 10:24:42.590 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:42.590 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:42.590 [INFO] [System:200] ← POST /api/debug/log (185.084µs)
-2026-03-15 10:24:42.814 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:42.815 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:42.815 [INFO] [System:200] ← POST /api/debug/log (610.333µs)
-2026-03-15 10:24:43.153 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:24:43.155 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:43.156 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:24:43.156 [INFO] [System:200] ← POST /api/debug/log (1.00075ms)
-2026-03-15 10:24:43.270 [INFO] [SessionManager:434] [Turn:2] "蛋炒饭，蛋炒饭。" -> ASR final (segment), full="蛋炒饭，蛋炒饭。"
-2026-03-15 10:24:43.270 [DEBUG] [SessionManager:584] [Turn:2] Dedicated ASR connection closed
-2026-03-15 10:24:43.270 [DEBUG] [SessionManager:280] [Turn:2] ASR final received for trigger_llm
-2026-03-15 10:24:43.271 [INFO] [SessionManager:294] [Turn:2] "蛋炒饭，蛋炒饭。" -> LLM Triggered
-2026-03-15 10:24:43.273 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:43.273 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:43.273 [INFO] [System:200] ← POST /api/debug/log (227.042µs)
-2026-03-15 10:24:43.276 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:43.276 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Thinking
-2026-03-15 10:24:43.276 [INFO] [System:200] ← POST /api/debug/log (140.167µs)
-2026-03-15 10:24:46.823 [INFO] [AudioPipeline:92] [Turn:2] "好耶！" -> TTS start sending...
-2026-03-15 10:24:46.828 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:46.829 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Speaking
-2026-03-15 10:24:46.829 [INFO] [System:200] ← POST /api/debug/log (361.833µs)
-2026-03-15 10:24:48.452 [INFO] [AudioPipeline:172] [Turn:2] -> TTS finished sending
-2026-03-15 10:24:48.466 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:48.466 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:48.466 [INFO] [System:200] ← POST /api/debug/log (281.917µs)
-2026-03-15 10:24:53.593 [INFO] [SessionManager:313] [Turn:3] -> VAD listening started
-2026-03-15 10:24:53.595 [DEBUG] [SessionManager:555] [Turn:3] Connecting dedicated ASR WebSocket
-2026-03-15 10:24:53.596 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:53.596 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:24:53.596 [INFO] [System:200] ← POST /api/debug/log (173.75µs)
-2026-03-15 10:24:53.607 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:53.607 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:53.607 [INFO] [System:200] ← POST /api/debug/log (351.792µs)
-2026-03-15 10:24:54.625 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:54.626 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:54.626 [INFO] [System:200] ← POST /api/debug/log (311.208µs)
-2026-03-15 10:24:54.933 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:54.934 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:54.934 [INFO] [System:200] ← POST /api/debug/log (477.625µs)
-2026-03-15 10:24:55.241 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:55.241 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:55.241 [INFO] [System:200] ← POST /api/debug/log (238.334µs)
-2026-03-15 10:24:55.529 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:55.529 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:55.529 [INFO] [System:200] ← POST /api/debug/log (91.791µs)
-2026-03-15 10:24:55.653 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:24:55.654 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:55.654 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:24:55.655 [INFO] [System:200] ← POST /api/debug/log (163.083µs)
-2026-03-15 10:24:55.788 [INFO] [SessionManager:434] [Turn:3] "好像说的你会做饭似的..." -> ASR final (segment), full="好像说的你会做饭似的..."
-2026-03-15 10:24:55.790 [DEBUG] [SessionManager:584] [Turn:3] Dedicated ASR connection closed
-2026-03-15 10:24:55.790 [DEBUG] [SessionManager:280] [Turn:3] ASR final received for trigger_llm
-2026-03-15 10:24:55.790 [INFO] [SessionManager:294] [Turn:3] "好像说的你会做饭似的..." -> LLM Triggered
-2026-03-15 10:24:55.793 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:55.793 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:24:55.793 [INFO] [System:200] ← POST /api/debug/log (199.667µs)
-2026-03-15 10:24:55.800 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:55.801 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Thinking
-2026-03-15 10:24:55.801 [INFO] [System:200] ← POST /api/debug/log (635.334µs)
-2026-03-15 10:24:58.492 [INFO] [SessionManager:313] [Turn:4] -> VAD listening started
-2026-03-15 10:24:58.492 [DEBUG] [SessionManager:555] [Turn:4] Connecting dedicated ASR WebSocket
-2026-03-15 10:24:58.493 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:58.493 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:24:58.493 [INFO] [System:200] ← POST /api/debug/log (154.125µs)
-2026-03-15 10:24:58.495 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:58.495 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:24:58.495 [INFO] [System:200] ← POST /api/debug/log (185.166µs)
-2026-03-15 10:24:58.691 [INFO] [AudioPipeline:92] [Turn:3] "哈哈被你看穿啦！" -> TTS start sending...
-2026-03-15 10:24:58.695 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:24:58.695 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Speaking
-2026-03-15 10:24:58.695 [INFO] [System:200] ← POST /api/debug/log (321.083µs)
-2026-03-15 10:25:00.220 [INFO] [AudioPipeline:172] [Turn:3] -> TTS finished sending
-2026-03-15 10:25:00.235 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:00.236 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:00.236 [INFO] [System:200] ← POST /api/debug/log (1.71075ms)
-2026-03-15 10:25:07.393 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:07.393 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:07.393 [INFO] [System:200] ← POST /api/debug/log (282.75µs)
-2026-03-15 10:25:07.736 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:07.736 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:07.736 [INFO] [System:200] ← POST /api/debug/log (342.5µs)
-2026-03-15 10:25:07.999 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:07.999 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:07.999 [INFO] [System:200] ← POST /api/debug/log (319.458µs)
-2026-03-15 10:25:08.331 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:08.331 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:08.331 [INFO] [System:200] ← POST /api/debug/log (410.375µs)
-2026-03-15 10:25:08.653 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:25:08.660 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:08.661 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:25:08.661 [INFO] [System:200] ← POST /api/debug/log (415.5µs)
-2026-03-15 10:25:08.780 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:08.780 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:08.780 [INFO] [System:200] ← POST /api/debug/log (276µs)
-2026-03-15 10:25:08.845 [INFO] [SessionManager:434] [Turn:4] "你会不会帮我做呢？" -> ASR final (segment), full="你会不会帮我做呢？"
-2026-03-15 10:25:08.845 [DEBUG] [SessionManager:584] [Turn:4] Dedicated ASR connection closed
-2026-03-15 10:25:08.846 [DEBUG] [SessionManager:280] [Turn:4] ASR final received for trigger_llm
-2026-03-15 10:25:08.846 [INFO] [SessionManager:294] [Turn:4] "你会不会帮我做呢？" -> LLM Triggered
-2026-03-15 10:25:08.848 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:08.848 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Recognizing
-2026-03-15 10:25:08.849 [INFO] [System:200] ← POST /api/debug/log (118.625µs)
-2026-03-15 10:25:08.852 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:08.852 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Thinking
-2026-03-15 10:25:08.852 [INFO] [System:200] ← POST /api/debug/log (123.291µs)
-2026-03-15 10:25:13.274 [INFO] [AudioPipeline:92] [Turn:4] "哈哈虽然没法亲手给你..." -> TTS start sending...
-2026-03-15 10:25:13.274 [INFO] [AudioPipeline:172] [Turn:4] -> TTS finished sending
-2026-03-15 10:25:13.278 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:13.278 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Speaking
-2026-03-15 10:25:13.278 [INFO] [System:200] ← POST /api/debug/log (126.333µs)
-2026-03-15 10:25:13.289 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:13.289 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:13.289 [INFO] [System:200] ← POST /api/debug/log (268.166µs)
-2026-03-15 10:25:20.704 [INFO] [SessionManager:313] [Turn:5] -> VAD listening started
-2026-03-15 10:25:20.704 [DEBUG] [SessionManager:555] [Turn:5] Connecting dedicated ASR WebSocket
-2026-03-15 10:25:20.706 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:20.706 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:25:20.706 [INFO] [System:200] ← POST /api/debug/log (367.625µs)
-2026-03-15 10:25:20.718 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:20.718 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:20.718 [INFO] [System:200] ← POST /api/debug/log (186.25µs)
-2026-03-15 10:25:21.253 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:25:21.261 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:21.261 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:25:21.261 [INFO] [System:200] ← POST /api/debug/log (159.459µs)
-2026-03-15 10:25:21.377 [DEBUG] [SessionManager:584] [Turn:5] Dedicated ASR connection closed
-2026-03-15 10:25:21.574 [WARN] [SessionManager:282] [Turn:5] ASR final wait timed out for trigger_llm; falling back
-2026-03-15 10:25:21.574 [DEBUG] [SessionManager:296] [Turn:5] "" -> LLM Trigger (skipped, empty text)
-2026-03-15 10:25:21.574 [INFO] [SessionManager:307] [Turn:5] turn_nack sent to frontend, skipped DB persistence
-2026-03-15 10:25:21.577 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:21.577 [INFO] [System:217] [FRONTEND] [WARN] [SessionControl] turn_nack received, activeReply=4
-2026-03-15 10:25:21.578 [INFO] [System:200] ← POST /api/debug/log (336.375µs)
-2026-03-15 10:25:21.582 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:21.583 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:21.583 [INFO] [System:200] ← POST /api/debug/log (291.375µs)
-2026-03-15 10:25:24.713 [INFO] [SessionManager:313] [Turn:6] -> VAD listening started
-2026-03-15 10:25:24.715 [DEBUG] [SessionManager:555] [Turn:6] Connecting dedicated ASR WebSocket
-2026-03-15 10:25:24.716 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:24.716 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:25:24.716 [INFO] [System:200] ← POST /api/debug/log (248.25µs)
-2026-03-15 10:25:24.730 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:24.730 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:24.730 [INFO] [System:200] ← POST /api/debug/log (258.292µs)
-2026-03-15 10:25:25.454 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:25:25.456 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:25.457 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:25:25.457 [INFO] [System:200] ← POST /api/debug/log (668.458µs)
-2026-03-15 10:25:25.607 [DEBUG] [SessionManager:584] [Turn:6] Dedicated ASR connection closed
-2026-03-15 10:25:25.774 [WARN] [SessionManager:282] [Turn:6] ASR final wait timed out for trigger_llm; falling back
-2026-03-15 10:25:25.774 [DEBUG] [SessionManager:296] [Turn:6] "" -> LLM Trigger (skipped, empty text)
-2026-03-15 10:25:25.775 [INFO] [SessionManager:307] [Turn:6] turn_nack sent to frontend, skipped DB persistence
-2026-03-15 10:25:25.778 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:25.778 [INFO] [System:217] [FRONTEND] [WARN] [SessionControl] turn_nack received, activeReply=4
-2026-03-15 10:25:25.778 [INFO] [System:200] ← POST /api/debug/log (317.833µs)
-2026-03-15 10:25:25.781 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:25.781 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:25.781 [INFO] [System:200] ← POST /api/debug/log (287µs)
-2026-03-15 10:25:26.483 [INFO] [SessionManager:313] [Turn:7] -> VAD listening started
-2026-03-15 10:25:26.484 [DEBUG] [SessionManager:555] [Turn:7] Connecting dedicated ASR WebSocket
-2026-03-15 10:25:26.485 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:26.485 [INFO] [System:217] [FRONTEND] [INFO] [FrontendVAD] Speech onset detected (start_listen)
-2026-03-15 10:25:26.485 [INFO] [System:200] ← POST /api/debug/log (221.875µs)
-2026-03-15 10:25:26.489 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:26.489 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:26.490 [INFO] [System:200] ← POST /api/debug/log (207.583µs)
-2026-03-15 10:25:27.153 [DEBUG] [ASRBackend:208] Finish signal received, sending ending frame to ASR server
-2026-03-15 10:25:27.154 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:27.154 [INFO] [System:217] [FRONTEND] [INFO] [SessionControl] Trigger LLM explicitly (trigger_llm)
-2026-03-15 10:25:27.154 [INFO] [System:200] ← POST /api/debug/log (67.916µs)
-2026-03-15 10:25:27.261 [DEBUG] [SessionManager:584] [Turn:7] Dedicated ASR connection closed
-2026-03-15 10:25:27.474 [WARN] [SessionManager:282] [Turn:7] ASR final wait timed out for trigger_llm; falling back
-2026-03-15 10:25:27.482 [DEBUG] [SessionManager:296] [Turn:7] "" -> LLM Trigger (skipped, empty text)
-2026-03-15 10:25:27.483 [INFO] [SessionManager:307] [Turn:7] turn_nack sent to frontend, skipped DB persistence
-2026-03-15 10:25:27.487 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:27.488 [INFO] [System:217] [FRONTEND] [WARN] [SessionControl] turn_nack received, activeReply=4
-2026-03-15 10:25:27.488 [INFO] [System:200] ← POST /api/debug/log (617.833µs)
-2026-03-15 10:25:27.492 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:27.493 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Listening
-2026-03-15 10:25:27.493 [INFO] [System:200] ← POST /api/debug/log (277µs)
-2026-03-15 10:25:27.824 [INFO] [System:198] → POST /api/debug/log
-2026-03-15 10:25:27.824 [INFO] [System:217] [FRONTEND] [INFO] [AppState] Status update: Idle
-2026-03-15 10:25:27.825 [INFO] [System:200] ← POST /api/debug/log (388.125µs)
+[2026-03-16 21:23:58] [INFO] [DEPLOY] New Deployment (ID: e6525f21, Version: 26031501)
+[2026-03-16 21:24:03] [INFO] [HUB] System-Startup-Version:backend=26031501,webui=26031402
+[2026-03-16 21:24:03] [INFO] [HUB] kagent server root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent listening=http://127.0.0.1:18080
+[2026-03-16 21:24:03] [INFO] [HUB] anonymous-GET /version [200] (25.25µs)
+[2026-03-16 21:24:03] [SUCC] [AI-DOUBAO] Registration-Success-Endpoint:http://127.0.0.1:18081
+[2026-03-16 21:24:04] [SUCC] [CHAT-SERVER] Registration-Success-Endpoint:http://127.0.0.1:18082
+[2026-03-16 21:24:04] [SUCC] [FILE] Registration-Success-Endpoint:http://127.0.0.1:18084
+[2026-03-16 21:24:04] [SUCC] [DATABASE] Registration-Success-Endpoint:http://127.0.0.1:18085
+[2026-03-16 21:24:04] [SUCC] [SURFACE-MANAGER] Registration-Success-Endpoint:http://127.0.0.1:18086
+[2026-03-16 21:24:04] [INFO] [HUB] anonymous-POST /api/auth/register [200] (61.711125ms)
+[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-GET /api/auth/me [200] (30.917µs)
+[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-app.chat.project_list [200] (1.663167ms)
+[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-storage.database.schema [200] (1.710375ms)
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /page/chat/ [304] (399.75µs)
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /api/auth/me [200] (44.625µs)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-Script module start
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /api/config [200] (62.625µs)
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /json/config_info.json [200] (3.609708ms)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-runtime config loaded
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /version [200] (23.833µs)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-version b26031501 ui26031402
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Initializing sidebar...
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.project_list [200] (1.685625ms)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Found 1 projects
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Selecting first project: prj-15029113b5daf4c8fef824e9f026af85
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (1.629334ms)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Found 1 threads for project
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Final context: proj=prj-15029113b5daf4c8fef824e9f026af85 thd=thd-932754bdcdb679806ff7152dc310e97b
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Rendering sidebar UI...
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Rendering 1 projects in loop
+[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (1.387917ms)
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Sidebar initialization complete
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-Network-ws connected (via worker), fetching history sliding window limit=20
+[2026-03-16 21:24:07] [INFO] [PAGE] chat-AppState-Status update: Connecting
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-AppState-Status update: Idle
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /page/chat/ [304] (318.667µs)
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/tool/ws [101] (2.372924958s)
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/auth/me [200] (53.209µs)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-Script module start
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/config [200] (155.417µs)
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /json/config_info.json [200] (165.791µs)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-runtime config loaded
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /version [200] (18.666µs)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-version b26031501 ui26031402
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Initializing sidebar...
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.project_list [200] (2.34575ms)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Found 1 projects
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Selecting first project: prj-15029113b5daf4c8fef824e9f026af85
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (2.2295ms)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Found 1 threads for project
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Final context: proj=prj-15029113b5daf4c8fef824e9f026af85 thd=thd-932754bdcdb679806ff7152dc310e97b
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Rendering sidebar UI...
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Rendering 1 projects in loop
+[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (2.298375ms)
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Sidebar initialization complete
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-Network-ws connected (via worker), fetching history sliding window limit=20
+[2026-03-16 21:24:10] [INFO] [PAGE] chat-AppState-Status update: Connecting
+[2026-03-16 21:24:16] [INFO] [PAGE] chat-Network-ws connected (via worker), skip history fetch (messages.len=10)
+[2026-03-16 21:24:16] [INFO] [PAGE] chat-FrontendVAD-audio path: AudioWorklet
+[2026-03-16 21:24:16] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:24:18] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:24:18] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:24:18] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Thinking
+[2026-03-16 21:24:34] [INFO] [PAGE] chat-AppState-Status update: Speaking
+[2026-03-16 21:24:34] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:24:50] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:24:50] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:24:50] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:53] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Thinking
+[2026-03-16 21:24:58] [INFO] [PAGE] chat-AppState-Status update: Speaking
+[2026-03-16 21:24:58] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:03] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:25:03] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:03] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:25:04] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
+[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Thinking
+[2026-03-16 21:25:08] [INFO] [PAGE] chat-AppState-Status update: Speaking
+[2026-03-16 21:25:08] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:16] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:25:16] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:17] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:25:17] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
+[2026-03-16 21:25:17] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:21] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:25:21] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:21] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:25:22] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
+[2026-03-16 21:25:22] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:25] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:25:25] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:26] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
+[2026-03-16 21:25:26] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
+[2026-03-16 21:25:26] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-16 21:25:28] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
+[2026-03-16 21:25:28] [INFO] [PAGE] chat-AppState-Status update: Listening

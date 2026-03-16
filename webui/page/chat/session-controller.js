@@ -114,7 +114,8 @@ export function createSessionController(options) {
   }
 
   async function connectWorkerWS(projectId, threadId) {
-    let wsUrl = `ws://${location.host}/ws`;
+    const wsProto = location.protocol === "https:" ? "wss" : "ws";
+    let wsUrl = `${wsProto}://${location.host}/api/tool/ws`;
     const params = [];
     if (projectId) params.push(`project_id=${encodeURIComponent(projectId)}`);
     if (threadId) params.push(`thread_id=${encodeURIComponent(threadId)}`);

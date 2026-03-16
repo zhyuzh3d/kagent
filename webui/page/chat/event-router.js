@@ -56,7 +56,7 @@ export function createEventRouter(options) {
       setStatus(value);
       if (value === "Error") flashIndicator("error");
       else flashIndicator("receive");
-      appendDebug("INFO", "AppState", msg.turn_id || 0, msg.detail || "", `Status update: ${value}`);
+      appendDebug("INFO", "status_update", msg.turn_id || 0, null, value);
       return;
     }
 

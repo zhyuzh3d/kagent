@@ -1,0 +1,7 @@
+{
+  "service_id": "auth",
+  "service_name": "Auth Service",
+  "version": "1.0.0",
+  "reliability": "trusted",
+  "visibility": "public"
+}

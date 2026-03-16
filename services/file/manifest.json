@@ -1,0 +1,7 @@
+{
+  "service_id": "file",
+  "service_name": "File Service",
+  "version": "1.0.0",
+  "reliability": "trusted",
+  "visibility": "public"
+}
