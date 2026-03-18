@@ -9,15 +9,17 @@ import (
 
 func TestLifecycleStateTransitions(t *testing.T) {
 	reg := NewRegistry()
+	healthy := true
 	item := reg.UpsertFromServiceRegistration(app.HubServiceRegistration{
 		ServiceID:  "database",
 		InstanceID: "database@local#1",
 		Endpoint:   "http://127.0.0.1:18085",
-	}, "tcp")
+		Healthy:    true,
+	}, "tcp", InstanceStatusReady)
 	if item.Status != InstanceStatusReady {
 		t.Fatalf("expected ready status, got %s", item.Status)
 	}
-	updated, ok := reg.Heartbeat("database", "database@local#1", "ready")
+	updated, ok := reg.Heartbeat("database", "database@local#1", "ready", &healthy)
 	if !ok {
 		t.Fatalf("expected heartbeat accepted")
 	}

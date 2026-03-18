@@ -1,6 +1,10 @@
 package app
 
-import "strings"
+import (
+	"strings"
+
+	"kagent/pkg/hubsvc"
+)
 
 type ProviderFactory interface {
 	Name() string
@@ -9,31 +13,30 @@ type ProviderFactory interface {
 	NewTTSClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) TTSClient
 }
 
-type LocalProviderFactory struct{}
-
-func NewLocalProviderFactory() *LocalProviderFactory {
-	return &LocalProviderFactory{}
+type HubProviderFactory struct {
+	hubBaseURL  string
+	serviceAuth hubsvc.BootstrapSecret
 }
 
-func (f *LocalProviderFactory) Name() string {
-	return "local"
-}
-
-func (f *LocalProviderFactory) NewASRClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) ASRClient {
-	return NewDoubaoASRClient(cfg.ASR, runtimeConfig)
-}
-
-func (f *LocalProviderFactory) NewLLMClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) LLMClient {
-	return NewDoubaoLLMClient(cfg.ActiveChat(), runtimeConfig)
-}
-
-func (f *LocalProviderFactory) NewTTSClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) TTSClient {
-	return NewDoubaoTTSClient(cfg.TTS, runtimeConfig)
-}
-
-func IsServiceMode(cfg *ModelConfig) bool {
-	if cfg == nil {
-		return false
+func NewHubProviderFactory(hubBaseURL string, serviceAuth hubsvc.BootstrapSecret) *HubProviderFactory {
+	return &HubProviderFactory{
+		hubBaseURL:  strings.TrimSpace(hubBaseURL),
+		serviceAuth: serviceAuth,
 	}
-	return strings.EqualFold(strings.TrimSpace(cfg.EffectiveAIService().Mode), "service")
+}
+
+func (f *HubProviderFactory) Name() string {
+	return "hub"
+}
+
+func (f *HubProviderFactory) NewASRClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) ASRClient {
+	return NewHubASRClient(cfg, runtimeConfig, f.hubBaseURL, f.serviceAuth)
+}
+
+func (f *HubProviderFactory) NewLLMClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) LLMClient {
+	return NewHubLLMClient(cfg, runtimeConfig, f.hubBaseURL, f.serviceAuth)
+}
+
+func (f *HubProviderFactory) NewTTSClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager) TTSClient {
+	return NewHubTTSClient(cfg, runtimeConfig, f.hubBaseURL, f.serviceAuth)
 }

@@ -35,6 +35,7 @@ func TestBuildMetadataSchema(t *testing.T) {
 			ServiceID:         "database",
 			InstanceID:        "database@local#1",
 			Status:            supervisor.InstanceStatusReady,
+			Healthy:           true,
 			Transport:         "uds",
 			Endpoint:          "/tmp/kagent-database.sock",
 			Score:             100,

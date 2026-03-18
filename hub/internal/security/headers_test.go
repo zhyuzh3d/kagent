@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
 )
 
@@ -12,6 +13,7 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	src.Set("X-Hub-Request-Id", "bad-req")
 	src.Set("X-Hub-Trace-Id", "bad-trace")
 	src.Set("X-Caller-User-Id", "bad-user")
+	src.Set(hubsvc.HeaderHubAuth, "bad-auth")
 	src.Set("X-Custom-Header", "ok")
 
 	out := SanitizeForwardHeaders(src)
@@ -23,6 +25,9 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	}
 	if got := out.Get("X-Caller-User-Id"); got != "" {
 		t.Fatalf("expected X-Caller-User-Id removed, got %q", got)
+	}
+	if got := out.Get(hubsvc.HeaderHubAuth); got != "" {
+		t.Fatalf("expected %s removed, got %q", hubsvc.HeaderHubAuth, got)
 	}
 	if got := out.Get("X-Custom-Header"); got != "ok" {
 		t.Fatalf("expected custom header preserved, got %q", got)
@@ -43,7 +48,7 @@ func TestInjectCallerHeadersOverwritesTrustedFields(t *testing.T) {
 			ServiceID: "svc-1",
 			SurfaceID: "surface-1",
 		},
-	}, "svc-token", "platform-token")
+	}, "untrusted")
 
 	if got := headers.Get("X-Hub-Request-Id"); got != "req-1" {
 		t.Fatalf("expected request id injected, got %q", got)
@@ -63,10 +68,21 @@ func TestInjectCallerHeadersOverwritesTrustedFields(t *testing.T) {
 	if got := headers.Get("X-Caller-Surface-Id"); got != "surface-1" {
 		t.Fatalf("expected caller surface id injected, got %q", got)
 	}
-	if got := headers.Get("X-Hub-Service-Token"); got != "svc-token" {
-		t.Fatalf("expected service token injected, got %q", got)
+	if got := headers.Get("X-Caller-Reliability"); got != "untrusted" {
+		t.Fatalf("expected caller reliability injected, got %q", got)
 	}
-	if got := headers.Get("X-Hub-Platform-Token"); got != "platform-token" {
-		t.Fatalf("expected platform token injected, got %q", got)
+}
+
+func TestInjectHubAuthHeaders(t *testing.T) {
+	headers := http.Header{}
+	InjectHubAuthHeaders(headers, "chat-server", "ins-1", "token-1")
+	if got := headers.Get(hubsvc.HeaderHubServiceID); got != "chat-server" {
+		t.Fatalf("expected service id injected, got %q", got)
+	}
+	if got := headers.Get(hubsvc.HeaderHubInstanceID); got != "ins-1" {
+		t.Fatalf("expected instance id injected, got %q", got)
+	}
+	if got := headers.Get(hubsvc.HeaderHubAuth); got != "token-1" {
+		t.Fatalf("expected hub auth injected, got %q", got)
 	}
 }

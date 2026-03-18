@@ -2,6 +2,26 @@
   "service_id": "surface-manager",
   "service_name": "Surface Manager",
   "version": "1.0.0",
-  "reliability": "verified",
-  "visibility": "public"
+  "visibility": "public",
+  "entry": {
+    "args": [
+      "-addr",
+      "127.0.0.1:18086",
+      "-sqlite-path",
+      "data/kagent.db",
+      "-user-id",
+      "default",
+      "-project-id",
+      "project-default",
+      "-thread-id",
+      "chat-default"
+    ],
+    "env": {}
+  },
+  "lifecycle": {
+    "register_timeout_ms": 1000,
+    "restart_policy": "never",
+    "restart_backoff_ms": 300,
+    "restart_times": 3
+  }
 }

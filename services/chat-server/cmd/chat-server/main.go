@@ -11,30 +11,24 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"kagent/pkg/hubsvc"
-	"kagent/pkg/toolproto"
 	app "kagent/services/chat-server/internal/app"
 
 	"github.com/gorilla/websocket"
 )
 
 type forwardedClaims struct {
-	UserID   string
-	Username string
+	UserID string
 }
 
 func main() {
-	configPath := flag.String("config", "services/chat-server/config/configx.json", "path to private config json")
+	configPath := flag.String("config", "config/configx.json", "path to private config json")
 	publicConfigPath := flag.String("public-config", "config/config.json", "path to public config json")
-	userConfigPath := flag.String("user-config", "data/users/default/user_custom_config.json", "path to user custom config json")
-	sqlitePath := flag.String("sqlite-path", "data/kagent.db", "path to sqlite message store")
-	userID := flag.String("user-id", "default", "runtime user id")
+	userConfigPath := flag.String("user-config", "run/user_custom_config.json", "path to user custom config json")
 	projectID := flag.String("project-id", "project-default", "runtime project id")
 	threadID := flag.String("thread-id", "chat-default", "runtime thread id")
 	modelName := flag.String("model", "doubao", "model name in config")
@@ -52,11 +46,10 @@ func main() {
 	configPathResolved := app.ResolvePathFromRoot(appRoot, *configPath)
 	publicConfigPathResolved := app.ResolvePathFromRoot(appRoot, *publicConfigPath)
 	userConfigPathResolved := app.ResolvePathFromRoot(appRoot, *userConfigPath)
-	sqlitePathResolved := app.ResolvePathFromRoot(appRoot, *sqlitePath)
-	dataRoot := filepath.Join(appRoot, "data")
-	serviceSecret, err := hubsvc.LoadServiceSecret(filepath.Join(dataRoot, ".service_secret"))
+	serviceSecretPath := app.ResolvePathFromRoot(appRoot, "run/.service_secret")
+	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
-		app.Errorf("load service secret failed: %v", err)
+		app.Errorf("load bootstrap secret failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -65,57 +58,54 @@ func main() {
 		app.Errorf("load config failed: %v", err)
 		os.Exit(1)
 	}
-	aiServiceCfg := cfg.EffectiveAIService()
-	if !app.IsServiceMode(cfg) {
-		app.Errorf("chat-server requires ai_service.mode=service")
-		os.Exit(1)
-	}
 	runtimeCfg, err := app.NewRuntimeConfigManager(publicConfigPathResolved, userConfigPathResolved)
 	if err != nil {
 		app.Errorf("load runtime config failed: %v", err)
 		os.Exit(1)
 	}
-	baseStore, err := app.NewSQLiteStore(sqlitePathResolved, *userID, *projectID, *threadID)
-	if err != nil {
-		app.Errorf("init sqlite store failed: %v", err)
+	hubBaseURL := strings.TrimSpace(cfg.EffectiveAIService().BaseURL)
+	if hubBaseURL == "" {
+		app.Errorf("chat-server requires ai_service.baseUrl as hub url")
 		os.Exit(1)
 	}
-	defer baseStore.Close()
 
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
-	aiServiceManager := app.NewAIServiceManager(aiServiceCfg)
-	if err := aiServiceManager.Start(appCtx); err != nil {
-		app.Errorf("ai service manager start failed: %v", err)
-		os.Exit(1)
-	}
-	healthy := aiServiceManager.WaitForHealthy(appCtx, time.Duration(aiServiceCfg.StartupGracePeriodMS)*time.Millisecond)
-	if !healthy {
-		app.Errorf("ai service startup health check timeout: %s", aiServiceCfg.BaseURL)
-		os.Exit(1)
-	}
-	defer aiServiceManager.Stop()
-	providerFactory := app.NewServiceProviderFactory(aiServiceCfg, aiServiceManager)
+
 	manifest := app.ChatServerServiceManifest()
-	instance := strings.TrimSpace(*instanceID)
+	if strings.TrimSpace(serviceBootstrap.ServiceID) != strings.TrimSpace(manifest.ServiceID) {
+		app.Errorf("bootstrap service_id mismatch: expect=%s got=%s", strings.TrimSpace(manifest.ServiceID), strings.TrimSpace(serviceBootstrap.ServiceID))
+		os.Exit(1)
+	}
+	registerURL := strings.TrimSpace(serviceBootstrap.HubRegisterURL)
+	if registerURL == "" {
+		registerURL = strings.TrimSpace(*hubRegisterURL)
+	}
+	instance := strings.TrimSpace(serviceBootstrap.InstanceID)
+	if instance == "" {
+		instance = strings.TrimSpace(*instanceID)
+	}
 	if instance == "" {
 		instance = "chat-server-" + app.NewRequestID()
 	}
 
-	if strings.TrimSpace(*hubRegisterURL) != "" {
-		registerPayload := toolproto.SupervisorRegisterRequest{
+	if registerURL != "" {
+		healthy := true
+		registerPayload := app.SupervisorRegisterRequest{
 			ServiceID:  strings.TrimSpace(manifest.ServiceID),
 			InstanceID: strings.TrimSpace(instance),
 			Version:    strings.TrimSpace(manifest.Version),
 			Transport:  "tcp",
-			Endpoint: toolproto.Endpoint{
+			Endpoint: app.Endpoint{
 				TCPURL: "http://" + strings.TrimSpace(*addr),
 			},
-			Tools: toSupervisorTools(manifest),
+			Tools:   toSupervisorTools(manifest),
+			Healthy: &healthy,
 		}
 		raw, _ := json.Marshal(registerPayload)
-		req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(*hubRegisterURL), bytes.NewReader(raw))
+		req, _ := http.NewRequest(http.MethodPost, registerURL, bytes.NewReader(raw))
 		req.Header.Set("Content-Type", "application/json")
+		hubsvc.ApplyServiceAuthHeaders(req.Header, serviceBootstrap)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			app.Errorf("register chat-server to hub failed: %v", err)
@@ -127,9 +117,12 @@ func main() {
 			app.Errorf("register chat-server to hub status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(rawResp)))
 			os.Exit(1)
 		}
-		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
+		if _, err := app.DecodeSupervisorRegisterResult(rawResp); err != nil {
 			app.Errorf("decode register response failed: %v", err)
 			os.Exit(1)
+		}
+		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
+			app.Warnf("delete bootstrap secret failed: %v", err)
 		}
 		app.Infof("register chat-server to hub status=%d", resp.StatusCode)
 	}
@@ -151,6 +144,12 @@ func main() {
 			os.Exit(0)
 		})
 	}
+
+	openStore := func(uid string, pid string, tid string) (app.ChatStore, error) {
+		client := app.NewHubToolClient(hubBaseURL, serviceBootstrap, 70*time.Second)
+		return app.NewHubDatabaseStore(client, uid, firstNonEmpty(pid, *projectID), firstNonEmpty(tid, *threadID))
+	}
+
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{
 			"ok":           true,
@@ -184,6 +183,7 @@ func main() {
 				SideEffect:       p.SideEffect,
 				TimeoutMSDefault: p.TimeoutMSDefault,
 				Streaming:        p.Streaming,
+				WSPath:           p.WSPath,
 			})
 		}
 		writeJSON(w, app.AIServiceListToolsResponse{
@@ -191,61 +191,77 @@ func main() {
 			Tools:     tools,
 		})
 	})
-
-	openStore := func(uid string, pid string, tid string) (*app.SQLiteStore, error) {
-		return app.NewSQLiteStore(sqlitePathResolved, uid, firstNonEmpty(pid, *projectID), firstNonEmpty(tid, *threadID))
-	}
-
 	mux.HandleFunc("/service/tool/exec", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
-			writeToolResponse(w, http.StatusMethodNotAllowed, toolproto.CallResponse{
+			writeToolResponse(w, http.StatusMethodNotAllowed, app.CallResponse{
 				Ok: false,
-				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
+				Error: &app.ToolError{
+					Code:    app.ErrorCodeBadRequest,
 					Message: "method not allowed",
 				},
 			})
 			return
 		}
-		var req toolproto.CallRequest
+		var req app.CallRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeToolResponse(w, http.StatusBadRequest, toolproto.CallResponse{
+			writeToolResponse(w, http.StatusBadRequest, app.CallResponse{
 				Ok: false,
-				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
+				Error: &app.ToolError{
+					Code:    app.ErrorCodeBadRequest,
 					Message: "invalid request body",
 				},
 			})
 			return
 		}
-		req, err := toolproto.NormalizeRequest(req)
+		req, err := app.NormalizeCallRequest(req)
 		if err != nil {
-			writeToolResponse(w, http.StatusBadRequest, toolproto.CallResponse{
+			writeToolResponse(w, http.StatusBadRequest, app.CallResponse{
 				Ok: false,
-				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
+				Error: &app.ToolError{
+					Code:    app.ErrorCodeBadRequest,
 					Message: err.Error(),
 				},
 			})
 			return
 		}
-		tokenClaims, err := hubsvc.VerifyServiceSessionTokenLoose(strings.TrimSpace(r.Header.Get("X-Hub-Service-Token")), serviceSecret)
-		if err != nil || tokenClaims.ServiceID != strings.TrimSpace(manifest.ServiceID) {
-			writeToolResponse(w, http.StatusUnauthorized, toolproto.CallResponse{
+		if err := hubsvc.VerifyHubAuthHeaders(r.Header, manifest.ServiceID, instance, serviceBootstrap.H2SToken); err != nil {
+			writeToolResponse(w, http.StatusForbidden, app.CallResponse{
 				Ok: false,
-				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeUnauthorized,
-					Message: "invalid hub service token",
+				Error: &app.ToolError{
+					Code:    app.ErrorCodeForbidden,
+					Message: "invalid hub auth",
 				},
-				Meta: toolproto.Meta{
+				Meta: app.Meta{
 					RequestID: strings.TrimSpace(req.Context.RequestID),
 					TraceID:   strings.TrimSpace(req.Context.TraceID),
 				},
 			})
 			return
 		}
-		caller := toolproto.Caller{
+		hubOnly := isHubOnlyContext(req.Context)
+		if !hubOnly {
+			delete(req.Args, "healthz")
+		}
+		meta := app.Meta{
+			RequestID:  strings.TrimSpace(req.Context.RequestID),
+			TraceID:    strings.TrimSpace(req.Context.TraceID),
+			ServiceID:  strings.TrimSpace(manifest.ServiceID),
+			InstanceID: strings.TrimSpace(instance),
+		}
+		if hubOnly && healthzRequested(req.Args) {
+			writeToolResponse(w, http.StatusOK, app.CallResponse{
+				Ok: true,
+				Result: map[string]any{
+					"service_id": strings.TrimSpace(manifest.ServiceID),
+					"hub_only":   true,
+					"healthz":    true,
+				},
+				Meta: meta,
+			})
+			return
+		}
+		caller := app.Caller{
 			Type:      strings.ToLower(strings.TrimSpace(r.Header.Get("X-Caller-Type"))),
 			UserID:    strings.TrimSpace(r.Header.Get("X-Caller-User-Id")),
 			ServiceID: strings.TrimSpace(r.Header.Get("X-Caller-Service-Id")),
@@ -255,13 +271,13 @@ func main() {
 			caller = req.Context.Caller
 		}
 		if strings.TrimSpace(caller.UserID) == "" {
-			writeToolResponse(w, http.StatusUnauthorized, toolproto.CallResponse{
+			writeToolResponse(w, http.StatusUnauthorized, app.CallResponse{
 				Ok: false,
-				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeUnauthorized,
+				Error: &app.ToolError{
+					Code:    app.ErrorCodeUnauthorized,
 					Message: "missing caller user",
 				},
-				Meta: toolproto.Meta{
+				Meta: app.Meta{
 					RequestID: strings.TrimSpace(req.Context.RequestID),
 					TraceID:   strings.TrimSpace(req.Context.TraceID),
 				},
@@ -269,13 +285,7 @@ func main() {
 			return
 		}
 		startedAt := time.Now()
-		meta := toolproto.Meta{
-			RequestID:  strings.TrimSpace(req.Context.RequestID),
-			TraceID:    strings.TrimSpace(req.Context.TraceID),
-			ServiceID:  strings.TrimSpace(manifest.ServiceID),
-			InstanceID: strings.TrimSpace(instance),
-		}
-		resp := toolproto.CallResponse{
+		resp := app.CallResponse{
 			Ok:     false,
 			Result: nil,
 			Error:  nil,
@@ -283,12 +293,12 @@ func main() {
 		}
 		store, err := openStore(caller.UserID, asString(req.Args["project_id"]), asString(req.Args["thread_id"]))
 		if err != nil {
-			resp.Error = &toolproto.Error{
-				Code:    toolproto.ErrorCodeInternalError,
+			resp.Error = &app.ToolError{
+				Code:    app.ErrorCodeInternalError,
 				Message: "open store failed: " + err.Error(),
 			}
 			resp.Meta.DurationMS = time.Since(startedAt).Milliseconds()
-			writeToolResponse(w, toolproto.HTTPStatusFromCode(resp.Error.Code), resp)
+			writeToolResponse(w, app.HTTPStatusFromCode(resp.Error.Code), resp)
 			return
 		}
 		defer store.Close()
@@ -297,10 +307,7 @@ func main() {
 		case "app.chat.project_list":
 			list, err := store.ListProjectsForUser(caller.UserID)
 			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "project list failed: " + err.Error(),
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "project list failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -308,10 +315,7 @@ func main() {
 		case "app.chat.project_create":
 			projectIDNew, err := store.CreateProject(caller.UserID, asString(req.Args["title"]))
 			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "project create failed: " + err.Error(),
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "project create failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -319,18 +323,11 @@ func main() {
 		case "app.chat.project_update":
 			projectIDReq := asString(req.Args["project_id"])
 			if projectIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "project_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "project_id is required"}
 				break
 			}
-			err := store.UpdateProject(projectIDReq, asString(req.Args["title"]), asInt(req.Args["order_index"], 0))
-			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "project update failed: " + err.Error(),
-				}
+			if err := store.UpdateProject(projectIDReq, asString(req.Args["title"]), asInt(req.Args["order_index"], 0)); err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "project update failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -338,18 +335,11 @@ func main() {
 		case "app.chat.project_delete":
 			projectIDReq := asString(req.Args["project_id"])
 			if projectIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "project_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "project_id is required"}
 				break
 			}
-			err := store.DeleteProject(projectIDReq)
-			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "project delete failed: " + err.Error(),
-				}
+			if err := store.DeleteProject(projectIDReq); err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "project delete failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -357,18 +347,12 @@ func main() {
 		case "app.chat.thread_list":
 			projectIDReq := asString(req.Args["project_id"])
 			if projectIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "project_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "project_id is required"}
 				break
 			}
 			list, err := store.ListThreadsForProject(caller.UserID, projectIDReq)
 			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "thread list failed: " + err.Error(),
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "thread list failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -376,18 +360,12 @@ func main() {
 		case "app.chat.thread_create":
 			projectIDReq := asString(req.Args["project_id"])
 			if projectIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "project_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "project_id is required"}
 				break
 			}
 			threadIDNew, err := store.CreateThread(caller.UserID, projectIDReq, asString(req.Args["title"]))
 			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "thread create failed: " + err.Error(),
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "thread create failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -395,18 +373,11 @@ func main() {
 		case "app.chat.thread_update":
 			threadIDReq := asString(req.Args["thread_id"])
 			if threadIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "thread_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "thread_id is required"}
 				break
 			}
-			err := store.UpdateThread(threadIDReq, asString(req.Args["title"]), asInt(req.Args["order_index"], 0), asString(req.Args["project_id"]))
-			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "thread update failed: " + err.Error(),
-				}
+			if err := store.UpdateThread(threadIDReq, asString(req.Args["title"]), asInt(req.Args["order_index"], 0), asString(req.Args["project_id"])); err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "thread update failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
@@ -414,25 +385,18 @@ func main() {
 		case "app.chat.thread_delete":
 			threadIDReq := asString(req.Args["thread_id"])
 			if threadIDReq == "" {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeBadRequest,
-					Message: "thread_id is required",
-				}
+				resp.Error = &app.ToolError{Code: app.ErrorCodeBadRequest, Message: "thread_id is required"}
 				break
 			}
-			err := store.DeleteThread(threadIDReq)
-			if err != nil {
-				resp.Error = &toolproto.Error{
-					Code:    toolproto.ErrorCodeToolExecError,
-					Message: "thread delete failed: " + err.Error(),
-				}
+			if err := store.DeleteThread(threadIDReq); err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "thread delete failed: " + err.Error()}
 				break
 			}
 			resp.Ok = true
 			resp.Result = map[string]any{"ok": true}
 		default:
-			resp.Error = &toolproto.Error{
-				Code:    toolproto.ErrorCodeToolNotFound,
+			resp.Error = &app.ToolError{
+				Code:    app.ErrorCodeToolNotFound,
 				Message: "tool not found",
 			}
 		}
@@ -440,7 +404,7 @@ func main() {
 		resp.Meta.DurationMS = time.Since(startedAt).Milliseconds()
 		statusCode := http.StatusOK
 		if !resp.Ok && resp.Error != nil {
-			statusCode = toolproto.HTTPStatusFromCode(resp.Error.Code)
+			statusCode = app.HTTPStatusFromCode(resp.Error.Code)
 		}
 		writeToolResponse(w, statusCode, resp)
 	})
@@ -463,14 +427,10 @@ func main() {
 		}
 
 		app.Warnf("chat-server shutdown requested from %s", r.RemoteAddr)
-		writeJSON(w, map[string]any{
-			"ok":      true,
-			"message": "shutting down",
-		})
+		writeJSON(w, map[string]any{"ok": true, "message": "shutting down"})
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-
 		go func() {
 			time.Sleep(20 * time.Millisecond)
 			shutdownNow("admin shutdown requested")
@@ -500,17 +460,18 @@ func main() {
 		if tID == "" {
 			tID = *threadID
 		}
-		userStore, err := openStore(claims.UserID, pID, tID)
+		store, err := openStore(claims.UserID, pID, tID)
 		if err != nil {
 			app.Errorf("chat-server ws user store failed: %v", err)
-			conn.Close()
+			_ = conn.Close()
 			return
 		}
-		s := app.NewSession(conn, cfg, runtimeCfg, userStore, providerFactory)
+		providerFactory := app.NewHubProviderFactory(hubBaseURL, serviceBootstrap)
+		s := app.NewSession(conn, cfg, runtimeCfg, store, providerFactory)
 		go func() {
 			ctx, cancel := context.WithCancel(appCtx)
 			defer cancel()
-			defer userStore.Close()
+			defer store.Close()
 			if err := s.Run(ctx); err != nil {
 				app.Errorf("chat-server session ended with error: %v", err)
 			}
@@ -522,9 +483,13 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		tokenClaims, err := hubsvc.VerifyServiceSessionTokenLoose(strings.TrimSpace(r.Header.Get("X-Hub-Service-Token")), serviceSecret)
-		if err != nil || tokenClaims.ServiceID != strings.TrimSpace(manifest.ServiceID) {
-			http.Error(w, "invalid hub service token", http.StatusUnauthorized)
+		if err := hubsvc.VerifyHubAuthHeaders(r.Header, manifest.ServiceID, instance, serviceBootstrap.H2SToken); err != nil {
+			http.Error(w, "invalid hub auth", http.StatusForbidden)
+			return
+		}
+		toolID := strings.TrimSpace(r.URL.Query().Get("tool_id"))
+		if toolID != "" && toolID != "app.chat.stream" {
+			http.Error(w, "tool not found", http.StatusNotFound)
 			return
 		}
 		userID := strings.TrimSpace(r.Header.Get("X-Caller-User-Id"))
@@ -535,10 +500,7 @@ func main() {
 			http.Error(w, "missing caller user", http.StatusUnauthorized)
 			return
 		}
-		claims := forwardedClaims{
-			UserID:   userID,
-			Username: strings.TrimSpace(r.Header.Get("X-Username")),
-		}
+		claims := forwardedClaims{UserID: userID}
 		openSessionWS(w, r, claims)
 	})
 
@@ -547,8 +509,8 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if hbURL := buildHubHeartbeatURL(strings.TrimSpace(*hubRegisterURL)); hbURL != "" {
-		startHubHeartbeatGuard(hbURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), shutdownNow)
+	if hbURL := buildHubHeartbeatURL(registerURL); hbURL != "" {
+		startHubHeartbeatGuard(hbURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
 	}
 	app.Infof("chat-server listening at http://%s", *addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -557,17 +519,20 @@ func main() {
 	}
 }
 
-func toSupervisorTools(manifest app.ServiceManifest) []toolproto.ServiceTool {
-	tools := make([]toolproto.ServiceTool, 0, len(manifest.Provides))
+func toSupervisorTools(manifest app.ServiceManifest) []app.ServiceTool {
+	tools := make([]app.ServiceTool, 0, len(manifest.Provides))
 	for _, descriptor := range manifest.Provides {
 		toolID := strings.TrimSpace(descriptor.ToolID)
 		if toolID == "" {
 			continue
 		}
-		tools = append(tools, toolproto.ServiceTool{
+		streaming := strings.TrimSpace(descriptor.Streaming)
+		isStreaming := streaming != "" && !strings.EqualFold(streaming, "none")
+		tools = append(tools, app.ServiceTool{
 			ToolID:               toolID,
 			Version:              strings.TrimSpace(manifest.Version),
-			Streaming:            strings.EqualFold(strings.TrimSpace(descriptor.Streaming), "stream"),
+			Streaming:            isStreaming,
+			WSPath:               strings.TrimSpace(descriptor.WSPath),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
 		})
@@ -590,7 +555,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeToolResponse(w http.ResponseWriter, statusCode int, resp toolproto.CallResponse) {
+func writeToolResponse(w http.ResponseWriter, statusCode int, resp app.CallResponse) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(resp)
@@ -623,12 +588,65 @@ func asInt(v any, defaultValue int) int {
 			return int(i)
 		}
 	case string:
-		parsed, err := strconv.Atoi(strings.TrimSpace(tv))
+		var parsed int
+		_, err := fmt.Sscan(strings.TrimSpace(tv), &parsed)
 		if err == nil {
 			return parsed
 		}
 	}
 	return defaultValue
+}
+
+func healthzRequested(args map[string]any) bool {
+	if args == nil {
+		return false
+	}
+	value, ok := args["healthz"]
+	if !ok {
+		return false
+	}
+	switch tv := value.(type) {
+	case bool:
+		return tv
+	case string:
+		switch strings.ToLower(strings.TrimSpace(tv)) {
+		case "1", "true", "yes", "on":
+			return true
+		}
+	case int:
+		return tv != 0
+	case int64:
+		return tv != 0
+	case float64:
+		return tv != 0
+	}
+	return false
+}
+
+func isHubOnlyContext(ctx *app.CallContext) bool {
+	if ctx == nil || ctx.Meta == nil {
+		return false
+	}
+	value, ok := ctx.Meta["hub_only"]
+	if !ok {
+		return false
+	}
+	switch tv := value.(type) {
+	case bool:
+		return tv
+	case string:
+		switch strings.ToLower(strings.TrimSpace(tv)) {
+		case "1", "true", "yes", "on":
+			return true
+		}
+	case float64:
+		return tv != 0
+	case int:
+		return tv != 0
+	case int64:
+		return tv != 0
+	}
+	return false
 }
 
 func buildHubHeartbeatURL(registerURL string) string {
@@ -646,7 +664,7 @@ func buildHubHeartbeatURL(registerURL string) string {
 	return parsed.String()
 }
 
-func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID string, pid int, endpoint string, onFailure func(reason string)) {
+func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {
 	if strings.TrimSpace(heartbeatURL) == "" || strings.TrimSpace(serviceID) == "" || strings.TrimSpace(instanceID) == "" || onFailure == nil {
 		return
 	}
@@ -655,12 +673,15 @@ func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID st
 			body := map[string]any{
 				"service_id":  strings.TrimSpace(serviceID),
 				"instance_id": strings.TrimSpace(instanceID),
+				"status":      "ready",
+				"healthy":     true,
 				"pid":         pid,
 				"endpoint":    strings.TrimSpace(endpoint),
 			}
 			raw, _ := json.Marshal(body)
 			req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(heartbeatURL), bytes.NewReader(raw))
 			req.Header.Set("Content-Type", "application/json")
+			hubsvc.ApplyServiceAuthHeaders(req.Header, serviceAuth)
 			client := &http.Client{Timeout: 2200 * time.Millisecond}
 			resp, err := client.Do(req)
 			if err != nil {

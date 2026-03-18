@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -28,7 +29,7 @@ func InitLogger(level LogLevel, tag string) {
 }
 
 // formatLog constructs the string:
-// 2026-03-08 10:45:12 [INFO] [SessionManager:210] ...message...
+// [YYYY-MM-DD HH:MM:SS] [LEVEL] [TAG] Message
 func formatLog(level LogLevel, levelStr string, tag string, format string, args ...any) {
 	if level < currentLevel {
 		return
@@ -39,15 +40,40 @@ func formatLog(level LogLevel, levelStr string, tag string, format string, args 
 		useTag = tag
 	}
 
-	// Capture caller (Optional: removed for extreme conciseness, can be re-added if needed)
 	msg := format
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
 	}
 
 	ts := time.Now().Format("2006-01-02 15:04:05")
-	// Standardized format: [YYYY-MM-DD HH:MM:SS] [LEVEL] [TAG] Message
 	fmt.Fprintf(os.Stdout, "[%s] [%s] [%s] %s\n", ts, levelStr, useTag, msg)
+}
+
+// formatLogIdentity constructs an identity-aware log line:
+// [YYYY-MM-DD HH:MM:SS] [LEVEL] [TAG] [NAME] Message
+func formatLogIdentity(level LogLevel, levelStr string, tag string, identityName string, format string, args ...any) {
+	if level < currentLevel {
+		return
+	}
+
+	useTag := currentTag
+	if tag != "" {
+		useTag = tag
+	}
+
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
+
+	ts := time.Now().Format("2006-01-02 15:04:05")
+	name := strings.TrimSpace(identityName)
+	if name == "" {
+		// Fallback to non-identity format
+		fmt.Fprintf(os.Stdout, "[%s] [%s] [%s] %s\n", ts, levelStr, useTag, msg)
+		return
+	}
+	fmt.Fprintf(os.Stdout, "[%s] [%s] [%s] [%s] %s\n", ts, levelStr, useTag, name, msg)
 }
 
 // Debugf logs at LevelDebug
@@ -65,6 +91,18 @@ func InfofTag(tag string, format string, args ...any) {
 	formatLog(LevelInfo, "INFO", tag, format, args...)
 }
 
+// InfofCtx logs at LevelInfo with identity from context.
+func InfofCtx(ctx context.Context, format string, args ...any) {
+	id := IdentityFromContext(ctx)
+	formatLogIdentity(LevelInfo, "INFO", "", id.Name, format, args...)
+}
+
+// InfofCtxTag logs at LevelInfo with a custom tag and identity from context.
+func InfofCtxTag(ctx context.Context, tag string, format string, args ...any) {
+	id := IdentityFromContext(ctx)
+	formatLogIdentity(LevelInfo, "INFO", tag, id.Name, format, args...)
+}
+
 // Succf logs at LevelInfo as SUCC
 func Succf(format string, args ...any) {
 	formatLog(LevelInfo, "SUCC", "", format, args...)
@@ -80,9 +118,21 @@ func Warnf(format string, args ...any) {
 	formatLog(LevelWarn, "WARN", "", format, args...)
 }
 
+// WarnfCtx logs at LevelWarn with identity from context.
+func WarnfCtx(ctx context.Context, format string, args ...any) {
+	id := IdentityFromContext(ctx)
+	formatLogIdentity(LevelWarn, "WARN", "", id.Name, format, args...)
+}
+
 // Errorf logs at LevelError
 func Errorf(format string, args ...any) {
 	formatLog(LevelError, "ERROR", "", format, args...)
+}
+
+// ErrorfCtx logs at LevelError with identity from context.
+func ErrorfCtx(ctx context.Context, format string, args ...any) {
+	id := IdentityFromContext(ctx)
+	formatLogIdentity(LevelError, "ERROR", "", id.Name, format, args...)
 }
 
 // Snippet shortens a string to be suitable for logging contexts.

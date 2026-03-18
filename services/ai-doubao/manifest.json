@@ -2,6 +2,22 @@
   "service_id": "ai-doubao",
   "service_name": "Doubao AI Service",
   "version": "1.0.0",
-  "reliability": "verified",
-  "visibility": "public"
+  "visibility": "public",
+  "entry": {
+    "args": [
+      "-addr",
+      "127.0.0.1:18081",
+      "-config",
+      "services/ai-doubao/config/configx.json",
+      "-model",
+      "doubao"
+    ],
+    "env": {}
+  },
+  "lifecycle": {
+    "register_timeout_ms": 1000,
+    "restart_policy": "never",
+    "restart_backoff_ms": 300,
+    "restart_times": 3
+  }
 }

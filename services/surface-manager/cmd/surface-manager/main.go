@@ -44,9 +44,10 @@ func main() {
 	dataRoot := filepath.Join(appRoot, "data")
 	webuiRoot := filepath.Join(appRoot, "webui")
 	surfaceRoot := filepath.Join(webuiRoot, "surface")
-	serviceSecret, err := hubsvc.LoadServiceSecret(filepath.Join(dataRoot, ".service_secret"))
+	serviceSecretPath := filepath.Join(appRoot, "services", "surface-manager", "run", ".service_secret")
+	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
-		app.Errorf("load service secret failed: %v", err)
+		app.Errorf("load bootstrap secret failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -66,24 +67,24 @@ func main() {
 	}
 
 	manifest := builtinManifest("surface-manager")
-	hubToolCallURL := buildHubToolCallURL(strings.TrimSpace(*hubRegisterURL))
-	var serviceSessionToken string
-	var serviceSessionTokenMu sync.RWMutex
-	setServiceSessionToken := func(token string) {
-		serviceSessionTokenMu.Lock()
-		serviceSessionToken = strings.TrimSpace(token)
-		serviceSessionTokenMu.Unlock()
+	if strings.TrimSpace(serviceBootstrap.ServiceID) != strings.TrimSpace(manifest.ServiceID) {
+		app.Errorf("bootstrap service_id mismatch: expect=%s got=%s", strings.TrimSpace(manifest.ServiceID), strings.TrimSpace(serviceBootstrap.ServiceID))
+		os.Exit(1)
 	}
-	getServiceSessionToken := func() string {
-		serviceSessionTokenMu.RLock()
-		defer serviceSessionTokenMu.RUnlock()
-		return strings.TrimSpace(serviceSessionToken)
+	registerURL := strings.TrimSpace(serviceBootstrap.HubRegisterURL)
+	if registerURL == "" {
+		registerURL = strings.TrimSpace(*hubRegisterURL)
 	}
-	instance := strings.TrimSpace(*instanceID)
+	hubToolCallURL := buildHubToolCallURL(registerURL)
+	instance := strings.TrimSpace(serviceBootstrap.InstanceID)
+	if instance == "" {
+		instance = strings.TrimSpace(*instanceID)
+	}
 	if instance == "" {
 		instance = "surface-manager-" + app.NewRequestID()
 	}
-	if strings.TrimSpace(*hubRegisterURL) != "" {
+	if registerURL != "" {
+		healthy := true
 		registerPayload := toolproto.SupervisorRegisterRequest{
 			ServiceID:  strings.TrimSpace(manifest.ServiceID),
 			InstanceID: strings.TrimSpace(instance),
@@ -92,11 +93,13 @@ func main() {
 			Endpoint: toolproto.Endpoint{
 				TCPURL: "http://" + strings.TrimSpace(*addr),
 			},
-			Tools: toSupervisorTools(manifest),
+			Tools:   toSupervisorTools(manifest),
+			Healthy: &healthy,
 		}
 		raw, _ := json.Marshal(registerPayload)
-		req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(*hubRegisterURL), bytes.NewReader(raw))
+		req, _ := http.NewRequest(http.MethodPost, registerURL, bytes.NewReader(raw))
 		req.Header.Set("Content-Type", "application/json")
+		hubsvc.ApplyServiceAuthHeaders(req.Header, serviceBootstrap)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			app.Errorf("register surface-manager to hub failed: %v", err)
@@ -108,12 +111,13 @@ func main() {
 			app.Errorf("register surface-manager to hub status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(rawResp)))
 			os.Exit(1)
 		}
-		registerResult, err := hubsvc.DecodeSupervisorRegisterResult(rawResp)
-		if err != nil {
+		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
 			app.Errorf("decode register response failed: %v", err)
 			os.Exit(1)
 		}
-		setServiceSessionToken(registerResult.ServiceSessionToken)
+		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
+			app.Warnf("delete bootstrap secret failed: %v", err)
+		}
 		app.Infof("register surface-manager to hub status=%d", resp.StatusCode)
 	}
 
@@ -183,13 +187,12 @@ func main() {
 			})
 			return
 		}
-		tokenClaims, err := hubsvc.VerifyServiceSessionTokenLoose(strings.TrimSpace(r.Header.Get("X-Hub-Service-Token")), serviceSecret)
-		if err != nil || tokenClaims.ServiceID != strings.TrimSpace(manifest.ServiceID) {
-			writeToolResponse(w, http.StatusUnauthorized, toolproto.CallResponse{
+		if err := hubsvc.VerifyHubAuthHeaders(r.Header, manifest.ServiceID, instance, serviceBootstrap.H2SToken); err != nil {
+			writeToolResponse(w, http.StatusForbidden, toolproto.CallResponse{
 				Ok: false,
 				Error: &toolproto.Error{
-					Code:    toolproto.ErrorCodeUnauthorized,
-					Message: "invalid hub service token",
+					Code:    toolproto.ErrorCodeForbidden,
+					Message: "invalid hub auth",
 				},
 				Meta: toolproto.Meta{
 					RequestID: strings.TrimSpace(req.Context.RequestID),
@@ -197,6 +200,10 @@ func main() {
 				},
 			})
 			return
+		}
+		hubOnly := isHubOnlyContext(req.Context)
+		if !hubOnly {
+			delete(req.Args, "healthz")
 		}
 		caller := toolproto.Caller{
 			Type:      strings.ToLower(strings.TrimSpace(r.Header.Get("X-Caller-Type"))),
@@ -217,6 +224,16 @@ func main() {
 		}
 		startedAt := time.Now()
 		resp := toolproto.CallResponse{Ok: false, Result: nil, Error: nil, Meta: meta}
+		if hubOnly && healthzRequested(req.Args) {
+			resp.Ok = true
+			resp.Result = map[string]any{
+				"service_id": strings.TrimSpace(manifest.ServiceID),
+				"hub_only":   true,
+				"healthz":    true,
+			}
+			writeToolResponse(w, http.StatusOK, resp)
+			return
+		}
 		toErrResp := func(code string, msg string, retryable bool) toolproto.CallResponse {
 			return toolproto.CallResponse{
 				Ok:     false,
@@ -550,11 +567,6 @@ func main() {
 				resp = toErrResp(toolproto.ErrorCodeServiceUnavailable, "hub register url is not configured", false)
 				break
 			}
-			serviceToken := getServiceSessionToken()
-			if serviceToken == "" {
-				resp = toErrResp(toolproto.ErrorCodeServiceUnavailable, "service session token is unavailable", false)
-				break
-			}
 			dbName := asString(req.Args["db_name"])
 			if dbName == "" {
 				dbName = "surface-manager.db"
@@ -575,7 +587,7 @@ func main() {
 			if probeTraceID == "" {
 				probeTraceID = "tr_" + app.NewRequestID()
 			}
-			createResp, err := callHubToolAsService(hubToolCallURL, serviceToken, manifest.ServiceID, probeRequestID+"-create", probeTraceID, "storage.database.execute", map[string]any{
+			createResp, err := callHubToolAsService(hubToolCallURL, serviceBootstrap, manifest.ServiceID, probeRequestID+"-create", probeTraceID, "storage.database.execute", map[string]any{
 				"db_name": dbName,
 				"query":   "CREATE TABLE IF NOT EXISTS surface_probe (probe_key TEXT PRIMARY KEY, probe_value TEXT NOT NULL, updated_at_ms INTEGER NOT NULL)",
 				"args":    []any{},
@@ -592,7 +604,7 @@ func main() {
 				resp = toErrResp(toolproto.ErrorCodeToolExecError, msg, false)
 				break
 			}
-			writeResp, err := callHubToolAsService(hubToolCallURL, serviceToken, manifest.ServiceID, probeRequestID+"-write", probeTraceID, "storage.database.execute", map[string]any{
+			writeResp, err := callHubToolAsService(hubToolCallURL, serviceBootstrap, manifest.ServiceID, probeRequestID+"-write", probeTraceID, "storage.database.execute", map[string]any{
 				"db_name": dbName,
 				"query":   "INSERT INTO surface_probe(probe_key, probe_value, updated_at_ms) VALUES(?, ?, ?) ON CONFLICT(probe_key) DO UPDATE SET probe_value=excluded.probe_value, updated_at_ms=excluded.updated_at_ms",
 				"args":    []any{recordKey, recordValue, time.Now().UnixMilli()},
@@ -609,7 +621,7 @@ func main() {
 				resp = toErrResp(toolproto.ErrorCodeToolExecError, msg, false)
 				break
 			}
-			queryResp, err := callHubToolAsService(hubToolCallURL, serviceToken, manifest.ServiceID, probeRequestID+"-query", probeTraceID, "storage.database.query", map[string]any{
+			queryResp, err := callHubToolAsService(hubToolCallURL, serviceBootstrap, manifest.ServiceID, probeRequestID+"-query", probeTraceID, "storage.database.query", map[string]any{
 				"db_name": dbName,
 				"query":   "SELECT probe_key, probe_value, updated_at_ms FROM surface_probe WHERE probe_key=? LIMIT 1",
 				"args":    []any{recordKey},
@@ -675,8 +687,8 @@ func main() {
 	})
 
 	server = &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	if hbURL := buildHubHeartbeatURL(strings.TrimSpace(*hubRegisterURL)); hbURL != "" {
-		startHubHeartbeatGuard(hbURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), shutdownNow)
+	if hbURL := buildHubHeartbeatURL(registerURL); hbURL != "" {
+		startHubHeartbeatGuard(hbURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
 	}
 	app.Infof("surface-manager listening=http://%s", *addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -810,7 +822,59 @@ func asBool(v any) (bool, bool) {
 	return false, false
 }
 
-func callHubToolAsService(hubToolCallURL string, serviceSessionToken string, serviceID string, requestID string, traceID string, toolID string, args map[string]any) (toolproto.CallResponse, error) {
+func healthzRequested(args map[string]any) bool {
+	if args == nil {
+		return false
+	}
+	value, ok := args["healthz"]
+	if !ok {
+		return false
+	}
+	switch tv := value.(type) {
+	case bool:
+		return tv
+	case string:
+		switch strings.ToLower(strings.TrimSpace(tv)) {
+		case "1", "true", "yes", "on":
+			return true
+		}
+	case int:
+		return tv != 0
+	case int64:
+		return tv != 0
+	case float64:
+		return tv != 0
+	}
+	return false
+}
+
+func isHubOnlyContext(ctx *toolproto.Context) bool {
+	if ctx == nil || ctx.Meta == nil {
+		return false
+	}
+	value, ok := ctx.Meta["hub_only"]
+	if !ok {
+		return false
+	}
+	switch tv := value.(type) {
+	case bool:
+		return tv
+	case string:
+		switch strings.ToLower(strings.TrimSpace(tv)) {
+		case "1", "true", "yes", "on":
+			return true
+		}
+	case float64:
+		return tv != 0
+	case int:
+		return tv != 0
+	case int64:
+		return tv != 0
+	}
+	return false
+}
+
+func callHubToolAsService(hubToolCallURL string, serviceAuth hubsvc.BootstrapSecret, serviceID string, requestID string, traceID string, toolID string, args map[string]any) (toolproto.CallResponse, error) {
 	callReq := toolproto.CallRequest{
 		ToolID: strings.TrimSpace(toolID),
 		Args:   args,
@@ -826,7 +890,7 @@ func callHubToolAsService(hubToolCallURL string, serviceSessionToken string, ser
 	rawReq, _ := json.Marshal(callReq)
 	req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(hubToolCallURL), bytes.NewReader(rawReq))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Hub-Service-Token", strings.TrimSpace(serviceSessionToken))
+	hubsvc.ApplyServiceAuthHeaders(req.Header, serviceAuth)
 	client := &http.Client{Timeout: 8 * time.Second}
 	httpResp, err := client.Do(req)
 	if err != nil {
@@ -874,7 +938,7 @@ func buildHubToolCallURL(registerURL string) string {
 	return parsed.String()
 }
 
-func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID string, pid int, endpoint string, onFailure func(reason string)) {
+func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {
 	if strings.TrimSpace(heartbeatURL) == "" || strings.TrimSpace(serviceID) == "" || strings.TrimSpace(instanceID) == "" || onFailure == nil {
 		return
 	}
@@ -883,12 +947,15 @@ func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID st
 			body := map[string]any{
 				"service_id":  strings.TrimSpace(serviceID),
 				"instance_id": strings.TrimSpace(instanceID),
+				"status":      "ready",
+				"healthy":     true,
 				"pid":         pid,
 				"endpoint":    strings.TrimSpace(endpoint),
 			}
 			raw, _ := json.Marshal(body)
 			req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(heartbeatURL), bytes.NewReader(raw))
 			req.Header.Set("Content-Type", "application/json")
+			hubsvc.ApplyServiceAuthHeaders(req.Header, serviceAuth)
 			client := &http.Client{Timeout: 2200 * time.Millisecond}
 			resp, err := client.Do(req)
 			if err != nil {

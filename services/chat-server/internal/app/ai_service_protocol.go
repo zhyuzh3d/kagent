@@ -19,6 +19,7 @@ type AIServiceToolDescriptor struct {
 	Idempotency          string         `json:"idempotency,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
+	WSPath               string         `json:"ws_path,omitempty"`
 }
 
 type AIServiceListToolsResponse struct {

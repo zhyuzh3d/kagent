@@ -1,3 +1,162 @@
+## [2026-03-18 14:38 CST] 部署脚本重定向循环修复与实时日志优化 (Bug-Fix)
+- 时间范围：2026-03-18 14:25 -> 2026-03-18 14:38
+- 主要变更：
+  - **修复重定向无限循环**：移除了 `scripts/deploy.sh` 中导致 `tee` 与 `tail` 产生竞争/循环的全局 `exec` 重定向，彻底解决了终端“反复重复大量输出”的问题。
+  - **精简实时输出**：将 `tail -F` 改进为 `tail -n 0 -F`，避免监控模式启动时瞬间倾倒已有日志，实现了“新增一行、显示一行”的精准体验。
+  - **双路日志落地**：重构 `log_deploy` 函数，支持“终端实时回显 + 文件静默记录”的双向写入，确保脚本自身的部署轨迹也被完整保留在 `log.txt` 中。
+- 关键文件/模块：
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：通过了脚本逻辑核验，确认不再产生递归输出。
+- 经验与结论：
+  - 失败教训：在 Bash 中对脚本 stdout 执行全局 `exec > >(tee -a file)` 后再在该脚本内 `tail -F file`，会通过 shell 继承的 stdout 形成无限递归反馈环。
+  - 有效实践：使用 `tail -n 0` 是处理“仅关注后续增量”需求的标准方案。
+- 下一步：
+  - 确认不同平台（Mac/Linux）下 `tail -n 0 -F` 的语义一致性。
+
+## [2026-03-18 14:25 CST] 部署脚本日志集成与持续输出模式落地 (UX-Enhancement)
+- 时间范围：2026-03-18 14:20 -> 2026-03-18 14:25
+- 主要变更：
+  - **脚本日志全集成**：在 `scripts/deploy.sh` 中引入 `exec > >(tee -a "${hub_log}") 2>&1`，实现了脚本自身的构建/启动日志与 Hub 运行时日志的物理合并。
+  - **持续日志监控模式**：脚本执行最后自动进入 `tail -F` 模式，开发者无需手动执行 tail 即可实时观测 Hub 的编排进度与自检结果。
+  - **交互流程优化**：明确了“Ctrl+C 仅停止监控，不停止服务”的交互心智。
+- 关键文件/模块：
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：实现了部署与监控的无缝衔接，提升了首屏“部署即见效”的沉浸感。
+- 经验与结论：
+  - 有效实践：利用 `exec` 开启全局重定向，配合 `tee` 保留终端输出，是保持“脚本简洁”且“日志完整”的最优 Bash 实践。
+- 下一步：
+  - 观察在日志滚动（Rotate）临界点是否会出现极短时间的日志丢失（目前方案在清空文件后立即重定向，风险极低）。
+
+## [2026-03-18 14:20 CST] Hub 启动自清理与端口抢占机制落地 (Self-Cleaning)
+- 时间范围：2026-03-18 14:15 -> 2026-03-18 14:20
+- 主要变更：
+  - **端口抢占逻辑落地**：在 `hub/internal/app/port_preempt.go` 中实现了 `EnsurePortReady` 工具函数。该函数在 Hub 启动最前端执行，通过“HTTP 优雅请求 + PID 物理强杀”双保险机制确保 18080 端口可用。
+  - **跨平台兼容支持**：针对 Unix/Mac 使用 `lsof` 和 `kill -9`，针对 Windows 使用 `netstat` 和 `taskkill`，增强了 Hub 二进制文件在不同环境下的自愈能力。
+  - **主入口集成**：在 `hub/cmd/hub/main.go` 中接入抢占逻辑，实现了“无脚本依赖”的纯净启动体验。
+- 关键文件/模块：
+  - `hub/internal/app/port_preempt.go`
+  - `hub/cmd/hub/main.go`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：通过了 `go build` 静态编译校验，Hub 现已具备完全脱离外部脚本进行自我生命周期管理的能力。
+- 经验与结论：
+  - 有效实践：将端口清理逻辑内置于应用本身，能显著降低部署脚本的复杂性，并提升本地开发调试的顺滑度。
+- 下一步：
+  - 验证在极端高并发启动下的端口竞争表现（虽然单机场景较少见）。
+
+## [2026-03-18 14:05 CST] Hub 托管式编排与极简部署架构落地 (DevComplete)
+- 时间范围：2026-03-18 13:50 -> 2026-03-18 14:05
+- 主要变更：
+  - **Hub 编排逻辑下沉**：在 `hub/internal/supervisor/lifecycle.go` 中实现了动态秘钥 (`S2H_TOKEN`, `H2S_TOKEN`) 的生成与 `.service_secret` 的加密注入（0600 权限）。
+  - **自动冒烟测试集成**：在 `hub/cmd/hub/main.go` 的启动流程中接入了 `app.SmokeTester`，实现服务 Ready 后自动触发全链路核验并记录 `System:Internal:AutoSmokeTest` 日志。
+  - **极简部署脚本 (Minimalist)**：重构了 `scripts/deploy.sh`，利用 `jq` 动态发现服务并并行构建。实现了 3 秒优雅停机宽限期及超时强制杀进程逻辑，彻底去除了脚本层级的重复校验。
+  - **SDK 级鉴权对齐**：验证并对齐了 `pkg/hubsvc` 中的 Bootstrap 逻辑，确保所有独立服务能自动读取注入的秘钥并完成身份注册。
+- 关键文件/模块：
+  - `hub/internal/supervisor/lifecycle.go`
+  - `hub/cmd/hub/main.go`
+  - `scripts/deploy.sh`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：通过了 `go build` 静态编译校验，所有核心组件职责已按计划收拢至 Hub。
+- 经验与结论：
+  - 有效实践：将编排权交给 Hub (Init-Process) 而非外置 Bash 脚本，极大地提升了系统在不同 OS 环境下的鲁印性与安全性。
+- 下一步：
+  - 确认在生产环境中的 3s 强制杀进程行为是否符合实际运维预期。
+
+## [2026-03-18 13:50 CST] Hub 托管式编排与极简部署计划 (DevPlan)
+- 时间范围：2026-03-18 13:33 -> 2026-03-18 13:50
+- 主要变更：
+  - **制定全量编排计划**：产出 `plan/260318-deployment-orchestration-refactor-devplan.md`，确立了“Hub 作为系统 Init 进程”的核心架构。
+  - **职责再平衡**：计划将动态秘钥注入、子进程拉起、注册校验及自动冒烟测试全部收拢至 Hub 内部。
+  - **部署脚本降级**：`deploy.sh` 将仅保留构建与 Hub 进程管理逻辑，并引入 3 秒超时强杀机制，确保部署流水线的绝对可靠。
+- 关键文件/模块：
+  - `plan/260318-deployment-orchestration-refactor-devplan.md`
+  - `hub/internal/supervisor/lifecycle.go`
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：完成了从“脚本驱动”向“平台驱动”转型的系统化设计。
+- 下一步：
+  - 待用户确认计划后，开始分步实施 Hub 内部的服务自动拉起逻辑。
+
+## [2026-03-18 13:31 CST] 部署脚本精简与冗余清理 (Cleanup)
+- 时间范围：2026-03-18 13:28 -> 2026-03-18 13:31
+- 主要变更：
+  - **移除同步逻辑**：删除了 `deploy.sh` 中旧的 `sync_service_secret` 函数及其循环调用。秘钥现在由 Hub 动态生成，脚本不再参与。
+  - **启动参数精简**：移除了 Hub 启动命令中与内置默认值相同的路径参数（`public-config`, `user-config`, `sqlite-path`, `services-config`），化简为仅显式指定 `-addr`。
+- 关键文件/模块：
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：脚本进一步“瘦身”，降低了维护成本，且启动行为与 Hub 内部默认配置保持高度一致。
+- 下一步：
+  - 准备按计划实施基于 `.service_secret` 的 Hub-Service 身份互信机制。
+
+## [2026-03-18 12:45 CST] 部署与治理架构重构完成 (DevComplete)
+- 时间范围：2026-03-18 12:10 -> 2026-03-18 12:45
+- 主要变更：
+  - **Manifest 结构化重构**：更新了 `ai-doubao`, `chat-server`, `file`, `database`, `surface-manager` 的 5 个 `manifest.json` 文件，将启动参数 (`entry`) 和生命周期 (`lifecycle`) 配置转为自包含模式，彻底废弃了脚本注入逻辑。
+  - **治理逻辑回归 Hub**：在 `hub/internal/app/smoke.go` 中实现了 `SmokeTester` 模块，并在 `hub/cmd/hub/main.go` 中注册了 `/api/system/smoke-test` 内置接口。
+  - **部署脚本流水线化**：重构了 `deploy.sh`，通过解析 `hub/config/config.json` 实现了动态的多服务构建、Manifest 自动同步以及内嵌的健康检查调用。
+- 关键文件/模块：
+  - `services/*/manifest.json`
+  - `hub/internal/app/smoke.go`
+  - `hub/cmd/hub/main.go`
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：通过 `go build` 校验了 Hub 的编译正确性，新的部署流水线已具备落地条件。
+- 经验与结论：
+  - 有效实践：使用 Hub 内建的治理能力（如 `SmokeTester`）相较于外部脚本（如 `curl`）具备更强的 Context 感知能力和更细的原子化校验颗粒度。
+- 下一步：
+  - 在生产/模拟环境中执行 `./scripts/deploy.sh` 进行全量回归测试。
+
+## [2026-03-18 12:10 CST] 部署与治理架构重构计划 (DevPlan)
+- 时间范围：2026-03-18 12:05 -> 2026-03-18 12:10
+- 主要变更：
+  - **制定开发计划**：产出 `plan/260318-deployment-refactor-devplan.md`，深度整合了“Manifest 自包含配置”、“Config 驱动构建”以及“Hub 内建冒烟测试”三大核心变革。
+  - **细化技术细节**：明确了 `entry` 与 `lifecycle` 字段的结构，并规定冒烟测试需作为 Hub 的独立 Go 模块实现（非 `main.go` 堆砌）。
+- 关键文件/模块：
+  - `plan/260318-deployment-refactor-devplan.md`
+  - `hub/internal/app/smoke_test.go` (规划中)
+- 开发结果：
+  - 成功：完成了重构任务的系统性规划，待用户确认后可进入执行阶段。
+- 下一步：
+  - 按照计划顺序，首先更新各服务的 `manifest.json` 模板。
+
+## [2026-03-18 12:05 CST] 部署与架构方案深度评估 (ANA)
+- 时间范围：2026-03-18 11:36 -> 2026-03-18 12:05
+- 主要变更：
+  - **完成架构评估**：对 `deploy.sh` 的简化、`manifest.json` 职责解耦以及冒烟测试迁移至 Hub 等方案进行了深度可行性分析。
+  - **产出 ANA 文档**：落盘 `plan/260318-deployment-architecture-refactor-ana.md`，明确了“配置下沉（Service）”与“治理上浮（Hub）”的技术路径。
+- 关键文件/模块：
+  - `plan/260318-deployment-architecture-refactor-ana.md`
+  - `scripts/deploy.sh`
+  - `hub/cmd/hub/main.go`
+- 开发结果：
+  - 成功：确认三项建议均符合 `Client-Driven` 与 `Hub-Centric` 核心原则，具备极高的重构价值。
+- 经验与结论：
+  - 有效实践：将业务性的冒烟测试从 Bash 脚本迁移至 Go 实现的 Hub 内部，可以显著提升环境适应性与治理颗粒度。
+- 下一步：
+  - 根据评估结论，分阶段实施 `deploy.sh` 的配置化重构与 Hub 侧冒烟测试逻辑开发。
+
+## [2026-03-17 13:45 CST] 全面重构项目技术说明文档 (doc/_instruction.md)
+- 时间范围：2026-03-17 13:32 -> 2026-03-17 13:45
+- 主要变更：
+  - **文档架构重置**：彻底重写 `doc/_instruction.md`，从单纯的“分服说明”提升为“框架级技术白皮书”形态。
+  - **核心理念固化**：首次在主文档中明确“交互在前端，治理在 Hub，执行在 Service”的协作原则，并定义了“逻辑路径优先”与“Client-Driven”等核心理念。
+  - **编码规范标准化**：沉淀了 Tool Protocol 通信标准、全链路身份传递 (X-Caller) 规范以及基于 Context-Aware 的统一日志撰写要求。
+  - **术语与索引补全**：整合了 `plan/` 与日志中的高频术语（如 Capability Token, Identity Context），并更新了包含 3 级深度的详细目录树。
+  - **环境验证对齐**：同步了最新的 `scripts/deploy.sh` (7服务联动) 与健康检查路径。
+- 关键文件/模块：
+  - `doc/_instruction.md`
+  - `plan/260316-kagent-architecture-philosophy-ana.md`
+- 开发结果：
+  - 成功：文档已完成全量覆盖，具备了最高的指导性与全面索引性质。
+- 经验与结论：
+  - 有效实践：将“ANA 分析文档”中的理念沉淀为“Instruction 事实文档”，能有效解决架构设计与工程现状的认知断层。
+- 下一步：
+  - 持续根据 Service 侧的具体工具实现更新 Tool Protocol 细节。
+
 ## [2026-03-14 16:15 CST] 实现对话项目（Project）与线程（Thread）管理系统
 - 时间范围：2026-03-14 15:20 -> 2026-03-14 16:15
 - 主要变更：
@@ -623,3 +782,135 @@
   - `scripts/deploy.sh`
 - 开发结果：
   - 成功：实现了“构建成功才切换”的部署逻辑，避免了因代码编译错误导致的服务意外停机。
+
+## [2026-03-16 22:33 CST] 进一步细节优化：Hub 日志内容格式化与冒号对齐
+- 时间范围：2026-03-16 21:24 -> 2026-03-16 22:33
+- 主要变更：
+  - **连接符替换**：修改 Hub `/api/debug/log` 处理器，将 `page-module-content` 的连接符统一由 `-` 替换为 `:`。
+  - **内容紧凑化**：在 Hub 层引入 `strings.ReplaceAll(body.Content, ": ", ":")`，自动消除前端上报内容中冒号后的多余空格，实现如 `project:prj-xxx` 的一致性展示。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：控制台输出格式与用户预期完全对齐，日志可读性进一步增强。
+- 经验与结论：
+  - 有效实践：在日志网关层进行简单的文本清洗（如 ReplaceAll），比修改所有前端业务模块的日志调用成本更低且更易保持全局一致。
+- 下一步：
+  - 检查是否还有其他微小的 UI/日志不一致点。
+
+## [2026-03-16 23:39 CST] Hub 全局统一身份识别与增强日志系统落地
+- 时间范围：2026-03-16 22:33 -> 2026-03-16 23:39
+- 主要变更：
+  - **Identity 实体定义**：新增 `hub/internal/app/identity.go`，定义 `Identity{Type, ID, Name}` 结构体、`IdentityType` 常量（USER/SERVICE/SURFACE/ANONYMOUS）、Context 读写 helper（`IdentityFromContext`/`ContextWithIdentity`）。
+  - **IdentityMiddleware 落地**：在请求最前端一次性解析 JWT Cookie 并将身份注入 `r.Context()`，后续所有 Handler 和 Logger 可从 Context 直接读取，无需重复解析。
+  - **Context-Aware Logger**：增强 `hub/internal/app/logger.go`，新增 `InfofCtx`/`InfofCtxTag`/`WarnfCtx`/`ErrorfCtx` 系列函数，支持自动从 Context 提取身份名并输出 `[USERNAME]` 标签。
+  - **main.go 中间件链重构**：将 `IdentityMiddleware` 包裹在 `loggingMux` 外层作为 Server Handler；`loggingMux` 移除内部 `extractJWTClaims` 调用，改为从 Context 获取 `Identity.Name`；`/api/debug/log` 前端上报接口启用 `InfofCtxTag` 自动补齐用户名。
+  - **extractJWTClaims 统一收口**：将 `main.go` 和 `gateway/tool_handler.go` 中各自独立的 `extractJWTClaims` 函数合并为 `app.ExtractJWTClaims`，消除代码重复。
+  - **自动化测试**：新增 `hub/internal/app/identity_test.go`，覆盖 7 个测试用例（Context 默认值、Context 读写幂等性、有效 JWT→USER、无 Cookie→ANONYMOUS、无效 JWT→ANONYMOUS、ExtractJWTClaims 正常/无 Cookie）。
+- 关键文件/模块：
+  - `hub/internal/app/identity.go`（新增）
+  - `hub/internal/app/identity_test.go`（新增）
+  - `hub/internal/app/logger.go`（增强）
+  - `hub/cmd/hub/main.go`（中间件链重构 + extractJWTClaims 统一）
+  - `hub/internal/gateway/tool_handler.go`（删除重复 extractJWTClaims）
+  - `plan/260316-hub-identity-logging-devplan.md`（开发计划文档）
+- 开发结果：
+  - 成功：`go build ./hub/...` 通过。
+  - 成功：`go test ./hub/... -v` 通过，14/14 测试全部通过（7 新增 + 7 既有）。
+  - 成功：日志输出格式变为 `[TS] [LEVEL] [TAG] [USERNAME] message`，前端上报日志和网关访问日志均自动携带用户标识。
+  - 成功：PRD DoD 三项全部完成：① 所有请求日志含 `[USERNAME]`；② 移除重复 JWT 解析；③ `/api/debug/log` 自动关联用户。
+- 经验与结论：
+  - 有效实践：将身份识别收敛为中间件层单次执行并注入 Context，是同时解决"日志匿名"和"代码重复"两个问题的最佳切入点。
+  - 有效实践：使用 `context.WithValue` + struct key 类型避免 key 碰撞，比 string key 更安全。
+  - 架构收益：JWT 解析从"每请求多次"降为"每请求一次"，在请求链路上只有性能增益没有回退。
+- 下一步：
+  - 部署后观察控制台日志，确认登录用户、匿名访问、前端上报三个场景的 `[USERNAME]` 标识均正确显示。
+  - 后续可考虑扩展 Identity 支持 SERVICE 和 SURFACE 类型的探测（当前仅实现 USER/ANONYMOUS）。
+
+## [2026-03-17 00:20 CST] AI & Chat 服务标准化与 Hub-Centric 架构重构
+- 时间范围：2026-03-16 23:39 -> 2026-03-17 00:20
+- 主要变更：
+  - **流式配置 Bug 修复**：修正 `ai-doubao/main.go` 与 `chat-server/main.go` 中错误的 `Streaming` 字段比对（不再仅校验 `"stream"`），正确解析 `ws_binary`/`sse`，并补全注册所需的 `TimeoutMS` 与 `CapabilitiesRequired` 字段。
+  - **ai-doubao 暴露私有标准端点**：实现统一的 `/service/tool/exec` 接口并关联 Hub 共享服务令牌校验（`X-Hub-Service-Token`）；打断内部 `app.NewDoubaoTTSClient` 和其余功能的直连。
+  - **Hub 动态 WS 路由代理**：改造 Hub `/api/tool/ws`，通过 `service_id` 查询参数进行动态服务转发，兼容未传时降级为 `chat-server`。
+  - **彻底剥离 chat-server 直连机制**：删除 `chat-server` 内部用于管控和绕过 Hub 端点的 `AIServiceManager`、`ServiceProviderFactory` 等残留逻辑。
+  - **海量冗余死代码清理**：在 `ai-doubao` 单体拆分初期为了快速跑通遗留的超过 2500+ 行无用代码（包括 `session.go`、`sqlite_store.go`、`provider_factory.go`、`operation_log.go`、`pipeline.go` 等属于 chat 层级的实现）被全部安全剥离，真正使 ai-doubao 成为无状态原子能力提供者。
+- 关键文件/模块：
+  - `kagent/services/ai-doubao/cmd/ai-doubao/main.go`
+  - `kagent/services/chat-server/cmd/chat-server/main.go`
+  - `kagent/hub/cmd/hub/main.go`
+  - `kagent/services/ai-doubao/internal/app/utils.go`（抽取存活的极少必须工具）
+  - `kagent/plan/260317-ai-chat-refactor-devreport.md`
+- 开发结果：
+  - 成功：全系统彻底实现了 `Service -> Hub -> Service` 的拓扑结构约定，`ai-doubao` 从臃肿的大单体副本降级精炼为单一职责的 Provider。
+  - 成功：`go build ./...` 与 `go test ./hub/...` 均验证通过。
+- 经验与结论：
+  - 有效实践：不要畏惧大段删除“因为历史原因复制过来但实际上完全不用”的祖传代码，但删除前必须验证函数引用深度，把仅存的 50 行实用 Helper（例如 `mustJSON`）前置抽取后，即可放心删掉 3000 行冗余实现。
+- 下一步：
+  - 启动系统进行真实跨端语聊，确认 WebSocket 连接从 `chat -> doubao` 变成了正确的 `chat -> hub -> doubao` 拓扑。
+
+## [2026-03-17 12:45 CST] Hub 全局日志格式统一与标准化
+- 时间范围：2026-03-17 00:20 -> 2026-03-17 12:45
+- 主要变更：
+  - **日志格式标准化**：在 `hub/cmd/hub/main.go` 中统一所有 Hub 相关日志输出为 `[time][type][source][user]source_name:action_or_subclass:params_or_desc`。
+  - **中间件日志增强**：重构 HTTP 请求日志中间件使用 `InfofCtxTag`，确保所有访问日志均携带 `[user]` 标识，格式为 `System:HTTP:Method Path [Status] (Duration)`。
+  - **系统日志对齐**：将启动信息、版本输出、内部管理（Supervisor）日志全部切换为 `System:Category:Message` 格式，例如 `System:Startup:Listening`。
+  - **修复 Lint 隐患**：在重构过程中顺带修复了中间件内变量定义与作用域相关的 lint 错误。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `doc/_instruction.md`
+- 开发结果：
+  - 成功：`go build ./hub/cmd/hub` 通过。
+  - 成功：控制台输出与 `[PAGE]` 日志格式高度一致，极大提升了多端协作下的日志分析效率。
+- 经验与结论：
+  - 有效实践：通过 `InfofCtxTag` 强制关联 Context 身份，能自然地将分布式系统的追踪能力下沉到基础日志层。
+  - 有效实践：将日志消息正文划分为 `source_name:action_or_subclass:params_or_desc` 的固定模式，有利于后续使用文本处理工具进行结构化提取。
+- 下一步：
+  - 检查其他独立服务（chat-server, ai-doubao 等）是否也需要对齐此格式标准。
+
+## [2026-03-17 23:55 CST] 规划统一身份解析与日志增强
+- 时间范围：2026-03-17 23:38 -> 2026-03-17 23:55
+- 主要变更：
+  - **完成排查分析**：定位了现有日志匿名化的原因（IdentityMiddleware 仅支持 JWT），并明确了 Service 和 Surface 身份解析的改进方向。
+  - **制定实施计划**：产出了 [260317-hub-identity-logging-devplan.md](file:///Users/zhyuzh/.gemini/antigravity/brain/02c9c1bc-f063-457c-8959-8d0cf2c1b063/implementation_plan.md)，计划通过增强中间件实现全量身份识别，并动态调整网关日志 Source 标签。
+- 关键文件/模块：
+  - `hub/internal/app/identity.go`
+  - `hub/cmd/hub/main.go`
+- 开发结果：
+  - 成功：需求对齐并完成方案设计，待用户审核通过后进入 EXECUTION 阶段。
+- 下一步：
+  - 增强 `IdentityMiddleware` 以支持 Service Token 校验。
+  - 重构 Hub 日志中间件实现动态标签。
+
+## [2026-03-18 00:12 CST] 完成统一身份解析与动态日志标签
+- 时间范围：2026-03-17 23:55 -> 2026-03-18 00:12
+- 主要变更：
+  - **增强身份识别**：重构了 `IdentityMiddleware`，支持解析 `X-Hub-Service-Token` (Service) 和 `X-Surface-Token` (Surface)。
+  - **实现动态日志标签**：Hub 访问日志根据请求身份动态切换标签。Service 调用标记为服务 ID（如 `[CHAT-SERVER]`），User 调用标记为 `[PAGE]`，Surface 标记为 `[SURF]`。
+  - **规范调试日志**：针对 `/api/debug/log`，后端依据身份校验结果强制修正标签，并优化了 Surface 日志的 Page/Module 描述。
+- 关键文件/模块：
+  - `hub/internal/app/identity.go`
+  - `hub/cmd/hub/main.go`
+  - `hub/internal/app/identity_test.go`
+- 开发结果：
+  - 成功：通过单元测试和冒烟测试验证。终端日志已能清晰分辨 Service 与 User 来源，解决了 anonymous 泛滥问题。
+- 下一步：
+  - 进一步完善 Surface 专属令牌的签发与完整校验逻辑。
+
+## [2026-03-18 02:00 CST] 实现虚拟日志工具与三类日志架构
+- 时间范围：2026-03-18 01:50 -> 2026-03-18 02:00
+- 主要变更：
+  - **虚拟工具机制**：在 Hub 中引入了虚拟工具拦截机制，注册了内建工具 `hub.system.report_log`，支持跨服务统一日志上报。
+  - **三类日志架构**：
+    - **System:Internal**：用于 Hub 自身的启动、监听和管理事件。
+    - **System:HTTP**：用于网关 HTTP 审计流水。
+    - **Service:Report**：用于接收并格式化来自 Service/Page 的主动报告。
+  - **身份系统兼容**：优化了 `resolveCaller` 以支持匿名身份下的日志追踪。
+- 关键文件/模块：
+  - `hub/internal/app/hub_platform.go`
+  - `hub/internal/gateway/tool_handler.go`
+  - `hub/cmd/hub/main.go`
+- 开发结果：
+  - 成功：通过 `curl` 模拟 Service 和 Page 端的日志上报，Hub 终端输出符合三类日志分类方案。
+- 下一步：
+  - 考虑将前端 UI 产生的日志也全面迁移到虚拟工具协议，废弃原始的 HTTP Debug 接口。

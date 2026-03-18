@@ -1,19 +1,14 @@
 package app
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
+
+	"kagent/pkg/hubsvc"
 
 	"github.com/gorilla/websocket"
 )
@@ -26,27 +21,6 @@ const (
 	ASREventEndpoint ASREventType = "endpoint"
 )
 
-const (
-	asrProtocolVersion byte = 0x1
-	asrHeaderSizeWords byte = 0x1
-
-	asrMsgTypeFullClient byte = 0x1
-	asrMsgTypeAudioOnly  byte = 0x2
-	asrMsgTypeFullServer byte = 0x9
-	asrMsgTypeError      byte = 0xF
-
-	asrFlagNoSequence  byte = 0x0
-	asrFlagPosSequence byte = 0x1
-	asrFlagLastNoSeq   byte = 0x2
-	asrFlagLastNegSeq  byte = 0x3
-
-	asrSerializationNone byte = 0x0
-	asrSerializationJSON byte = 0x1
-
-	asrCompressionNone byte = 0x0
-	asrCompressionGzip byte = 0x1
-)
-
 type ASREvent struct {
 	Type ASREventType
 	Text string
@@ -57,537 +31,127 @@ type ASRClient interface {
 	Finish()
 }
 
-type DoubaoASRClient struct {
-	cfg           ASRConfig
+type HubASRClient struct {
 	runtimeConfig *RuntimeConfigManager
-	dialer        *websocket.Dialer
-	writeTTL      time.Duration
-	readTTL       time.Duration
+	toolClient    *HubToolClient
 	finishCh      chan struct{}
 }
 
-type asrDialTarget struct {
-	wsURL      string
-	header     http.Header
-	resourceID string
-}
-
-type asrServerFrame struct {
-	MessageType byte
-	Flags       byte
-	Sequence    int32
-	Payload     []byte
-	ErrorCode   uint32
-	ErrorMsg    string
-}
-
-func NewDoubaoASRClient(cfg ASRConfig, runtimeConfig *RuntimeConfigManager) *DoubaoASRClient {
-	return &DoubaoASRClient{
-		cfg:           cfg,
+func NewHubASRClient(cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, hubBaseURL string, serviceAuth hubsvc.BootstrapSecret) *HubASRClient {
+	requestTimeout := 70000
+	if cfg != nil {
+		requestTimeout = cfg.EffectiveAIService().RequestTimeoutMS
+	}
+	return &HubASRClient{
 		runtimeConfig: runtimeConfig,
-		dialer: &websocket.Dialer{
-			HandshakeTimeout: 8 * time.Second,
-		},
-		writeTTL: 6 * time.Second,
-		readTTL:  60 * time.Second,
-		finishCh: make(chan struct{}, 1),
+		toolClient:    NewHubToolClient(hubBaseURL, serviceAuth, durationFromMS(requestTimeout, 70*time.Second)),
+		finishCh:      make(chan struct{}, 1),
 	}
 }
 
-// Finish forcefully tells the ASR server that the audio stream is complete.
-// This is critical when frontend applies aggressive silence filtering and starves the stream.
-func (c *DoubaoASRClient) Finish() {
+func (c *HubASRClient) Finish() {
 	select {
 	case c.finishCh <- struct{}{}:
 	default:
 	}
 }
 
-func (c *DoubaoASRClient) Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent, history []ChatMessage) error {
-	chatCfg := c.chatConfig()
-	writeTTL := durationFromMS(chatCfg.ASR.WriteTimeoutMs, c.writeTTL)
-	readTTL := durationFromMS(chatCfg.ASR.ReadTimeoutMs, c.readTTL)
-	targets := c.prepareDialTargets()
-	var conn *websocket.Conn
-	var target asrDialTarget
-	var lastErr error
-	for _, t := range targets {
-		cn, resp, err := c.dialer.DialContext(ctx, t.wsURL, t.header)
-		if err != nil {
-			lastErr = wrapWSDialError("dial asr websocket", err, resp)
-			continue
-		}
-		conn = cn
-		target = t
-		break
+func (c *HubASRClient) Run(ctx context.Context, audio <-chan []byte, events chan<- ASREvent, history []ChatMessage) error {
+	if c == nil || c.toolClient == nil {
+		return fmt.Errorf("asr client is not configured")
 	}
-	if conn == nil {
-		if lastErr == nil {
-			return fmt.Errorf("dial asr websocket: no valid dial target for wsUrl=%q", c.cfg.WSURL)
-		}
-		return lastErr
-	}
-	defer conn.Close()
-
-	var writeMu sync.Mutex
-	var finishRequested atomic.Bool
-
-	writeAudio := func(pcm []byte, last bool) error {
-		flag := asrFlagNoSequence
-		if last {
-			flag = asrFlagLastNoSeq
-		}
-		frame, err := buildASRClientFrame(asrMsgTypeAudioOnly, flag, asrSerializationNone, asrCompressionGzip, pcm)
-		if err != nil {
-			return err
-		}
-		writeMu.Lock()
-		defer writeMu.Unlock()
-		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
-		return conn.WriteMessage(websocket.BinaryMessage, frame)
-	}
-
-	writeStop := func() {
-		writeMu.Lock()
-		defer writeMu.Unlock()
-		frame, err := buildASRClientFrame(asrMsgTypeAudioOnly, asrFlagLastNoSeq, asrSerializationNone, asrCompressionGzip, nil)
-		if err != nil {
-			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "asr stop"), time.Now().Add(500*time.Millisecond))
-			return
-		}
-		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
-		_ = conn.WriteMessage(websocket.BinaryMessage, frame)
-	}
-
+	turnID := TurnIDFromContext(ctx)
 	// Drain any pending finish signals from a previous run
 	select {
 	case <-c.finishCh:
 	default:
 	}
+	conn, _, err := c.toolClient.DialToolWS(ctx, "ai.speech.asr", nil, nil)
+	if err != nil {
+		return fmt.Errorf("dial hub asr ws: %w", err)
+	}
+	defer conn.Close()
 
-	// Send start frame
-	{
-		payload := c.buildStartPayload(target.resourceID, history)
-		body, _ := json.Marshal(payload)
-		frame, err := buildASRClientFrame(asrMsgTypeFullClient, asrFlagNoSequence, asrSerializationJSON, asrCompressionGzip, body)
-		if err != nil {
-			return err
-		}
-		writeMu.Lock()
-		_ = conn.SetWriteDeadline(time.Now().Add(writeTTL))
-		err = conn.WriteMessage(websocket.BinaryMessage, frame)
-		writeMu.Unlock()
-		if err != nil {
-			return fmt.Errorf("send asr start: %w", err)
-		}
+	start := AIServiceASRStart{
+		Type:      "start",
+		RequestID: "chat-" + newRequestID(),
+		TurnID:    turnID,
+		History:   history,
+	}
+	if err := conn.WriteJSON(start); err != nil {
+		return fmt.Errorf("send asr start: %w", err)
 	}
 
-	errCh := make(chan error, 2)
-
-	// Write goroutine: sends audio frames. Does NOT call sendStop.
+	writerErrCh := make(chan error, 1)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
-				errCh <- nil
+				writerErrCh <- nil
 				return
+			case <-c.finishCh:
+				_ = conn.WriteJSON(AIServiceASRControl{Type: "finish"})
 			case frame, ok := <-audio:
 				if !ok {
-					errCh <- nil
+					writerErrCh <- nil
 					return
 				}
 				if len(frame) == 0 {
 					continue
 				}
-				if err := writeAudio(frame, false); err != nil {
-					errCh <- fmt.Errorf("write asr audio frame: %w", err)
-					return
-				}
-			case <-c.finishCh:
-				finishRequested.Store(true)
-				Debugf("Finish signal received, sending ending frame to ASR server")
-				writeStop()
-				// Drain remaining audio and wait for context cancellation.
-				// The read goroutine will receive ASREventEndpoint from the server.
-				for {
-					select {
-					case <-ctx.Done():
-						errCh <- nil
-						return
-					case <-audio:
-						// drain
-					}
-				}
-			}
-		}
-	}()
-
-	// Read goroutine: reads server frames
-	go func() {
-		for {
-			if err := conn.SetReadDeadline(time.Now().Add(readTTL)); err != nil {
-				errCh <- fmt.Errorf("set asr read deadline: %w", err)
-				return
-			}
-			mt, msg, err := conn.ReadMessage()
-			if err != nil {
-				if ctx.Err() != nil {
-					errCh <- nil
-					return
-				}
-				if finishRequested.Load() && isExpectedASRFinishClose(err) {
-					errCh <- nil
-					return
-				}
-				errCh <- fmt.Errorf("read asr message: %w", err)
-				return
-			}
-			if mt != websocket.BinaryMessage {
-				continue
-			}
-			frame, err := parseASRServerFrame(msg)
-			if err != nil {
-				continue
-			}
-			if frame.MessageType == asrMsgTypeError {
-				errCh <- fmt.Errorf("asr server error code=%d message=%s", frame.ErrorCode, strings.TrimSpace(frame.ErrorMsg))
-				return
-			}
-			if frame.MessageType != asrMsgTypeFullServer {
-				continue
-			}
-			finalHint := frame.Flags == asrFlagLastNegSeq || frame.Flags == asrFlagLastNoSeq
-			for _, evt := range parseASRPayload(frame.Payload, finalHint) {
-				select {
-				case events <- evt:
-				case <-ctx.Done():
-					errCh <- nil
+				if err := conn.WriteMessage(websocket.BinaryMessage, frame); err != nil {
+					writerErrCh <- err
 					return
 				}
 			}
 		}
 	}()
 
-	// Wait for first goroutine to exit, then cleanup
-	select {
-	case <-ctx.Done():
-		writeStop()
-		return nil
-	case err := <-errCh:
-		writeStop()
-		return err
-	}
-}
-
-func isExpectedASRFinishClose(err error) bool {
-	if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
-		return true
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "finish last sequence") || strings.Contains(msg, "close 1000") || strings.Contains(msg, "close 1005")
-}
-
-func (c *DoubaoASRClient) prepareDialTargets() []asrDialTarget {
-	urls := candidateASRURLs(c.cfg.WSURL)
-	resourceIDs := uniqueStrings(
-		c.cfg.ResourceID,
-		strings.Replace(strings.TrimSpace(c.cfg.ResourceID), "seedasr", "bigasr", 1),
-		"volc.seedasr.sauc.duration",
-		"volc.bigasr.sauc.duration",
-	)
-	targets := make([]asrDialTarget, 0, len(urls)*len(resourceIDs))
-	for _, wsURL := range urls {
-		for _, rid := range resourceIDs {
-			targets = append(targets, asrDialTarget{
-				wsURL:      wsURL,
-				resourceID: rid,
-				header:     buildASRHeaders(c.cfg, rid),
-			})
+	readTimeout := durationFromMS(c.chatConfig().ASR.ReadTimeoutMs, 60*time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-writerErrCh:
+			if err != nil {
+				return err
+			}
+		default:
 		}
-	}
-	return targets
-}
-
-func buildASRHeaders(cfg ASRConfig, resourceID string) http.Header {
-	h := http.Header{}
-	h.Set("X-Api-App-Key", cfg.AppID)
-	h.Set("X-Api-Access-Key", cfg.AccessToken)
-	h.Set("X-Api-Resource-Id", resourceID)
-	h.Set("X-Api-Request-Id", newRequestID())
-	h.Set("X-Api-Connect-Id", newRequestID())
-	h.Set("Authorization", "Bearer "+cfg.AccessToken)
-	// Compatibility headers for older gateway variants.
-	h.Set("X-Appid", cfg.AppID)
-	h.Set("X-Resource-Id", resourceID)
-	h.Set("X-Access-Token", cfg.AccessToken)
-	return h
-}
-
-func candidateASRURLs(raw string) []string {
-	base := strings.TrimSpace(raw)
-	candidates := uniqueStrings(
-		base,
-		strings.ReplaceAll(base, "/api/v3/sauc/bigmodel_async", "/api/v3/sauc/bigmodel"),
-		strings.ReplaceAll(base, "/api/v3/sauc/bigmodel_nostream", "/api/v3/sauc/bigmodel"),
-	)
-	if strings.HasSuffix(base, "/api/v3/sauc/bigmodel") {
-		candidates = append(candidates, base+"_async")
-	}
-	out := make([]string, 0, len(candidates))
-	for _, c := range candidates {
-		u, err := url.Parse(c)
-		if err != nil || u.Scheme == "" || u.Host == "" {
+		_ = conn.SetReadDeadline(time.Now().Add(readTimeout))
+		_, payload, err := conn.ReadMessage()
+		if err != nil {
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				return nil
+			}
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
+				return nil
+			}
+			if ne, ok := err.(interface{ Timeout() bool }); ok && ne.Timeout() {
+				continue
+			}
+			return fmt.Errorf("read asr ws: %w", err)
+		}
+		var evt AIServiceASREvent
+		if err := json.Unmarshal(payload, &evt); err != nil {
 			continue
 		}
-		out = append(out, u.String())
-	}
-	return out
-}
-
-func wrapWSDialError(prefix string, err error, resp *http.Response) error {
-	if resp == nil {
-		return fmt.Errorf("%s: %w", prefix, err)
-	}
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-	_ = resp.Body.Close()
-	msg := strings.TrimSpace(string(body))
-	if msg == "" {
-		return fmt.Errorf("%s: %w (status=%d)", prefix, err, resp.StatusCode)
-	}
-	return fmt.Errorf("%s: %w (status=%d body=%s)", prefix, err, resp.StatusCode, msg)
-}
-
-func (c *DoubaoASRClient) buildStartPayload(resourceID string, history []ChatMessage) map[string]any {
-	asrCfg := c.chatConfig().ASR
-	reqParams := map[string]any{
-		"model_name":             "bigmodel",
-		"show_utterances":        true,
-		"result_type":            "single",
-		"enable_itn":             asrCfg.EnableITN,
-		"enable_punc":            asrCfg.EnablePunc,
-		"end_window_size":        asrCfg.EndWindowSize,
-		"force_to_speech_time":   asrCfg.ForceToSpeechTime,
-		"enable_accelerate_text": asrCfg.EnableAccelerateText,
-		"accelerate_score":       asrCfg.AccelerateScore,
-		"enable_nonstream":       asrCfg.EnableNonstream,
-	}
-
-	// Pass conversation history as ASR context for better recognition
-	if len(history) > 0 {
-		maxCtx := asrCfg.AsrContextMaxMessages
-		if maxCtx <= 0 {
-			maxCtx = defaultPublicConfig().Chat.ASR.AsrContextMaxMessages
+		switch strings.ToLower(strings.TrimSpace(evt.Type)) {
+		case "partial":
+			events <- ASREvent{Type: ASREventPartial, Text: evt.Text}
+		case "final":
+			events <- ASREvent{Type: ASREventFinal, Text: evt.Text}
+		case "endpoint":
+			events <- ASREvent{Type: ASREventEndpoint, Text: evt.Text}
+		case "error":
+			return fmt.Errorf("asr failed: %s", strings.TrimSpace(evt.Error))
 		}
-		if len(history) < maxCtx {
-			maxCtx = len(history)
-		}
-		// Build context_data from most recent history
-		recent := history[len(history)-maxCtx:]
-		ctxData := make([]map[string]string, 0, len(recent))
-		for _, msg := range recent {
-			ctxData = append(ctxData, map[string]string{"text": msg.Content})
-		}
-		ctxJSON, _ := json.Marshal(map[string]any{
-			"context_type": "dialog_ctx",
-			"context_data": ctxData,
-		})
-		reqParams["corpus"] = map[string]any{
-			"context": string(ctxJSON),
-		}
-	}
-
-	return map[string]any{
-		"user": map[string]any{
-			"uid": "kagent",
-		},
-		"audio": map[string]any{
-			"format":  "pcm",
-			"codec":   "raw",
-			"rate":    16000,
-			"bits":    16,
-			"channel": 1,
-		},
-		"request":     reqParams,
-		"resource_id": resourceID,
 	}
 }
 
-func (c *DoubaoASRClient) chatConfig() ChatPublicConfig {
+func (c *HubASRClient) chatConfig() ChatPublicConfig {
 	if c.runtimeConfig != nil {
 		return c.runtimeConfig.Snapshot().Chat
 	}
 	return defaultPublicConfig().Chat
-}
-
-func buildASRClientFrame(msgType byte, flags byte, serialization byte, compression byte, payload []byte) ([]byte, error) {
-	header := []byte{
-		(asrProtocolVersion << 4) | asrHeaderSizeWords,
-		(msgType << 4) | (flags & 0x0F),
-		(serialization << 4) | (compression & 0x0F),
-		0x00,
-	}
-	compressed := payload
-	if compression == asrCompressionGzip {
-		var err error
-		compressed, err = gzipCompress(payload)
-		if err != nil {
-			return nil, err
-		}
-	}
-	out := make([]byte, 0, 8+len(compressed))
-	out = append(out, header...)
-	sizeBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(sizeBytes, uint32(len(compressed)))
-	out = append(out, sizeBytes...)
-	out = append(out, compressed...)
-	return out, nil
-}
-
-func parseASRServerFrame(raw []byte) (*asrServerFrame, error) {
-	if len(raw) < 8 {
-		return nil, fmt.Errorf("asr frame too short: %d", len(raw))
-	}
-	headerWords := raw[0] & 0x0F
-	headerSize := int(headerWords) * 4
-	if headerSize < 4 || len(raw) < headerSize {
-		return nil, fmt.Errorf("invalid header size: %d", headerSize)
-	}
-	msgType := (raw[1] >> 4) & 0x0F
-	flags := raw[1] & 0x0F
-	compression := raw[2] & 0x0F
-
-	idx := headerSize
-	frame := &asrServerFrame{MessageType: msgType, Flags: flags}
-
-	if msgType == asrMsgTypeError {
-		if len(raw) < idx+8 {
-			return nil, fmt.Errorf("invalid asr error frame")
-		}
-		frame.ErrorCode = binary.BigEndian.Uint32(raw[idx : idx+4])
-		msgSize := int(binary.BigEndian.Uint32(raw[idx+4 : idx+8]))
-		idx += 8
-		if len(raw) < idx+msgSize {
-			return nil, fmt.Errorf("invalid asr error payload size")
-		}
-		frame.ErrorMsg = string(raw[idx : idx+msgSize])
-		return frame, nil
-	}
-
-	if flags == asrFlagPosSequence || flags == asrFlagLastNegSeq {
-		if len(raw) < idx+4 {
-			return nil, fmt.Errorf("invalid asr frame sequence")
-		}
-		frame.Sequence = int32(binary.BigEndian.Uint32(raw[idx : idx+4]))
-		idx += 4
-	}
-	if len(raw) < idx+4 {
-		return nil, fmt.Errorf("invalid asr frame payload size")
-	}
-	payloadSize := int(binary.BigEndian.Uint32(raw[idx : idx+4]))
-	idx += 4
-	if payloadSize < 0 || len(raw) < idx+payloadSize {
-		return nil, fmt.Errorf("invalid asr frame payload length")
-	}
-	payload := raw[idx : idx+payloadSize]
-	if compression == asrCompressionGzip {
-		unzipped, err := gzipDecompress(payload)
-		if err != nil {
-			return nil, fmt.Errorf("gzip decode asr payload: %w", err)
-		}
-		payload = unzipped
-	}
-	frame.Payload = payload
-	return frame, nil
-}
-
-func parseASRPayload(raw []byte, finalHint bool) []ASREvent {
-	m, err := unmarshalMap(raw)
-	if err != nil {
-		return nil
-	}
-	text := extractASRText(m)
-	if text == "" {
-		return nil
-	}
-	isFinal := finalHint || asBool(m["is_final"]) || asBool(m["final"]) || hasDefiniteUtterance(m)
-	if isFinal {
-		return []ASREvent{{Type: ASREventFinal, Text: text}}
-	}
-	return []ASREvent{{Type: ASREventPartial, Text: text}}
-}
-
-func extractASRText(m map[string]any) string {
-	if result, ok := m["result"].(map[string]any); ok {
-		if t := asString(result["text"]); t != "" {
-			return t
-		}
-	}
-	keys := map[string]struct{}{
-		"text":       {},
-		"result":     {},
-		"transcript": {},
-		"utterance":  {},
-		"sentence":   {},
-		"content":    {},
-	}
-	items := make([]string, 0, 8)
-	collectStringsByKeys(m, keys, &items)
-	uniq := uniqueNonEmpty(items)
-	if len(uniq) == 0 {
-		return ""
-	}
-	return uniq[0]
-}
-
-func hasDefiniteUtterance(m map[string]any) bool {
-	result, ok := m["result"].(map[string]any)
-	if !ok {
-		return false
-	}
-	utterances, ok := result["utterances"].([]any)
-	if !ok {
-		return false
-	}
-	for _, item := range utterances {
-		u, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		if asBool(u["definite"]) {
-			return true
-		}
-	}
-	return false
-}
-
-func asString(v any) string {
-	s, _ := v.(string)
-	return strings.TrimSpace(s)
-}
-
-func asBool(v any) bool {
-	b, ok := v.(bool)
-	return ok && b
-}
-
-func gzipCompress(payload []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	if _, err := zw.Write(payload); err != nil {
-		_ = zw.Close()
-		return nil, err
-	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func gzipDecompress(payload []byte) ([]byte, error) {
-	zr, err := gzip.NewReader(bytes.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	defer zr.Close()
-	return io.ReadAll(zr)
 }

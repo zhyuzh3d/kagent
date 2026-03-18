@@ -21,6 +21,7 @@ type Instance struct {
 	InstanceID          string `json:"instance_id"`
 	ServiceID           string `json:"service_id"`
 	Status              string `json:"status"`
+	Healthy             bool   `json:"healthy"`
 	Transport           string `json:"transport"`
 	Endpoint            string `json:"endpoint"`
 	Score               int    `json:"score"`
@@ -43,7 +44,7 @@ func NewRegistry() *Registry {
 	}
 }
 
-func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration, transport string) Instance {
+func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration, transport string, status string) Instance {
 	if r == nil {
 		return Instance{}
 	}
@@ -61,7 +62,8 @@ func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration,
 		existing = Instance{
 			InstanceID:     instanceID,
 			ServiceID:      serviceID,
-			Status:         InstanceStatusReady,
+			Status:         InstanceStatusStarting,
+			Healthy:        reg.Healthy,
 			Transport:      strings.TrimSpace(transport),
 			Endpoint:       strings.TrimSpace(reg.Endpoint),
 			Score:          100,
@@ -71,14 +73,22 @@ func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration,
 	existing.ServiceID = serviceID
 	existing.InstanceID = instanceID
 	existing.Endpoint = strings.TrimSpace(reg.Endpoint)
-	existing.Status = InstanceStatusReady
+	existing.Healthy = reg.Healthy
+	nextStatus := normalizeStatus(status)
+	if nextStatus != "" {
+		existing.Status = nextStatus
+	} else if reg.Healthy {
+		existing.Status = InstanceStatusReady
+	} else {
+		existing.Status = InstanceStatusUnhealthy
+	}
 	existing.Transport = firstNonEmpty(strings.TrimSpace(transport), strings.TrimSpace(existing.Transport))
 	existing.LastHeartbeatAtMS = now
 	r.instances[key] = existing
 	return existing
 }
 
-func (r *Registry) Heartbeat(serviceID string, instanceID string, status string) (Instance, bool) {
+func (r *Registry) Heartbeat(serviceID string, instanceID string, status string, healthy *bool) (Instance, bool) {
 	if r == nil {
 		return Instance{}, false
 	}
@@ -98,7 +108,13 @@ func (r *Registry) Heartbeat(serviceID string, instanceID string, status string)
 	nextStatus := normalizeStatus(status)
 	if nextStatus != "" {
 		existing.Status = nextStatus
-	} else if existing.Status == "" {
+	}
+	if healthy != nil {
+		existing.Healthy = *healthy
+	}
+	if !existing.Healthy {
+		existing.Status = InstanceStatusUnhealthy
+	} else if nextStatus == "" && existing.Status == "" {
 		existing.Status = InstanceStatusReady
 	}
 	r.instances[key] = existing

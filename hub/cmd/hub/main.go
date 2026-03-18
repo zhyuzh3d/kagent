@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -26,6 +25,7 @@ import (
 	"kagent/hub/internal/routing"
 	"kagent/hub/internal/supervisor"
 	"kagent/hub/internal/transport"
+	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
 )
 
@@ -67,6 +67,7 @@ func main() {
 	publicConfigPath := flag.String("public-config", "config/config.json", "path to public config json")
 	userConfigPath := flag.String("user-config", "data/users/default/user_custom_config.json", "path to user custom config json")
 	sqlitePath := flag.String("sqlite-path", "data/hub/users.db", "path to sqlite auth user store")
+	servicesConfigPath := flag.String("services-config", "config/services.json", "path to hub managed services lifecycle config")
 	addr := flag.String("addr", "127.0.0.1:18080", "listen addr")
 	chatServiceURL := flag.String("chat-service-url", "http://127.0.0.1:18082", "chat service base url")
 	fileServiceURL := flag.String("file-service-url", "http://127.0.0.1:18084", "file service base url")
@@ -76,6 +77,11 @@ func main() {
 
 	app.InitLogger(app.LevelDebug, "HUB")
 
+	// Ensure port is available before starting (Self-Cleaning Startup)
+	if err := app.EnsurePortReady(*addr); err != nil {
+		app.Warnf("System:Internal:Startup:PortPreemptError: %v", err)
+	}
+
 	appRoot, rootErr := app.DetectAppRoot()
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
@@ -83,6 +89,7 @@ func main() {
 	publicConfigPathResolved := app.ResolvePathFromRoot(appRoot, *publicConfigPath)
 	userConfigPathResolved := app.ResolvePathFromRoot(appRoot, *userConfigPath)
 	sqlitePathResolved := app.ResolvePathFromRoot(appRoot, *sqlitePath)
+	servicesConfigPathResolved := app.ResolvePathFromRoot(appRoot, *servicesConfigPath)
 	dataRoot := filepath.Join(appRoot, "data")
 	webuiRoot := filepath.Join(appRoot, "webui")
 	versionPath := filepath.Join(appRoot, "version.json")
@@ -98,6 +105,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer userStore.Close()
+	startupSnapshotStore, snapshotErr := app.NewStartupSnapshotStore(sqlitePathResolved)
+	if snapshotErr != nil {
+		app.Warnf("StartupSnapshotStore-Init-Error:%v", snapshotErr)
+	}
+	if startupSnapshotStore != nil {
+		defer startupSnapshotStore.Close()
+	}
 
 	authService, err := app.NewAuthService(dataRoot)
 	if err != nil {
@@ -123,10 +137,12 @@ func main() {
 		app.Warnf("VersionFile-Read-Error:%v", verr)
 		ver = &app.VersionInfo{Format: "calver-yymmddnn", Backend: "unknown", WebUI: "unknown"}
 	}
-	app.Infof("System-Startup-Version:backend=%s,webui=%s", ver.Backend, ver.WebUI)
+	// Category 1: System:Internal:
+	app.Infof("System:Internal:Version:backend=%s,webui=%s", ver.Backend, ver.WebUI)
 
 	mux := http.NewServeMux()
 	var server *http.Server
+	var lifecycleManager *supervisor.LifecycleManager
 	supervisorRegistry := supervisor.NewRegistry()
 	routingEngine := routing.NewEngine()
 	auditStore := observability.NewStore(3000)
@@ -157,6 +173,17 @@ func main() {
 			},
 		},
 	)
+	if cfg, cfgErr := supervisor.LoadLifecycleConfig(servicesConfigPathResolved); cfgErr != nil {
+		app.Warnf("ServiceLifecycle-Config-Load-Error:%v", cfgErr)
+	} else {
+		registerURL := "http://" + strings.TrimSpace(*addr) + "/api/service/register"
+		manager, managerErr := supervisor.NewLifecycleManager(appRoot, registerURL, cfg, hubPlatform, supervisorRegistry)
+		if managerErr != nil {
+			app.Warnf("ServiceLifecycle-Init-Error:%v", managerErr)
+		} else {
+			lifecycleManager = manager
+		}
+	}
 
 	// Request logging middleware
 	loggingMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -187,13 +214,18 @@ func main() {
 
 		mux.ServeHTTP(observer, r)
 
-		user := "anonymous"
-		if claims, err := extractJWTClaims(r, authService); err == nil {
-			user = claims.Username
+		// Audit logs for all incoming requests - dynamically tagged based on identity
+		identity := app.IdentityFromContext(r.Context())
+		tag := "HUB"
+		switch identity.Type {
+		case app.IdentityService:
+			tag = strings.ToUpper(identity.Name)
+		case app.IdentityUser:
+			tag = "PAGE"
+		case app.IdentitySurface:
+			tag = "SURF"
 		}
 
-		// Audit logs for all incoming requests - always tagged as HUB source
-		tag := "HUB"
 		target := path
 		if extra != "" {
 			target = strings.Trim(extra, " []")
@@ -201,9 +233,10 @@ func main() {
 			target = fmt.Sprintf("%s %s", r.Method, path)
 		}
 
-		// Format: user-target [status] (duration)
-		desc := fmt.Sprintf("%s-%s [%d] (%v)", user, target, observer.status, time.Since(start))
-		app.InfofTag(tag, "%s", desc)
+		// Category 2: System:HTTP:
+		// Format: System:HTTP:<Method> <Path> [<Status>] (<Duration>)
+		msg := fmt.Sprintf("System:HTTP:%s [%d] (%v)", target, observer.status, time.Since(start))
+		app.InfofCtxTag(r.Context(), tag, "%s", msg)
 	})
 
 	mux.HandleFunc("/api/debug/log", func(w http.ResponseWriter, r *http.Request) {
@@ -222,16 +255,30 @@ func main() {
 			http.Error(w, "invalid body", http.StatusBadRequest)
 			return
 		}
-		tag := strings.ToUpper(strings.TrimSpace(body.Source))
-		if tag == "" {
+		identity := app.IdentityFromContext(r.Context())
+		tag := "PAGE"
+		switch identity.Type {
+		case app.IdentityService:
+			tag = strings.ToUpper(identity.Name)
+		case app.IdentitySurface:
+			tag = "SURF"
+		case app.IdentityUser:
 			tag = "PAGE"
+		default:
+			tag = "HUB"
 		}
-		page := body.Page
+
+		page := strings.TrimSpace(body.Page)
+		if identity.Type == app.IdentitySurface {
+			// For surface logs, ensure the page name is the surface name for clarity
+			page = identity.Name
+		}
 		if page == "" {
 			page = strings.ToLower(tag)
 		}
-		// Reduced format: page-module-action
-		app.InfofTag(tag, "%s-%s-%s", page, body.Module, body.Content)
+
+		// Category 3: Service:Report:
+		app.InfofCtxTag(r.Context(), tag, "Service:Report:%s:%s:%s", page, body.Module, strings.ReplaceAll(body.Content, ": ", ":"))
 		writeJSON(w, map[string]any{"ok": true})
 	})
 
@@ -264,40 +311,7 @@ func main() {
 	})
 
 	mux.HandleFunc("/api/tool/call", toolHandler.HandleCall)
-	mux.HandleFunc("/api/tool/ws", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		claims, err := extractJWTClaims(r, authService)
-		if err != nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		reg, ok := hubPlatform.GetService("chat-server")
-		if !ok {
-			http.Error(w, "chat service is not registered", http.StatusServiceUnavailable)
-			return
-		}
-		serviceToken, _, err := hubPlatform.IssueServiceSessionToken(reg.ServiceID, reg.InstanceID, 10*time.Minute)
-		if err != nil {
-			http.Error(w, "issue chat service token failed", http.StatusServiceUnavailable)
-			return
-		}
-		chatEndpoint := strings.TrimSpace(reg.Endpoint)
-		if chatEndpoint == "" {
-			chatEndpoint = strings.TrimSpace(*chatServiceURL)
-		}
-		proxy := buildServiceToolWSProxy(chatEndpoint, serviceToken, claims)
-		if proxy == nil {
-			http.Error(w, "chat ws proxy is not configured", http.StatusServiceUnavailable)
-			return
-		}
-		proxyReq := r.Clone(r.Context())
-		proxyReq.Header = r.Header.Clone()
-		proxy.ServeHTTP(w, proxyReq)
-	})
+	mux.HandleFunc("/api/tool/ws", toolHandler.HandleWS)
 
 	mux.HandleFunc("/api/internal/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -385,6 +399,10 @@ func main() {
 			http.Error(w, "invalid register payload: "+parseErr.Error(), http.StatusBadRequest)
 			return
 		}
+		if _, _, authErr := verifyServiceInternalAuth(hubPlatform, r, regReq.Manifest.ServiceID, regReq.InstanceID); authErr != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		if sid := strings.TrimSpace(regReq.Manifest.ServiceID); sid != "" {
 			prev, had, err := ensureServiceStoppedForRegister(hubPlatform, sid, regReq.InstanceID, 7*time.Second)
 			if err != nil {
@@ -425,26 +443,17 @@ func main() {
 			})
 			return
 		}
-		supervisorRegistry.UpsertFromServiceRegistration(res.Service, transportName)
+		supervisorRegistry.UpsertFromServiceRegistration(res.Service, transportName, instanceStatusFromHealth(res.Service.Healthy))
 		routingEngine.SyncServices(hubPlatform.ListRegisteredServices())
-		app.SuccfTag(strings.ToUpper(res.Service.ServiceID), "Registration-Success-Endpoint:%s", res.Service.Endpoint)
+		app.Infof("System:Internal:RegistrationSuccess:service=%s,endpoint=%s", res.Service.ServiceID, res.Service.Endpoint)
 		auditStore.Add("supervisor", "register", "ok", map[string]any{
 			"service_id":  res.Service.ServiceID,
 			"instance_id": res.Service.InstanceID,
 			"endpoint":    res.Service.Endpoint,
 		})
-		expiresInSec := 0
-		if res.ExpMS > 0 {
-			expiresInSec = int((res.ExpMS - time.Now().UnixMilli()) / 1000)
-			if expiresInSec < 0 {
-				expiresInSec = 0
-			}
-		}
 		writeJSON(w, toolproto.CallResponse{
 			Ok: true,
 			Result: toolproto.SupervisorRegisterResult{
-				ServiceSessionToken:            res.Token,
-				ExpiresInSec:                   expiresInSec,
 				HeartbeatIntervalSec:           3,
 				InverseHeartbeatIntervalSec:    3,
 				InverseHeartbeatFailuresToExit: 2,
@@ -472,9 +481,16 @@ func main() {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
+		if _, _, authErr := verifyServiceInternalAuth(hubPlatform, r, req.ServiceID, req.InstanceID); authErr != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		reg, err := hubPlatform.AcceptServiceHeartbeat(app.HubServiceHeartbeatRequest{
 			ServiceID:  strings.TrimSpace(req.ServiceID),
 			InstanceID: strings.TrimSpace(req.InstanceID),
+			PID:        req.PID,
+			Endpoint:   strings.TrimSpace(req.Endpoint),
+			Healthy:    req.Healthy,
 		})
 		if err != nil {
 			auditStore.Add("supervisor", "heartbeat", "error", map[string]any{
@@ -491,7 +507,7 @@ func main() {
 			})
 			return
 		}
-		supervisorRegistry.Heartbeat(req.ServiceID, req.InstanceID, req.Status)
+		supervisorRegistry.Heartbeat(req.ServiceID, req.InstanceID, req.Status, req.Healthy)
 		auditStore.Add("supervisor", "heartbeat", "ok", map[string]any{
 			"service_id":  reg.ServiceID,
 			"instance_id": reg.InstanceID,
@@ -528,6 +544,10 @@ func main() {
 		sid := strings.TrimSpace(req.ServiceID)
 		if sid == "" {
 			http.Error(w, "service_id is required", http.StatusBadRequest)
+			return
+		}
+		if _, _, authErr := verifyServiceInternalAuth(hubPlatform, r, sid, strings.TrimSpace(req.InstanceID)); authErr != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		reason := strings.TrimSpace(req.Reason)
@@ -570,6 +590,10 @@ func main() {
 		}
 		sid := strings.TrimSpace(req.ServiceID)
 		iid := strings.TrimSpace(req.InstanceID)
+		if _, _, authErr := verifyServiceInternalAuth(hubPlatform, r, sid, iid); authErr != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		hubPlatform.UnregisterService(sid, iid)
 		supervisorRegistry.Unregister(sid, iid)
 		routingEngine.SyncServices(hubPlatform.ListRegisteredServices())
@@ -618,18 +642,16 @@ func main() {
 			writeJSON(w, map[string]any{"ok": false, "error": "密码处理失败"})
 			return
 		}
-		userID, err := userStore.CreateUser(username, hash)
-		if err != nil {
-			if app.IsUsernameAlreadyExists(err) {
-				w.WriteHeader(http.StatusConflict)
-				writeJSON(w, map[string]any{"ok": false, "error": "用户名已存在", "error_code": "USERNAME_EXISTS"})
+			userID, err := userStore.CreateUser(username, hash)
+			if err != nil {
+				if app.IsUsernameAlreadyExists(err) {
+					writeJSONStatus(w, http.StatusConflict, map[string]any{"ok": false, "error": "用户名已存在", "error_code": "USERNAME_EXISTS"})
+					return
+				}
+				app.Errorf("register failed username=%s err=%v", username, err)
+				writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "注册失败，请稍后重试", "error_code": "REGISTER_INTERNAL_ERROR"})
 				return
 			}
-			app.Errorf("register failed username=%s err=%v", username, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			writeJSON(w, map[string]any{"ok": false, "error": "注册失败，请稍后重试", "error_code": "REGISTER_INTERNAL_ERROR"})
-			return
-		}
 		token, err := authService.IssueJWT(userID, username)
 		if err != nil {
 			http.Error(w, "issue token failed", http.StatusInternalServerError)
@@ -665,12 +687,11 @@ func main() {
 			return
 		}
 		userID, storedHash, exists, err := userStore.GetUserByUsername(username)
-		if err != nil {
-			app.Errorf("login lookup failed username=%s err=%v", username, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			writeJSON(w, map[string]any{"ok": false, "error": "登录失败，请稍后重试", "error_code": "LOGIN_INTERNAL_ERROR"})
-			return
-		}
+			if err != nil {
+				app.Errorf("login lookup failed username=%s err=%v", username, err)
+				writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "登录失败，请稍后重试", "error_code": "LOGIN_INTERNAL_ERROR"})
+				return
+			}
 		if !exists || !app.VerifyPassword(body.Password, storedHash) {
 			writeJSON(w, map[string]any{"ok": false, "error": "用户名或密码错误"})
 			return
@@ -718,14 +739,13 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		claims, err := extractJWTClaims(r, authService)
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			writeJSON(w, map[string]any{"ok": false, "error": "未登录"})
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true, "user_id": claims.UserID, "username": claims.Username})
-	})
+			claims, err := app.ExtractJWTClaims(r, authService)
+			if err != nil {
+				writeJSONStatus(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "未登录"})
+				return
+			}
+			writeJSON(w, map[string]any{"ok": true, "user_id": claims.UserID, "username": claims.Username})
+		})
 
 	mux.HandleFunc("/api/admin/services", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -733,7 +753,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -750,7 +770,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -767,7 +787,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -792,7 +812,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -808,7 +828,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -831,7 +851,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -850,7 +870,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		_, err := extractJWTClaims(r, authService)
+		_, err := app.ExtractJWTClaims(r, authService)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -874,6 +894,43 @@ func main() {
 			"ok":       true,
 			"bindings": hubPlatform.ListBindings(),
 		})
+	})
+
+	mux.HandleFunc("/api/admin/services/tool-probe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_, err := app.ExtractJWTClaims(r, authService)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var req struct {
+			ServiceID string         `json:"service_id"`
+			ToolID    string         `json:"tool_id"`
+			Args      map[string]any `json:"args,omitempty"`
+			TimeoutMS int            `json:"timeout_ms,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		callResp, statusCode, probeErr := toolHandler.ProbeServiceTool(r.Context(), req.ServiceID, req.ToolID, req.Args, req.TimeoutMS)
+		if probeErr != nil {
+			writeJSONStatus(w, http.StatusServiceUnavailable, toolproto.CallResponse{
+				Ok: false,
+				Error: &toolproto.Error{
+					Code:    toolproto.ErrorCodeServiceUnavailable,
+					Message: probeErr.Error(),
+				},
+			})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(statusCode)
+		_ = json.NewEncoder(w).Encode(callResp)
 	})
 
 	mux.HandleFunc("/admin/shutdown", func(w http.ResponseWriter, r *http.Request) {
@@ -904,6 +961,9 @@ func main() {
 
 		go func() {
 			time.Sleep(20 * time.Millisecond)
+			if lifecycleManager != nil {
+				lifecycleManager.StopAll(7 * time.Second)
+			}
 			broadcastServiceShutdown(hubPlatform, 7*time.Second)
 			appCancel()
 			if server != nil {
@@ -926,60 +986,93 @@ func main() {
 		staticFS.ServeHTTP(w, r)
 	})
 
+	mux.HandleFunc("/api/system/smoke-test", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !isLoopbackRemoteAddr(r.RemoteAddr) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		tester := app.NewSmokeTester(*addr, authService)
+		result, err := tester.Run(r.Context())
+		if err != nil {
+			app.Errorf("System:Internal:SmokeTest:Failed: %v", err)
+			writeJSONStatus(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		if !result.Ok {
+			app.Warnf("System:Internal:SmokeTest:Failed: %s", result.Message)
+			writeJSONStatus(w, http.StatusExpectationFailed, result)
+			return
+		}
+		app.Infof("System:Internal:SmokeTest:Success: %s", result.Message)
+		writeJSON(w, result)
+	})
+
+	identityMw := app.IdentityMiddleware(authService, hubPlatform)
 	server = &http.Server{
 		Addr:              *addr,
-		Handler:           loggingMux,
+		Handler:           identityMw(loggingMux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	app.Infof("kagent server root=%s listening=http://%s", appRoot, *addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	app.Infof("System:Internal:Listening:http://%s,root=%s", *addr, appRoot)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		serverErrCh <- server.ListenAndServe()
+	}()
+
+	if lifecycleManager != nil {
+		go func() {
+			time.Sleep(180 * time.Millisecond)
+			startCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+			snapshot := lifecycleManager.StartAll(startCtx)
+			if startupSnapshotStore != nil {
+				payload := map[string]any{
+					"hub_version":     strings.TrimSpace(ver.Backend),
+					"started_at_ms":   snapshot.StartedAtMS,
+					"completed_at_ms": snapshot.CompletedAtMS,
+					"services":        snapshot.Services,
+				}
+				if err := startupSnapshotStore.Save(strings.TrimSpace(ver.Backend), payload); err != nil {
+					app.Warnf("ServiceLifecycle-Snapshot-Save-Error:%v", err)
+				}
+			}
+
+			// Automatically trigger internal smoke tests after startup
+			app.Infof("System:Internal:AutoSmokeTest:Starting...")
+			tester := app.NewSmokeTester(*addr, authService)
+			// Give services a moment to complete their internal initialization
+			time.Sleep(2 * time.Second)
+			smokeCtx, smokeCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+			defer smokeCancel()
+			result, err := tester.Run(smokeCtx)
+			if err != nil {
+				app.Errorf("System:Internal:AutoSmokeTest:Failed: %v", err)
+			} else if !result.Ok {
+				app.Warnf("System:Internal:AutoSmokeTest:Failed: %s", result.Message)
+			} else {
+				app.Infof("System:Internal:AutoSmokeTest:Success: %s", result.Message)
+			}
+		}()
+	}
+	if err := <-serverErrCh; err != nil && err != http.ErrServerClosed {
 		app.Errorf("server failed: %v", err)
 		os.Exit(1)
 	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
+	writeJSONStatus(w, http.StatusOK, v)
+}
+
+func writeJSONStatus(w http.ResponseWriter, statusCode int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(v)
-}
-
-func extractJWTClaims(r *http.Request, authService *app.AuthService) (app.JWTClaims, error) {
-	cookie, err := r.Cookie(app.JWTCookieName)
-	if err != nil {
-		return app.JWTClaims{}, err
-	}
-	return authService.ParseJWT(cookie.Value)
-}
-
-func buildServiceToolWSProxy(serviceURL string, serviceToken string, claims app.JWTClaims) *httputil.ReverseProxy {
-	raw := strings.TrimSpace(serviceURL)
-	if raw == "" {
-		return nil
-	}
-	targetURL, err := url.Parse(raw)
-	if err != nil {
-		app.Warnf("invalid service url for tool ws proxy: %v", err)
-		return nil
-	}
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-	originDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originDirector(req)
-		req.URL.Path = "/service/tool/ws"
-		req.Host = targetURL.Host
-		req.Header.Set("X-Hub-Service-Token", strings.TrimSpace(serviceToken))
-		req.Header.Set("X-Caller-Type", "user")
-		req.Header.Set("X-Caller-User-Id", strings.TrimSpace(claims.UserID))
-		req.Header.Del("X-Caller-Service-Id")
-		req.Header.Del("X-Caller-Surface-Id")
-		req.Header.Set("X-User-ID", strings.TrimSpace(claims.UserID))
-		req.Header.Set("X-Username", strings.TrimSpace(claims.Username))
-	}
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		app.Warnf("tool ws proxy failed: %v", err)
-		http.Error(w, "tool ws proxy failed", http.StatusBadGateway)
-	}
-	return proxy
 }
 
 func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubServiceRegisterRequest, string, error) {
@@ -1015,6 +1108,7 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 			CapabilitiesRequired: t.CapabilitiesRequired,
 			TimeoutMSDefault:     t.TimeoutMS,
 			Streaming:            streaming,
+			WSPath:               strings.TrimSpace(t.WSPath),
 		})
 	}
 
@@ -1049,12 +1143,13 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 			ServiceID:   serviceID,
 			ServiceName: serviceID,
 			Version:     strings.TrimSpace(req.Version),
-			Reliability: "verified",
+			Reliability: "untrusted",
 			Visibility:  "internal",
 			Provides:    tools,
 		},
 		InstanceID: strings.TrimSpace(req.InstanceID),
 		Endpoint:   endpoint,
+		Healthy:    req.Healthy,
 	}, transportName, nil
 }
 
@@ -1065,6 +1160,34 @@ func isLoopbackRemoteAddr(remoteAddr string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+func verifyServiceInternalAuth(hubPlatform *app.HubPlatform, r *http.Request, expectedServiceID string, expectedInstanceID string) (string, string, error) {
+	if hubPlatform == nil {
+		return "", "", fmt.Errorf("hub platform is nil")
+	}
+	serviceID, instanceID, serviceAuth := hubsvc.ExtractServiceAuthHeaders(r.Header)
+	if serviceID == "" || instanceID == "" || serviceAuth == "" {
+		return "", "", fmt.Errorf("missing service auth headers")
+	}
+	if sid := strings.TrimSpace(expectedServiceID); sid != "" && sid != serviceID {
+		return "", "", fmt.Errorf("service auth service_id mismatch")
+	}
+	if iid := strings.TrimSpace(expectedInstanceID); iid != "" && iid != instanceID {
+		return "", "", fmt.Errorf("service auth instance_id mismatch")
+	}
+	verified, err := hubPlatform.VerifyServiceAuth(serviceID, instanceID, serviceAuth)
+	if err != nil {
+		return "", "", err
+	}
+	return strings.TrimSpace(verified.ServiceID), strings.TrimSpace(verified.InstanceID), nil
+}
+
+func instanceStatusFromHealth(healthy bool) string {
+	if healthy {
+		return supervisor.InstanceStatusReady
+	}
+	return supervisor.InstanceStatusUnhealthy
 }
 
 func ensureServiceStoppedForRegister(hubPlatform *app.HubPlatform, serviceID string, nextInstanceID string, timeout time.Duration) (app.HubServiceRegistration, bool, error) {

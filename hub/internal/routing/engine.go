@@ -458,7 +458,7 @@ func (e *Engine) computeScoreLocked(toolID string, serviceID string, baseWeight 
 
 func pickReadyInstance(instances []supervisor.Instance) (supervisor.Instance, bool) {
 	for _, instance := range instances {
-		if strings.TrimSpace(instance.Status) == supervisor.InstanceStatusReady {
+		if strings.TrimSpace(instance.Status) == supervisor.InstanceStatusReady && instance.Healthy {
 			return instance, true
 		}
 	}

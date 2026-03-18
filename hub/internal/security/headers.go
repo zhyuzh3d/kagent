@@ -4,18 +4,26 @@ import (
 	"net/http"
 	"strings"
 
+	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
 )
 
 var protectedHeaders = map[string]struct{}{
-	"X-Hub-Request-Id":     {},
-	"X-Hub-Trace-Id":       {},
-	"X-Caller-Type":        {},
-	"X-Caller-User-Id":     {},
-	"X-Caller-Service-Id":  {},
-	"X-Caller-Surface-Id":  {},
-	"X-Hub-Service-Token":  {},
-	"X-Hub-Platform-Token": {},
+	"X-Hub-Request-Id":             {},
+	"X-Hub-Trace-Id":               {},
+	"X-Caller-Type":                {},
+	"X-Caller-User-Id":             {},
+	"X-Caller-Service-Id":          {},
+	"X-Caller-Surface-Id":          {},
+	"X-Caller-Reliability":         {},
+	hubsvc.HeaderServiceID:         {},
+	hubsvc.HeaderServiceInstanceID: {},
+	hubsvc.HeaderServiceAuth:       {},
+	hubsvc.HeaderHubServiceID:      {},
+	hubsvc.HeaderHubInstanceID:     {},
+	hubsvc.HeaderHubAuth:           {},
+	"X-Hub-Service-Token":          {},
+	"X-Hub-Platform-Token":         {},
 }
 
 func SanitizeForwardHeaders(src http.Header) http.Header {
@@ -32,7 +40,7 @@ func SanitizeForwardHeaders(src http.Header) http.Header {
 	return dst
 }
 
-func InjectCallerHeaders(headers http.Header, context *toolproto.Context, serviceToken string, platformToken string) {
+func InjectCallerHeaders(headers http.Header, context *toolproto.Context, callerReliability string) {
 	if headers == nil {
 		return
 	}
@@ -56,6 +64,14 @@ func InjectCallerHeaders(headers http.Header, context *toolproto.Context, servic
 	headers.Set("X-Caller-User-Id", callerUserID)
 	headers.Set("X-Caller-Service-Id", callerServiceID)
 	headers.Set("X-Caller-Surface-Id", callerSurfaceID)
-	headers.Set("X-Hub-Service-Token", strings.TrimSpace(serviceToken))
-	headers.Set("X-Hub-Platform-Token", strings.TrimSpace(platformToken))
+	headers.Set("X-Caller-Reliability", strings.TrimSpace(callerReliability))
+}
+
+func InjectHubAuthHeaders(headers http.Header, serviceID string, instanceID string, hubAuth string) {
+	if headers == nil {
+		return
+	}
+	headers.Set(hubsvc.HeaderHubServiceID, strings.TrimSpace(serviceID))
+	headers.Set(hubsvc.HeaderHubInstanceID, strings.TrimSpace(instanceID))
+	headers.Set(hubsvc.HeaderHubAuth, strings.TrimSpace(hubAuth))
 }

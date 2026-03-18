@@ -2,6 +2,26 @@
   "service_id": "chat-server",
   "service_name": "Chat Server",
   "version": "1.0.0",
-  "reliability": "trusted",
-  "visibility": "public"
+  "visibility": "public",
+  "entry": {
+    "args": [
+      "-addr",
+      "127.0.0.1:18082",
+      "-config",
+      "services/chat-server/config/configx.json",
+      "-public-config",
+      "services/chat-server/config/config.json",
+      "-user-config",
+      "data/users/default/user_custom_config.json",
+      "-model",
+      "doubao"
+    ],
+    "env": {}
+  },
+  "lifecycle": {
+    "register_timeout_ms": 1000,
+    "restart_policy": "never",
+    "restart_backoff_ms": 300,
+    "restart_times": 3
+  }
 }

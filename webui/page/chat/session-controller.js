@@ -116,7 +116,7 @@ export function createSessionController(options) {
   async function connectWorkerWS(projectId, threadId) {
     const wsProto = location.protocol === "https:" ? "wss" : "ws";
     let wsUrl = `${wsProto}://${location.host}/api/tool/ws`;
-    const params = [];
+    const params = ["tool_id=app.chat.stream"];
     if (projectId) params.push(`project_id=${encodeURIComponent(projectId)}`);
     if (threadId) params.push(`thread_id=${encodeURIComponent(threadId)}`);
     if (params.length > 0) wsUrl += "?" + params.join("&");

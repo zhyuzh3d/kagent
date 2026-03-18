@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type RawConfig struct {
@@ -68,10 +69,10 @@ type AIServiceConfig struct {
 func (m *ModelConfig) EffectiveAIService() AIServiceConfig {
 	cfg := m.AIService
 	if cfg.Mode == "" {
-		cfg.Mode = "local"
+		cfg.Mode = "service"
 	}
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = "http://127.0.0.1:18081"
+		cfg.BaseURL = "http://127.0.0.1:18080"
 	}
 	if cfg.HealthIntervalMS <= 0 {
 		cfg.HealthIntervalMS = 5000
@@ -112,22 +113,12 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 }
 
 func validateModelConfig(cfg *ModelConfig) error {
-	active := cfg.ActiveChat()
-	if active.APIKey == "" || active.BaseURL == "" || active.Model == "" {
-		return errors.New("chat/flash config is incomplete")
-	}
-	if cfg.ASR.WSURL == "" || cfg.ASR.AppID == "" || cfg.ASR.AccessToken == "" {
-		return errors.New("asr_s config is incomplete")
-	}
-	if cfg.TTS.WSURL == "" || cfg.TTS.AppID == "" || cfg.TTS.AccessToken == "" || cfg.TTS.VoiceType == "" {
-		return errors.New("tts_s config is incomplete")
-	}
 	svc := cfg.EffectiveAIService()
-	if svc.Mode != "local" && svc.Mode != "service" {
-		return fmt.Errorf("ai_service.mode must be local or service")
+	if svc.Mode != "service" {
+		return errors.New("chat-server ai_service.mode must be service")
 	}
-	if svc.Mode == "service" && svc.BaseURL == "" {
-		return fmt.Errorf("ai_service.baseUrl is required in service mode")
+	if strings.TrimSpace(svc.BaseURL) == "" {
+		return errors.New("ai_service.baseUrl is required")
 	}
 	return nil
 }

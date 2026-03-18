@@ -29,8 +29,8 @@ func TestSelectPrefersHigherScore(t *testing.T) {
 		},
 	}
 	instances := []supervisor.Instance{
-		{ServiceID: "svc-a", InstanceID: "a1", Status: supervisor.InstanceStatusReady},
-		{ServiceID: "svc-b", InstanceID: "b1", Status: supervisor.InstanceStatusReady},
+		{ServiceID: "svc-a", InstanceID: "a1", Status: supervisor.InstanceStatusReady, Healthy: true},
+		{ServiceID: "svc-b", InstanceID: "b1", Status: supervisor.InstanceStatusReady, Healthy: true},
 	}
 	engine.SyncServices(services)
 	selection, ok := engine.Select("app.chat.project_list", services, instances)
@@ -73,7 +73,7 @@ func TestCircuitOpenAfterFailures(t *testing.T) {
 		},
 	}
 	instances := []supervisor.Instance{
-		{ServiceID: "svc-a", InstanceID: "a1", Status: supervisor.InstanceStatusReady},
+		{ServiceID: "svc-a", InstanceID: "a1", Status: supervisor.InstanceStatusReady, Healthy: true},
 	}
 	engine.SyncServices(services)
 	selection, ok := engine.Select("storage.database.query", services, instances)

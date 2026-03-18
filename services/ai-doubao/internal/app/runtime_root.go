@@ -8,7 +8,7 @@ import (
 )
 
 func DetectAppRoot() (string, error) {
-	candidates := make([]string, 0, 4)
+	candidates := make([]string, 0, 6)
 	add := func(p string) {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -29,9 +29,13 @@ func DetectAppRoot() (string, error) {
 		exeDir := filepath.Dir(exePath)
 		add(exeDir)
 		add(filepath.Dir(exeDir))
+		add(filepath.Dir(filepath.Dir(exeDir)))
+		add(filepath.Join(filepath.Dir(exeDir), "services", "ai-doubao"))
+		add(filepath.Join(filepath.Dir(filepath.Dir(exeDir)), "services", "ai-doubao"))
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		add(cwd)
+		add(filepath.Join(cwd, "services", "ai-doubao"))
 	}
 	for _, c := range candidates {
 		if isLikelyAppRoot(c) {
@@ -39,7 +43,7 @@ func DetectAppRoot() (string, error) {
 		}
 	}
 	if len(candidates) > 0 {
-		return candidates[0], fmt.Errorf("app root fallback in use, missing one of webui/config")
+		return candidates[0], fmt.Errorf("service root fallback in use, missing one of config/manifest.json")
 	}
 	return ".", fmt.Errorf("unable to detect app root")
 }
@@ -56,16 +60,31 @@ func ResolvePathFromRoot(root string, rawPath string) string {
 	if cleanRoot == "" {
 		return cleanPath
 	}
-	return filepath.Join(cleanRoot, cleanPath)
+	joined := filepath.Join(cleanRoot, cleanPath)
+	if _, err := os.Stat(joined); err == nil {
+		return joined
+	}
+	if _, err := os.Stat(cleanPath); err == nil {
+		return cleanPath
+	}
+	return joined
 }
 
 func isLikelyAppRoot(path string) bool {
-	webuiPath := filepath.Join(path, "webui")
 	configPath := filepath.Join(path, "config")
-	if !isDir(webuiPath) || !isDir(configPath) {
+	manifestPath := filepath.Join(path, "manifest.json")
+	if !isDir(configPath) || !isFile(manifestPath) {
 		return false
 	}
 	return true
+}
+
+func isFile(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !fi.IsDir()
 }
 
 func isDir(path string) bool {

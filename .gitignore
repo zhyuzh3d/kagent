@@ -2,6 +2,7 @@
 
 # Secrets / private local config (must not be committed)
 data/
+**/.service_secret
 *.db
 *.db-shm
 *.db-wal

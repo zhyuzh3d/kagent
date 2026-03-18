@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"kagent/pkg/hubsvc"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -18,12 +20,11 @@ type Session struct {
 	conn          *websocket.Conn
 	cfg           *ModelConfig
 	runtimeConfig *RuntimeConfigManager
-	sqliteStore   *SQLiteStore
+	chatStore     ChatStore
 	asr           ASRClient
 	llm           LLMClient
 	tts           TTSClient
 	pipeline      *TurnPipeline
-	opsLogger     *OperationLogger
 
 	stateMu sync.Mutex
 	state   string
@@ -85,13 +86,17 @@ type Session struct {
 	actionCallRefIDs map[string]string
 }
 
-func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, sqliteStore *SQLiteStore, providerFactory ProviderFactory) *Session {
+func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeConfigManager, chatStore ChatStore, providerFactory ProviderFactory) *Session {
 	publicCfg := defaultPublicConfig()
 	if runtimeConfig != nil {
 		publicCfg = runtimeConfig.Snapshot()
 	}
 	if providerFactory == nil {
-		providerFactory = NewLocalProviderFactory()
+		hubBaseURL := ""
+		if cfg != nil {
+			hubBaseURL = cfg.EffectiveAIService().BaseURL
+		}
+		providerFactory = NewHubProviderFactory(hubBaseURL, hubsvc.BootstrapSecret{})
 	}
 	audioQueueSize := publicCfg.Chat.Session.UpstreamAudioQueueSize
 	if audioQueueSize <= 0 {
@@ -109,7 +114,7 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 		conn:               conn,
 		cfg:                cfg,
 		runtimeConfig:      runtimeConfig,
-		sqliteStore:        sqliteStore,
+		chatStore:          chatStore,
 		asr:                providerFactory.NewASRClient(cfg, runtimeConfig),
 		llm:                providerFactory.NewLLMClient(cfg, runtimeConfig),
 		tts:                providerFactory.NewTTSClient(cfg, runtimeConfig),
@@ -123,7 +128,6 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 		assistantDrafts:    map[uint64]string{},
 		assistantFinalized: map[uint64]struct{}{},
 		turnInterrupt:      map[uint64]string{},
-		opsLogger:          NewOperationLogger(sqliteStore.userID),
 	}
 	s.pipeline = NewTurnPipeline(s.llm, s.tts, runtimeConfig, TurnCallbacks{
 		OnStatus: func(turnID uint64, state string, detail string) {
@@ -144,7 +148,7 @@ func NewSession(conn *websocket.Conn, cfg *ModelConfig, runtimeConfig *RuntimeCo
 			return s.enqueueTTS(chunk)
 		},
 	})
-	s.bootstrapHistoryFromSQLite()
+	s.bootstrapHistoryFromStore()
 	return s
 }
 
@@ -359,8 +363,8 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 }
 
 func (s *Session) handleFetchHistory(ctrl ControlMessage) {
-	if s.sqliteStore == nil {
-		Warnf("sqliteStore is nil, ignoring fetch_history")
+	if s.chatStore == nil {
+		Warnf("chatStore is nil, ignoring fetch_history")
 		return
 	}
 	limit := ctrl.Limit
@@ -376,7 +380,7 @@ func (s *Session) handleFetchHistory(ctrl ControlMessage) {
 	}
 
 	Debugf("received fetch_history: before_id=%d cursor=%d limit=%d", beforeID, ctrl.Cursor, limit)
-	history, hasMore, err := s.sqliteStore.LoadContextBeforeWithMode(beforeID, limit, ctrl.ShowMore)
+	history, hasMore, err := s.chatStore.LoadContextBeforeWithMode(beforeID, limit, ctrl.ShowMore)
 	if err != nil {
 		Errorf("fetch history failed: %v", err)
 		return
@@ -684,9 +688,6 @@ func (s *Session) cleanup() {
 		s.rootCancel()
 	}
 	_ = s.conn.Close()
-	if s.opsLogger != nil {
-		_ = s.opsLogger.Close()
-	}
 }
 
 func (s *Session) setState(state string, detail string) {
@@ -1008,10 +1009,10 @@ func (s *Session) appendHistoryMessage(msg ChatMessage) string {
 		Errorf("[Turn:%d] build message failed: %v", msg.TurnID, err)
 		return ""
 	}
-	if s.sqliteStore != nil {
-		persisted, err := s.sqliteStore.AppendMessage(entry)
+	if s.chatStore != nil {
+		persisted, err := s.chatStore.AppendMessage(entry)
 		if err != nil {
-			Errorf("[Turn:%d] sqlite append message failed: %v", msg.TurnID, err)
+			Errorf("[Turn:%d] persist message failed: %v", msg.TurnID, err)
 		} else {
 			entry = persisted
 		}
@@ -1023,13 +1024,13 @@ func (s *Session) appendHistoryMessage(msg ChatMessage) string {
 	return entry.MessageID
 }
 
-func (s *Session) bootstrapHistoryFromSQLite() {
-	if s.sqliteStore == nil {
+func (s *Session) bootstrapHistoryFromStore() {
+	if s.chatStore == nil {
 		return
 	}
-	history, err := s.sqliteStore.LoadSessionWindow(s.sessionAnchorLimit(), s.sessionMessageCap())
+	history, err := s.chatStore.LoadSessionWindow(s.sessionAnchorLimit(), s.sessionMessageCap())
 	if err != nil {
-		Warnf("load sqlite history failed: %v", err)
+		Warnf("load history failed: %v", err)
 		return
 	}
 	if len(history) == 0 {
@@ -1112,25 +1113,6 @@ func (s *Session) handleStateChange(ctrl ControlMessage) {
 		BusinessState:  cloneAnyMap(state.BusinessState),
 		Detail:         firstNonEmpty(state.EventType, "state_change"),
 	})
-	if s.opsLogger != nil {
-		if err := s.opsLogger.Append(
-			s.sqliteStore.projectID,
-			s.sqliteStore.threadID,
-			state.SurfaceID,
-			"surface.state_change",
-			map[string]any{
-				"event_type":      firstNonEmpty(state.EventType, "state_change"),
-				"surface_type":    state.SurfaceType,
-				"surface_version": state.SurfaceVersion,
-				"state_version":   state.StateVersion,
-				"status":          state.Status,
-				"visible_text":    state.VisibleText,
-				"business_state":  cloneAnyMap(state.BusinessState),
-			},
-		); err != nil {
-			Warnf("append operation log failed: %v", err)
-		}
-	}
 }
 
 func (s *Session) handleActionResult(ctrl ControlMessage) {
@@ -1171,10 +1153,10 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 	storeUserID := "default"
 	storeProjectID := "project-default"
 	storeThreadID := "chat-default"
-	if s.sqliteStore != nil {
-		storeUserID = s.sqliteStore.userID
-		storeProjectID = s.sqliteStore.projectID
-		storeThreadID = s.sqliteStore.threadID
+	if s.chatStore != nil {
+		storeUserID = s.chatStore.RuntimeUserID()
+		storeProjectID = s.chatStore.RuntimeProjectID()
+		storeThreadID = s.chatStore.RuntimeThreadID()
 	}
 	report := ActionReport{
 		ReportID:       "rep-" + newRequestID(),
@@ -1321,33 +1303,6 @@ func (s *Session) handleActionResult(ctrl ControlMessage) {
 		BusinessState:  cloneAnyMap(businessState),
 		Payload:        reportPayload,
 	})
-	if s.opsLogger != nil {
-		if err := s.opsLogger.Append(
-			s.sqliteStore.projectID,
-			s.sqliteStore.threadID,
-			surfaceID,
-			"action.report",
-			map[string]any{
-				"action_id":       actionID,
-				"action_name":     actionName,
-				"followup":        followup,
-				"status":          status,
-				"result_summary":  resultSummary,
-				"effect_summary":  effectSummary,
-				"surface_id":      surfaceID,
-				"surface_type":    report.SurfaceType,
-				"surface_version": report.SurfaceVersion,
-				"manual_confirm":  manualConfirm,
-				"block_reason":    blockReason,
-				"result":          cloneAnyMap(ctrl.ActionResult),
-				"effect":          cloneAnyMap(ctrl.ActionEffect),
-				"state":           cloneAnyMap(businessState),
-			},
-		); err != nil {
-			Warnf("append operation log failed: %v", err)
-		}
-	}
-
 	Infof("[Turn:%d] action report generated: %s status=%s followup=%s", turnID, actionName, status, followup)
 	if followup == "report" && manualConfirm != "waiting" && manualConfirm != "cancel" {
 		s.enqueueFollowupMessage(reportMsg, concurrentActionHint(ctrl.ActionResult) > 1)
@@ -1622,6 +1577,11 @@ func (s *Session) startContinuationTurn(turnID uint64, continuationSeq uint64) {
 }
 
 func (s *Session) handleConfigChange(ctrl ControlMessage) {
+	if s.runtimeConfig != nil && len(ctrl.ConfigSnapshot) > 0 {
+		if err := s.runtimeConfig.ApplySnapshot(ctrl.ConfigSnapshot); err != nil {
+			Warnf("apply runtime config snapshot failed: %v", err)
+		}
+	}
 	payload := map[string]any{
 		"source":        firstNonEmpty(strings.TrimSpace(ctrl.ConfigSource), "config_drawer"),
 		"changed_paths": append([]string(nil), ctrl.ConfigChangedPaths...),

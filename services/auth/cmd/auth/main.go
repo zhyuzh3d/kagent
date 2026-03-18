@@ -56,6 +56,7 @@ func main() {
 		instance = "auth-" + app.NewRequestID()
 	}
 	if strings.TrimSpace(*hubRegisterURL) != "" {
+		healthy := true
 		registerPayload := toolproto.SupervisorRegisterRequest{
 			ServiceID:  strings.TrimSpace(manifest.ServiceID),
 			InstanceID: strings.TrimSpace(instance),
@@ -64,7 +65,8 @@ func main() {
 			Endpoint: toolproto.Endpoint{
 				TCPURL: "http://" + strings.TrimSpace(*addr),
 			},
-			Tools: toSupervisorTools(manifest),
+			Tools:   toSupervisorTools(manifest),
+			Healthy: &healthy,
 		}
 		raw, _ := json.Marshal(registerPayload)
 		req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(*hubRegisterURL), bytes.NewReader(raw))
@@ -365,6 +367,8 @@ func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID st
 			body := map[string]any{
 				"service_id":  strings.TrimSpace(serviceID),
 				"instance_id": strings.TrimSpace(instanceID),
+				"status":      "ready",
+				"healthy":     true,
 				"pid":         pid,
 				"endpoint":    strings.TrimSpace(endpoint),
 			}

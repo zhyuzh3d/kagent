@@ -1,0 +1,36 @@
+{
+  "service": {
+    "global": {
+      "max_timeout_ms": 5000,
+      "max_restart_times": 10,
+      "grace_period_ms": 1000
+    },
+    "lifecycle_default": {
+      "register_timeout_ms": 1000,
+      "restart_policy": "never",
+      "restart_backoff_ms": 300
+    },
+    "services": [
+      {
+        "service_id": "ai-doubao",
+        "dir": "services/ai-doubao"
+      },
+      {
+        "service_id": "chat-server",
+        "dir": "services/chat-server"
+      },
+      {
+        "service_id": "file",
+        "dir": "services/file"
+      },
+      {
+        "service_id": "database",
+        "dir": "services/database"
+      },
+      {
+        "service_id": "surface-manager",
+        "dir": "services/surface-manager"
+      }
+    ]
+  }
+}

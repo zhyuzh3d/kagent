@@ -1,119 +1,1319 @@
-[2026-03-16 21:23:58] [INFO] [DEPLOY] New Deployment (ID: e6525f21, Version: 26031501)
-[2026-03-16 21:24:03] [INFO] [HUB] System-Startup-Version:backend=26031501,webui=26031402
-[2026-03-16 21:24:03] [INFO] [HUB] kagent server root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent listening=http://127.0.0.1:18080
-[2026-03-16 21:24:03] [INFO] [HUB] anonymous-GET /version [200] (25.25µs)
-[2026-03-16 21:24:03] [SUCC] [AI-DOUBAO] Registration-Success-Endpoint:http://127.0.0.1:18081
-[2026-03-16 21:24:04] [SUCC] [CHAT-SERVER] Registration-Success-Endpoint:http://127.0.0.1:18082
-[2026-03-16 21:24:04] [SUCC] [FILE] Registration-Success-Endpoint:http://127.0.0.1:18084
-[2026-03-16 21:24:04] [SUCC] [DATABASE] Registration-Success-Endpoint:http://127.0.0.1:18085
-[2026-03-16 21:24:04] [SUCC] [SURFACE-MANAGER] Registration-Success-Endpoint:http://127.0.0.1:18086
-[2026-03-16 21:24:04] [INFO] [HUB] anonymous-POST /api/auth/register [200] (61.711125ms)
-[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-GET /api/auth/me [200] (30.917µs)
-[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-app.chat.project_list [200] (1.663167ms)
-[2026-03-16 21:24:04] [INFO] [HUB] smoke_1773667444_19936-storage.database.schema [200] (1.710375ms)
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /page/chat/ [304] (399.75µs)
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /api/auth/me [200] (44.625µs)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-Script module start
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /api/config [200] (62.625µs)
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /json/config_info.json [200] (3.609708ms)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-runtime config loaded
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-GET /version [200] (23.833µs)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-System-version b26031501 ui26031402
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Initializing sidebar...
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.project_list [200] (1.685625ms)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Found 1 projects
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Selecting first project: prj-15029113b5daf4c8fef824e9f026af85
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (1.629334ms)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Found 1 threads for project
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Final context: proj=prj-15029113b5daf4c8fef824e9f026af85 thd=thd-932754bdcdb679806ff7152dc310e97b
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Rendering sidebar UI...
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Rendering 1 projects in loop
-[2026-03-16 21:24:07] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (1.387917ms)
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Sidebar-Sidebar initialization complete
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-Network-ws connected (via worker), fetching history sliding window limit=20
-[2026-03-16 21:24:07] [INFO] [PAGE] chat-AppState-Status update: Connecting
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-AppState-Status update: Idle
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /page/chat/ [304] (318.667µs)
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/tool/ws [101] (2.372924958s)
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/auth/me [200] (53.209µs)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-Script module start
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /api/config [200] (155.417µs)
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /json/config_info.json [200] (165.791µs)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-runtime config loaded
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-GET /version [200] (18.666µs)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-System-version b26031501 ui26031402
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Initializing sidebar...
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.project_list [200] (2.34575ms)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Found 1 projects
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Selecting first project: prj-15029113b5daf4c8fef824e9f026af85
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (2.2295ms)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Found 1 threads for project
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Final context: proj=prj-15029113b5daf4c8fef824e9f026af85 thd=thd-932754bdcdb679806ff7152dc310e97b
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Rendering sidebar UI...
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Rendering 1 projects in loop
-[2026-03-16 21:24:10] [INFO] [HUB] zhyuzh-app.chat.thread_list [200] (2.298375ms)
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Sidebar-Sidebar initialization complete
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-Network-ws connected (via worker), fetching history sliding window limit=20
-[2026-03-16 21:24:10] [INFO] [PAGE] chat-AppState-Status update: Connecting
-[2026-03-16 21:24:16] [INFO] [PAGE] chat-Network-ws connected (via worker), skip history fetch (messages.len=10)
-[2026-03-16 21:24:16] [INFO] [PAGE] chat-FrontendVAD-audio path: AudioWorklet
-[2026-03-16 21:24:16] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:24:18] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:24:18] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:24:18] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:19] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:20] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:21] [INFO] [PAGE] chat-AppState-Status update: Thinking
-[2026-03-16 21:24:34] [INFO] [PAGE] chat-AppState-Status update: Speaking
-[2026-03-16 21:24:34] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:24:50] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:24:50] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:24:50] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:51] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:52] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:53] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:24:53] [INFO] [PAGE] chat-AppState-Status update: Thinking
-[2026-03-16 21:24:58] [INFO] [PAGE] chat-AppState-Status update: Speaking
-[2026-03-16 21:24:58] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:03] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:25:03] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:03] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:25:04] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Recognizing
-[2026-03-16 21:25:04] [INFO] [PAGE] chat-AppState-Status update: Thinking
-[2026-03-16 21:25:08] [INFO] [PAGE] chat-AppState-Status update: Speaking
-[2026-03-16 21:25:08] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:16] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:25:16] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:17] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:25:17] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
-[2026-03-16 21:25:17] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:21] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:25:21] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:21] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:25:22] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
-[2026-03-16 21:25:22] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:25] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:25:25] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:26] [INFO] [PAGE] chat-SessionControl-Trigger LLM explicitly (trigger_llm)
-[2026-03-16 21:25:26] [INFO] [PAGE] chat-SessionControl-turn_nack received, activeReply=3
-[2026-03-16 21:25:26] [INFO] [PAGE] chat-AppState-Status update: Listening
-[2026-03-16 21:25:28] [INFO] [PAGE] chat-FrontendVAD-Speech onset detected (start_listen)
-[2026-03-16 21:25:28] [INFO] [PAGE] chat-AppState-Status update: Listening
+[2026-03-18 15:29:40] [INFO] [DEPLOY] Starting Hub (kagent)...
+[2026-03-18 15:29:40] [SUCC] [DEPLOY] Hub started (PID: 27852). Orchestration and self-tests are running internally.
+[2026-03-18 15:29:40] [INFO] [DEPLOY] Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)...
+[2026-03-18 15:29:41] [INFO] [HUB] System:Internal:Version:backend=26031601,webui=26031601
+[2026-03-18 15:29:41] [INFO] [HUB] System:Internal:Listening:http://127.0.0.1:18080,root=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent
+[2026-03-18 15:29:41] [INFO] [HUB] System:Internal:RegistrationSuccess:service=ai-doubao,endpoint=http://127.0.0.1:18081
+[2026-03-18 15:29:41] [INFO] [AI-DOUBAO] register ai-doubao to hub status=200
+[2026-03-18 15:29:41] [INFO] [AI-DOUBAO] ai-doubao service listening at http://127.0.0.1:18081
+[2026-03-18 15:29:42] [INFO] [HUB] System:Internal:RegistrationSuccess:service=chat-server,endpoint=http://127.0.0.1:18082
+[2026-03-18 15:29:42] [INFO] [CHAT-SERVER] register chat-server to hub status=200
+[2026-03-18 15:29:42] [INFO] [CHAT-SERVER] chat-server listening at http://127.0.0.1:18082
+[2026-03-18 15:29:42] [INFO] [HUB] System:Internal:RegistrationSuccess:service=file,endpoint=http://127.0.0.1:18084
+[2026-03-18 15:29:42] [INFO] [FILE] register file service to hub status=200
+[2026-03-18 15:29:42] [INFO] [FILE] file service listening=http://127.0.0.1:18084
+[2026-03-18 15:29:43] [INFO] [HUB] System:Internal:RegistrationSuccess:service=database,endpoint=http://127.0.0.1:18085
+[2026-03-18 15:29:43] [INFO] [DATABASE] register database service to hub status=200
+[2026-03-18 15:29:43] [INFO] [DATABASE] database service listening=http://127.0.0.1:18085
+[2026-03-18 15:29:43] [DEBUG] [SURFACE-MGR] initDefaultIDs: user default ensured
+[2026-03-18 15:29:43] [DEBUG] [SURFACE-MGR] initDefaultIDs: project project-default ensured for user default
+[2026-03-18 15:29:43] [DEBUG] [SURFACE-MGR] initDefaultIDs: thread chat-default ensured for proj project-default
+[2026-03-18 15:29:43] [INFO] [HUB] System:Internal:RegistrationSuccess:service=surface-manager,endpoint=http://127.0.0.1:18086
+[2026-03-18 15:29:43] [INFO] [SURFACE-MGR] register surface-manager to hub status=200
+[2026-03-18 15:29:43] [INFO] [SURFACE-MGR] surface-manager listening=http://127.0.0.1:18086
+[2026-03-18 15:29:43] [INFO] [HUB] System:Internal:AutoSmokeTest:Starting...
+[2026-03-18 15:29:45] [INFO] [HUB] System:Internal:SmokeTest:Stage: auth.register
+[2026-03-18 15:29:45] [INFO] [HUB] [anonymous] System:HTTP:POST /api/auth/register [200] (93.714125ms)
+[2026-03-18 15:29:45] [INFO] [HUB] System:Internal:SmokeTest:Stage: auth.login
+[2026-03-18 15:29:46] [INFO] [HUB] [anonymous] System:HTTP:POST /api/auth/login [200] (60.380708ms)
+[2026-03-18 15:29:46] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_list
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.337625ms)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (860.667µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (901.458µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (832.417µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (798.5µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.214167ms)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (640.625µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.31925ms)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.509958ms)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (674.25µs)
+[2026-03-18 15:29:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.450416ms)
+[2026-03-18 15:29:46] [INFO] [PAGE] [smoke_1773818985] System:HTTP:app.chat.project_list [200] (14.873458ms)
+[2026-03-18 15:29:46] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.storage.database.schema
+[2026-03-18 15:29:46] [INFO] [PAGE] [smoke_1773818985] System:HTTP:storage.database.schema [200] (1.3125ms)
+[2026-03-18 15:29:46] [INFO] [HUB] System:Internal:AutoSmokeTest:Success: All smoke tests passed
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/chat/ [304] (357.875µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /api/auth/me [200] (70.583µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:Script module start
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /api/config [200] (214.875µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /json/config_info.json [200] (2.1805ms)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:runtime config loaded
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /version [200] (17.541µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:version b26031601 ui26031601
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Initializing sidebar...
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.760334ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.139042ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.280417ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.546208ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.175417ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.173959ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.027916ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.034791ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.11ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (893.417µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (910.666µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.project_list [200] (20.679792ms)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 projects
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Selecting first project:prj-343da0ab455ef264dce17c80a6eb5e9e
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.181333ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.05225ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (957.25µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (972µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (978.333µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (843.042µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (905.625µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.241458ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (828.834µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (968.334µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (900.709µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.thread_list [200] (13.218166ms)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 threads for project
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Final context:proj=prj-343da0ab455ef264dce17c80a6eb5e9e thd=thd-72efb48180c06e8e6ebd6bc63b39f55b
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.345417ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (953.792µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (860.417µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (955.5µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (716.625µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (763.75µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.111709ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.535417ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (902.583µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.634042ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (854.208µs)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.thread_list [200] (14.993541ms)
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Sidebar initialization complete
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.333833ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (850.5µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (794.708µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.9835ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (966.209µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.074958ms)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (677µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (622.292µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (687.083µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (650µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (784.916µs)
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (927.541µs)
+[2026-03-18 15:29:47] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=20
+[2026-03-18 15:29:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
+[2026-03-18 15:29:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.393375ms)
+[2026-03-18 15:29:47] [DEBUG] [CHAT-SERVER] fetch_history returning 0 messages, hasMore=false
+[2026-03-18 15:29:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
+[2026-03-18 15:29:50] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=20
+[2026-03-18 15:29:50] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.536292ms)
+[2026-03-18 15:29:50] [DEBUG] [CHAT-SERVER] fetch_history returning 0 messages, hasMore=false
+[2026-03-18 15:29:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:audio path:AudioWorklet
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.552083ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (6.315041ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.951583ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.281459ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (3.0145ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.4235ms)
+[2026-03-18 15:29:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.2065ms)
+[2026-03-18 15:29:51] [DEBUG] [CHAT-SERVER] [Turn:0] Connecting dedicated ASR WebSocket
+[2026-03-18 15:29:51] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-ee2abb76b35f1ab35f64229e60aba2d7
+[2026-03-18 15:29:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:29:52] [INFO] [CHAT-SERVER] [Turn:1] -> VAD listening started
+[2026-03-18 15:29:52] [DEBUG] [CHAT-SERVER] [Turn:1] Connecting dedicated ASR WebSocket
+[2026-03-18 15:29:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:29:52] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-287c59cd110ece76abe5fa065275136d
+[2026-03-18 15:29:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:29:52] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:29:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:29:52] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-d4b32f4c4fb217c22dcd3e81622a09b2 turn_id=1
+[2026-03-18 15:29:52] [ERROR] [CHAT-SERVER] [Turn:1] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:29:52] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (823.629833ms)
+[2026-03-18 15:29:52] [DEBUG] [CHAT-SERVER] [Turn:1] Dedicated ASR connection closed
+[2026-03-18 15:29:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:29:53] [WARN] [CHAT-SERVER] [Turn:1] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:29:53] [DEBUG] [CHAT-SERVER] [Turn:1] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:29:53] [INFO] [CHAT-SERVER] [Turn:1] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:29:53] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=0
+[2026-03-18 15:29:53] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (7.89775ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (4.446583ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.796916ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (3.103375ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.482583ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.364834ms)
+[2026-03-18 15:29:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.2865ms)
+[2026-03-18 15:29:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Idle
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/chat/ [304] (250µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.970792ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.601875ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.691667ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (4.758667ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /api/auth/me [200] (33.083µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (5.222708ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:Script module start
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /api/config [200] (69.958µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (3.940875ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /json/config_info.json [200] (158.584µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.222583ms)
+[2026-03-18 15:29:58] [ERROR] [CHAT-SERVER] send status failed: websocket: close sent
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /api/tool/ws [101] (10.547646917s)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:runtime config loaded
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /version [200] (4.958µs)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:version b26031601 ui26031601
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Initializing sidebar...
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.83925ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.380166ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.099209ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (947.916µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.118584ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (848.291µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (874.5µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.014833ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (963.791µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (794.125µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (833.208µs)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.project_list [200] (15.551333ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 projects
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Selecting first project:prj-343da0ab455ef264dce17c80a6eb5e9e
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.043125ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.090041ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (982.666µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.006291ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (755.291µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (775.416µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (717.625µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (742.958µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (757.458µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (723.375µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.169042ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.thread_list [200] (12.214ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 threads for project
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Final context:proj=prj-343da0ab455ef264dce17c80a6eb5e9e thd=thd-72efb48180c06e8e6ebd6bc63b39f55b
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.525375ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (952.75µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (873.333µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (819.708µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (766.625µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (809.667µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (870.667µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (679.708µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (663.416µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.210042ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (673.875µs)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] System:HTTP:app.chat.thread_list [200] (13.030709ms)
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Sidebar initialization complete
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.550333ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (852.458µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (758.292µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (765µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (787.458µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (693µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (753.125µs)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (4.047208ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (4.740083ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (4.587042ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.82375ms)
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (10.080042ms)
+[2026-03-18 15:29:58] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=20
+[2026-03-18 15:29:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
+[2026-03-18 15:29:58] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.248167ms)
+[2026-03-18 15:29:58] [DEBUG] [CHAT-SERVER] fetch_history returning 0 messages, hasMore=false
+[2026-03-18 15:29:59] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-e1b4c98a6b25625a5764f3e82a60b5b8 turn_id=0 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:29:59] [DEBUG] [CHAT-SERVER] [Turn:0] Dedicated ASR connection closed
+[2026-03-18 15:29:59] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (8.256585958s)
+[2026-03-18 15:29:59] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
+[2026-03-18 15:29:59] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=20
+[2026-03-18 15:29:59] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.107792ms)
+[2026-03-18 15:29:59] [DEBUG] [CHAT-SERVER] fetch_history returning 0 messages, hasMore=false
+[2026-03-18 15:30:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:audio path:AudioWorklet
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.442208ms)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (913.375µs)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (838.625µs)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.168916ms)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.473834ms)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.222875ms)
+[2026-03-18 15:30:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.695041ms)
+[2026-03-18 15:30:00] [DEBUG] [CHAT-SERVER] [Turn:0] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:00] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-2f28570d4d959edf0ffec297b906a7ee
+[2026-03-18 15:30:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:01] [INFO] [CHAT-SERVER] [Turn:1] -> VAD listening started
+[2026-03-18 15:30:01] [DEBUG] [CHAT-SERVER] [Turn:1] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:01] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-6afb7317c0b3d8c93021138f537df573
+[2026-03-18 15:30:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:03] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [Turn:1] "Hello, hel..." -> ASR final (segment), full="Hello, hel..."
+[2026-03-18 15:30:03] [DEBUG] [CHAT-SERVER] [Turn:1] ASR final received for trigger_llm
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [Turn:1] "Hello, hel..." -> LLM Triggered
+[2026-03-18 15:30:03] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-6d6953cc5d694676bad4b36d0885cbb1 turn_id=1
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.440983125s)
+[2026-03-18 15:30:03] [DEBUG] [CHAT-SERVER] [Turn:1] Dedicated ASR connection closed
+[2026-03-18 15:30:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.622ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.998792ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.645458ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.049875ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.278375ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.488292ms)
+[2026-03-18 15:30:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.13125ms)
+[2026-03-18 15:30:03] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws request_id=chat-53136e607af5177659b3efd9c354feb9 turn_id=1
+[2026-03-18 15:30:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Thinking
+[2026-03-18 15:30:05] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws finished request_id=chat-53136e607af5177659b3efd9c354feb9 turn_id=1
+[2026-03-18 15:30:05] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.999372875s)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (653.641708ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [Turn:1] "Heythere!" -> TTS start sending...
+[2026-03-18 15:30:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Speaking
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (902.576208ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [Turn:1] -> TTS finished sending
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.648375ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.221333ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (930.459µs)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.272584ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.722792ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.03275ms)
+[2026-03-18 15:30:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (696.792µs)
+[2026-03-18 15:30:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:08] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-74c9b948954b5b12bae5323035c4a4e0 turn_id=0 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:30:08] [DEBUG] [CHAT-SERVER] [Turn:0] Dedicated ASR connection closed
+[2026-03-18 15:30:08] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (8.184837375s)
+[2026-03-18 15:30:09] [INFO] [CHAT-SERVER] [Turn:2] -> VAD listening started
+[2026-03-18 15:30:09] [DEBUG] [CHAT-SERVER] [Turn:2] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:09] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-23f169fa9f0af0cdf4d4b9b48c4e1e21
+[2026-03-18 15:30:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:11] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:11] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:12] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [Turn:2] "你在说什么呀？连标点..." -> ASR final (segment), full="你在说什么呀？连标点..."
+[2026-03-18 15:30:12] [DEBUG] [CHAT-SERVER] [Turn:2] ASR final received for trigger_llm
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [Turn:2] "你在说什么呀？连标点..." -> LLM Triggered
+[2026-03-18 15:30:12] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-5ab424341aef16cecd78f6891bf7a07b turn_id=2
+[2026-03-18 15:30:12] [DEBUG] [CHAT-SERVER] [Turn:2] Dedicated ASR connection closed
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (3.010295208s)
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.438292ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.734125ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.80725ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.231292ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.784542ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.93775ms)
+[2026-03-18 15:30:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.126542ms)
+[2026-03-18 15:30:12] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws request_id=chat-8447c84a2bd6c6ee76e009a2c5898f68 turn_id=2
+[2026-03-18 15:30:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Thinking
+[2026-03-18 15:30:15] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws finished request_id=chat-8447c84a2bd6c6ee76e009a2c5898f68 turn_id=2
+[2026-03-18 15:30:15] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (2.754309541s)
+[2026-03-18 15:30:16] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (1.213351459s)
+[2026-03-18 15:30:16] [INFO] [CHAT-SERVER] [Turn:2] "哎呀抱歉，刚才没注意..." -> TTS start sending...
+[2026-03-18 15:30:16] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Speaking
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (1.57708325s)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [Turn:2] -> TTS finished sending
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (9.881792ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.878416ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.060625ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (3.21375ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.698042ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.035708ms)
+[2026-03-18 15:30:18] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.308ms)
+[2026-03-18 15:30:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:31] [INFO] [CHAT-SERVER] [Turn:3] -> VAD listening started
+[2026-03-18 15:30:31] [DEBUG] [CHAT-SERVER] [Turn:3] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:31] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-f2c59a6bc7e27749974f2af57c231ec8
+[2026-03-18 15:30:31] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:31] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:32] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:32] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f4f6502fa8f8c40137e232a443bfb6f1 turn_id=3
+[2026-03-18 15:30:32] [ERROR] [CHAT-SERVER] [Turn:3] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:30:32] [DEBUG] [CHAT-SERVER] [Turn:3] Dedicated ASR connection closed
+[2026-03-18 15:30:32] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (665.062209ms)
+[2026-03-18 15:30:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:30:32] [WARN] [CHAT-SERVER] [Turn:3] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:30:32] [DEBUG] [CHAT-SERVER] [Turn:3] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:30:32] [INFO] [CHAT-SERVER] [Turn:3] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:30:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:30:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:34] [INFO] [CHAT-SERVER] [Turn:4] -> VAD listening started
+[2026-03-18 15:30:34] [DEBUG] [CHAT-SERVER] [Turn:4] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:34] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-ce27179259e719a45ea62c8e3c62ebc7
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:34] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:34] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f9b0c3f621089fdd4d9cc72ad5f9d0bc turn_id=4
+[2026-03-18 15:30:34] [ERROR] [CHAT-SERVER] [Turn:4] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:30:34] [DEBUG] [CHAT-SERVER] [Turn:4] Dedicated ASR connection closed
+[2026-03-18 15:30:34] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (757.941584ms)
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:30:34] [WARN] [CHAT-SERVER] [Turn:4] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:30:34] [DEBUG] [CHAT-SERVER] [Turn:4] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:30:34] [INFO] [CHAT-SERVER] [Turn:4] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:30:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:48] [INFO] [CHAT-SERVER] [Turn:5] -> VAD listening started
+[2026-03-18 15:30:48] [DEBUG] [CHAT-SERVER] [Turn:5] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:48] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-4a9542d61a4043d95ac76a9fefe4b8e4
+[2026-03-18 15:30:48] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:48] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-30cddc00e7cfbeaf3c6698ee981b0f05 turn_id=5
+[2026-03-18 15:30:48] [ERROR] [CHAT-SERVER] [Turn:5] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:30:48] [DEBUG] [CHAT-SERVER] [Turn:5] Dedicated ASR connection closed
+[2026-03-18 15:30:48] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (684.006584ms)
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:30:48] [WARN] [CHAT-SERVER] [Turn:5] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:30:48] [DEBUG] [CHAT-SERVER] [Turn:5] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:30:48] [INFO] [CHAT-SERVER] [Turn:5] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:30:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:49] [INFO] [CHAT-SERVER] [Turn:6] -> VAD listening started
+[2026-03-18 15:30:49] [DEBUG] [CHAT-SERVER] [Turn:6] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:49] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-3e7ad9fc8ee383b76b3de980a85d86c9
+[2026-03-18 15:30:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:49] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:49] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-4ab303bde303658c4c74e4c9e22450cb turn_id=6
+[2026-03-18 15:30:49] [ERROR] [CHAT-SERVER] [Turn:6] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:30:49] [DEBUG] [CHAT-SERVER] [Turn:6] Dedicated ASR connection closed
+[2026-03-18 15:30:49] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (758.034125ms)
+[2026-03-18 15:30:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:30:50] [WARN] [CHAT-SERVER] [Turn:6] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:30:50] [DEBUG] [CHAT-SERVER] [Turn:6] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:30:50] [INFO] [CHAT-SERVER] [Turn:6] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:30:50] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=50
+[2026-03-18 15:30:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:30:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:50] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (13.873208ms)
+[2026-03-18 15:30:50] [DEBUG] [CHAT-SERVER] fetch_history returning 10 messages, hasMore=false
+[2026-03-18 15:30:55] [DEBUG] [CHAT-SERVER] received fetch_history: before_id=0 cursor=0 limit=50
+[2026-03-18 15:30:55] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (7.2705ms)
+[2026-03-18 15:30:55] [DEBUG] [CHAT-SERVER] fetch_history returning 4 messages, hasMore=false
+[2026-03-18 15:30:57] [INFO] [CHAT-SERVER] [Turn:7] -> VAD listening started
+[2026-03-18 15:30:57] [DEBUG] [CHAT-SERVER] [Turn:7] Connecting dedicated ASR WebSocket
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:30:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-3051e05f14d374ce39fc3597cf5e3c05
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:30:57] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:30:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f7379b0b58cca30f9e53d24f07413250 turn_id=7
+[2026-03-18 15:30:57] [ERROR] [CHAT-SERVER] [Turn:7] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:30:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (680.185709ms)
+[2026-03-18 15:30:57] [DEBUG] [CHAT-SERVER] [Turn:7] Dedicated ASR connection closed
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:30:57] [WARN] [CHAT-SERVER] [Turn:7] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:30:57] [DEBUG] [CHAT-SERVER] [Turn:7] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:30:57] [INFO] [CHAT-SERVER] [Turn:7] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:30:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:01] [INFO] [CHAT-SERVER] [Turn:8] -> VAD listening started
+[2026-03-18 15:31:01] [DEBUG] [CHAT-SERVER] [Turn:8] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:01] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-619e6eac05b747e2cd681ce4aeeae254
+[2026-03-18 15:31:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:01] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:02] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-ecf7f6acf74524047a06905f47712422 turn_id=8
+[2026-03-18 15:31:02] [ERROR] [CHAT-SERVER] [Turn:8] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (663.159083ms)
+[2026-03-18 15:31:02] [DEBUG] [CHAT-SERVER] [Turn:8] Dedicated ASR connection closed
+[2026-03-18 15:31:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:02] [WARN] [CHAT-SERVER] [Turn:8] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:02] [DEBUG] [CHAT-SERVER] [Turn:8] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:02] [INFO] [CHAT-SERVER] [Turn:8] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:02] [INFO] [CHAT-SERVER] [Turn:9] -> VAD listening started
+[2026-03-18 15:31:02] [DEBUG] [CHAT-SERVER] [Turn:9] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:02] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b3b9036aaa3a9c182f6fc275230959d2
+[2026-03-18 15:31:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:03] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:03] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-697db3421980506533aee9b44fd9a277 turn_id=9
+[2026-03-18 15:31:03] [ERROR] [CHAT-SERVER] [Turn:9] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (788.343458ms)
+[2026-03-18 15:31:03] [DEBUG] [CHAT-SERVER] [Turn:9] Dedicated ASR connection closed
+[2026-03-18 15:31:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:03] [WARN] [CHAT-SERVER] [Turn:9] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:03] [DEBUG] [CHAT-SERVER] [Turn:9] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:03] [INFO] [CHAT-SERVER] [Turn:9] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:05] [INFO] [CHAT-SERVER] [Turn:10] -> VAD listening started
+[2026-03-18 15:31:05] [DEBUG] [CHAT-SERVER] [Turn:10] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:05] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:05] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-9213e8dbb9bf6018926ea9303f89d922
+[2026-03-18 15:31:05] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:07] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:07] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-1348e893751e147f35625a5c4d0ae9d5 turn_id=10
+[2026-03-18 15:31:07] [ERROR] [CHAT-SERVER] [Turn:10] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.630047709s)
+[2026-03-18 15:31:07] [DEBUG] [CHAT-SERVER] [Turn:10] Dedicated ASR connection closed
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:07] [WARN] [CHAT-SERVER] [Turn:10] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:07] [DEBUG] [CHAT-SERVER] [Turn:10] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:07] [INFO] [CHAT-SERVER] [Turn:10] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:07] [INFO] [CHAT-SERVER] [Turn:11] -> VAD listening started
+[2026-03-18 15:31:07] [DEBUG] [CHAT-SERVER] [Turn:11] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:07] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-f87c240aa3a353e128d67195543ffa25
+[2026-03-18 15:31:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:08] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:08] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-47d227a23076772f51dc3ee6dc0c348b turn_id=11
+[2026-03-18 15:31:08] [ERROR] [CHAT-SERVER] [Turn:11] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:08] [DEBUG] [CHAT-SERVER] [Turn:11] Dedicated ASR connection closed
+[2026-03-18 15:31:08] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.064199917s)
+[2026-03-18 15:31:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:08] [WARN] [CHAT-SERVER] [Turn:11] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:08] [DEBUG] [CHAT-SERVER] [Turn:11] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:08] [INFO] [CHAT-SERVER] [Turn:11] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:09] [INFO] [CHAT-SERVER] [Turn:12] -> VAD listening started
+[2026-03-18 15:31:09] [DEBUG] [CHAT-SERVER] [Turn:12] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:09] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-668bb4b82ccac5f44d1e6ad891c96089
+[2026-03-18 15:31:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:10] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:10] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-837e6ff0e5b79279dbbf8ea436560532 turn_id=12
+[2026-03-18 15:31:10] [ERROR] [CHAT-SERVER] [Turn:12] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:10] [DEBUG] [CHAT-SERVER] [Turn:12] Dedicated ASR connection closed
+[2026-03-18 15:31:10] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.4559465s)
+[2026-03-18 15:31:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset suppressed while awaiting reply
+[2026-03-18 15:31:10] [WARN] [CHAT-SERVER] [Turn:12] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:10] [DEBUG] [CHAT-SERVER] [Turn:12] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:10] [INFO] [CHAT-SERVER] [Turn:12] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:10] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:12] [INFO] [CHAT-SERVER] [Turn:13] -> VAD listening started
+[2026-03-18 15:31:12] [DEBUG] [CHAT-SERVER] [Turn:13] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:12] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-76ac71e251c3f8b6b84f4e09a8393463
+[2026-03-18 15:31:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:13] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:13] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-16e03d0296b8cf9b71f53e2fc2b65e90 turn_id=13
+[2026-03-18 15:31:13] [ERROR] [CHAT-SERVER] [Turn:13] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:13] [DEBUG] [CHAT-SERVER] [Turn:13] Dedicated ASR connection closed
+[2026-03-18 15:31:13] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.256479583s)
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:13] [WARN] [CHAT-SERVER] [Turn:13] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:13] [DEBUG] [CHAT-SERVER] [Turn:13] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:13] [INFO] [CHAT-SERVER] [Turn:13] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:13] [INFO] [CHAT-SERVER] [Turn:14] -> VAD listening started
+[2026-03-18 15:31:13] [DEBUG] [CHAT-SERVER] [Turn:14] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:13] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-9085a702966fa3e4888f5b5a28c6fa86
+[2026-03-18 15:31:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:14] [WARN] [CHAT-SERVER] [Turn:14] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:14] [DEBUG] [CHAT-SERVER] [Turn:14] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:14] [INFO] [CHAT-SERVER] [Turn:14] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:14] [INFO] [CHAT-SERVER] [Turn:15] -> VAD listening started
+[2026-03-18 15:31:14] [DEBUG] [CHAT-SERVER] [Turn:15] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:14] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-1c852adc884639c2225d27f773f1e4d6
+[2026-03-18 15:31:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:15] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:15] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:15] [WARN] [CHAT-SERVER] [Turn:15] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:15] [DEBUG] [CHAT-SERVER] [Turn:15] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:15] [INFO] [CHAT-SERVER] [Turn:15] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:15] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:15] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-d8d264b71b6d3b76e0684de2bf1c1605 turn_id=15
+[2026-03-18 15:31:15] [DEBUG] [CHAT-SERVER] [Turn:15] Dedicated ASR connection closed
+[2026-03-18 15:31:15] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.157761333s)
+[2026-03-18 15:31:15] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:23] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-1a3062c246f1002f46da4541652f95a6 turn_id=14 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:31:23] [DEBUG] [CHAT-SERVER] [Turn:14] Dedicated ASR connection closed
+[2026-03-18 15:31:23] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (10.234142292s)
+[2026-03-18 15:31:24] [INFO] [CHAT-SERVER] [Turn:16] -> VAD listening started
+[2026-03-18 15:31:24] [DEBUG] [CHAT-SERVER] [Turn:16] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:24] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-ee2257023f8b77cd368ca4ac27553d7b
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:25] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:25] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-dd96bcf0509aec01d6f606932e1275f7 turn_id=16
+[2026-03-18 15:31:25] [ERROR] [CHAT-SERVER] [Turn:16] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:25] [DEBUG] [CHAT-SERVER] [Turn:16] Dedicated ASR connection closed
+[2026-03-18 15:31:25] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (676.614333ms)
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:25] [WARN] [CHAT-SERVER] [Turn:16] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:25] [DEBUG] [CHAT-SERVER] [Turn:16] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:25] [INFO] [CHAT-SERVER] [Turn:16] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:25] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:26] [INFO] [CHAT-SERVER] [Turn:17] -> VAD listening started
+[2026-03-18 15:31:26] [DEBUG] [CHAT-SERVER] [Turn:17] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:26] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-3f4d95f5cf35d05a60ef961d141c4628
+[2026-03-18 15:31:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:27] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:27] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-decfabdcbfc8fd525ae0d4e763cf887a turn_id=17
+[2026-03-18 15:31:27] [ERROR] [CHAT-SERVER] [Turn:17] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:27] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (671.288542ms)
+[2026-03-18 15:31:27] [DEBUG] [CHAT-SERVER] [Turn:17] Dedicated ASR connection closed
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset suppressed while awaiting reply
+[2026-03-18 15:31:27] [WARN] [CHAT-SERVER] [Turn:17] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:27] [DEBUG] [CHAT-SERVER] [Turn:17] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:27] [INFO] [CHAT-SERVER] [Turn:17] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:27] [INFO] [CHAT-SERVER] [Turn:18] -> VAD listening started
+[2026-03-18 15:31:27] [DEBUG] [CHAT-SERVER] [Turn:18] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:27] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-5e2a3276929359890142c0ccf13b61f5
+[2026-03-18 15:31:27] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:28] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:28] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:28] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-82e6ae9d800fff0a7447592a9a3368d9 turn_id=18
+[2026-03-18 15:31:28] [ERROR] [CHAT-SERVER] [Turn:18] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:28] [DEBUG] [CHAT-SERVER] [Turn:18] Dedicated ASR connection closed
+[2026-03-18 15:31:28] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (652.538ms)
+[2026-03-18 15:31:28] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:28] [WARN] [CHAT-SERVER] [Turn:18] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:28] [DEBUG] [CHAT-SERVER] [Turn:18] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:28] [INFO] [CHAT-SERVER] [Turn:18] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:28] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:28] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:37] [INFO] [CHAT-SERVER] [Turn:19] -> VAD listening started
+[2026-03-18 15:31:37] [DEBUG] [CHAT-SERVER] [Turn:19] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:37] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:37] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-4bd0898499da974ce06a2dfd15d5af03
+[2026-03-18 15:31:37] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:38] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:38] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:38] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-fbdc7dca9d20c6c11d8a0514b3606869 turn_id=19
+[2026-03-18 15:31:38] [ERROR] [CHAT-SERVER] [Turn:19] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:38] [DEBUG] [CHAT-SERVER] [Turn:19] Dedicated ASR connection closed
+[2026-03-18 15:31:38] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (703.330792ms)
+[2026-03-18 15:31:38] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:38] [WARN] [CHAT-SERVER] [Turn:19] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:38] [DEBUG] [CHAT-SERVER] [Turn:19] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:38] [INFO] [CHAT-SERVER] [Turn:19] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:38] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:38] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:50] [INFO] [CHAT-SERVER] [Turn:20] -> VAD listening started
+[2026-03-18 15:31:50] [DEBUG] [CHAT-SERVER] [Turn:20] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:50] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-e1643975af05035bdba689c4ff11a071
+[2026-03-18 15:31:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:51] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:51] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-02ed716323829172f58a1897866c9eed turn_id=20
+[2026-03-18 15:31:51] [ERROR] [CHAT-SERVER] [Turn:20] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (753.002875ms)
+[2026-03-18 15:31:51] [DEBUG] [CHAT-SERVER] [Turn:20] Dedicated ASR connection closed
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset suppressed while awaiting reply
+[2026-03-18 15:31:51] [WARN] [CHAT-SERVER] [Turn:20] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:51] [DEBUG] [CHAT-SERVER] [Turn:20] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:51] [INFO] [CHAT-SERVER] [Turn:20] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:51] [INFO] [CHAT-SERVER] [Turn:21] -> VAD listening started
+[2026-03-18 15:31:51] [DEBUG] [CHAT-SERVER] [Turn:21] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:51] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-2fa1cd2a8fcd235bf93ada1f40ad8e51
+[2026-03-18 15:31:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:52] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:52] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-4ca37a4377c5cc4fd70097eb2e27bffb turn_id=21
+[2026-03-18 15:31:52] [ERROR] [CHAT-SERVER] [Turn:21] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:52] [DEBUG] [CHAT-SERVER] [Turn:21] Dedicated ASR connection closed
+[2026-03-18 15:31:52] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (663.316166ms)
+[2026-03-18 15:31:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:52] [WARN] [CHAT-SERVER] [Turn:21] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:52] [DEBUG] [CHAT-SERVER] [Turn:21] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:52] [INFO] [CHAT-SERVER] [Turn:21] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:52] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:57] [INFO] [CHAT-SERVER] [Turn:22] -> VAD listening started
+[2026-03-18 15:31:57] [DEBUG] [CHAT-SERVER] [Turn:22] Connecting dedicated ASR WebSocket
+[2026-03-18 15:31:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:31:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-fd3c4bb5e55be1cfbec0cd56cb63c988
+[2026-03-18 15:31:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:31:57] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:31:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:31:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-7693b546740adf2298c7586d1c775eff turn_id=22
+[2026-03-18 15:31:57] [ERROR] [CHAT-SERVER] [Turn:22] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:31:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (690.372166ms)
+[2026-03-18 15:31:57] [DEBUG] [CHAT-SERVER] [Turn:22] Dedicated ASR connection closed
+[2026-03-18 15:31:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:31:58] [WARN] [CHAT-SERVER] [Turn:22] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:31:58] [DEBUG] [CHAT-SERVER] [Turn:22] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:31:58] [INFO] [CHAT-SERVER] [Turn:22] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:31:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:31:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:08] [INFO] [CHAT-SERVER] [Turn:23] -> VAD listening started
+[2026-03-18 15:32:08] [DEBUG] [CHAT-SERVER] [Turn:23] Connecting dedicated ASR WebSocket
+[2026-03-18 15:32:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:32:08] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-662545ab582487b0044eba6106920297
+[2026-03-18 15:32:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:09] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:32:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:32:09] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-a1ba1b971e5bcf70080cf58b371723d8 turn_id=23
+[2026-03-18 15:32:09] [ERROR] [CHAT-SERVER] [Turn:23] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:32:09] [DEBUG] [CHAT-SERVER] [Turn:23] Dedicated ASR connection closed
+[2026-03-18 15:32:09] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (798.776625ms)
+[2026-03-18 15:32:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:32:09] [WARN] [CHAT-SERVER] [Turn:23] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:32:09] [DEBUG] [CHAT-SERVER] [Turn:23] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:32:09] [INFO] [CHAT-SERVER] [Turn:23] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:32:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:32:09] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:26] [INFO] [CHAT-SERVER] [Turn:24] -> VAD listening started
+[2026-03-18 15:32:26] [DEBUG] [CHAT-SERVER] [Turn:24] Connecting dedicated ASR WebSocket
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:32:26] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-7c320da19220bcdaa90b9aba44f2c25b
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:26] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:32:26] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-ac52cd265f1079a937189b96b5e10624 turn_id=24
+[2026-03-18 15:32:26] [ERROR] [CHAT-SERVER] [Turn:24] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:32:26] [DEBUG] [CHAT-SERVER] [Turn:24] Dedicated ASR connection closed
+[2026-03-18 15:32:26] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (668.315125ms)
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:32:26] [WARN] [CHAT-SERVER] [Turn:24] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:32:26] [DEBUG] [CHAT-SERVER] [Turn:24] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:32:26] [INFO] [CHAT-SERVER] [Turn:24] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:32:26] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:45] [INFO] [CHAT-SERVER] [Turn:25] -> VAD listening started
+[2026-03-18 15:32:45] [DEBUG] [CHAT-SERVER] [Turn:25] Connecting dedicated ASR WebSocket
+[2026-03-18 15:32:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:32:45] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-79269bf1f53f8d068a946395859b372d
+[2026-03-18 15:32:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:32:46] [WARN] [CHAT-SERVER] [Turn:25] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:32:46] [DEBUG] [CHAT-SERVER] [Turn:25] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:32:46] [INFO] [CHAT-SERVER] [Turn:25] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:32:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:32:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:50] [INFO] [CHAT-SERVER] [Turn:26] -> VAD listening started
+[2026-03-18 15:32:50] [DEBUG] [CHAT-SERVER] [Turn:26] Connecting dedicated ASR WebSocket
+[2026-03-18 15:32:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:32:50] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b3ec97d69c7dd9496446f6c916d6dace
+[2026-03-18 15:32:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:51] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:32:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:32:51] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-67a8a699746bae19e06f5bcf96298573 turn_id=26
+[2026-03-18 15:32:51] [ERROR] [CHAT-SERVER] [Turn:26] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:32:51] [DEBUG] [CHAT-SERVER] [Turn:26] Dedicated ASR connection closed
+[2026-03-18 15:32:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (642.801041ms)
+[2026-03-18 15:32:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:32:51] [WARN] [CHAT-SERVER] [Turn:26] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:32:51] [DEBUG] [CHAT-SERVER] [Turn:26] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:32:51] [INFO] [CHAT-SERVER] [Turn:26] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:32:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:32:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:53] [INFO] [CHAT-SERVER] [Turn:27] -> VAD listening started
+[2026-03-18 15:32:53] [DEBUG] [CHAT-SERVER] [Turn:27] Connecting dedicated ASR WebSocket
+[2026-03-18 15:32:53] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:32:53] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:53] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-02987f0d1068a66e2306a5282b1173ef
+[2026-03-18 15:32:54] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:32:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:32:54] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-23c519867a01aa98121dd5c8bdff5736 turn_id=27
+[2026-03-18 15:32:54] [ERROR] [CHAT-SERVER] [Turn:27] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:32:54] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (669.745417ms)
+[2026-03-18 15:32:54] [DEBUG] [CHAT-SERVER] [Turn:27] Dedicated ASR connection closed
+[2026-03-18 15:32:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:32:54] [WARN] [CHAT-SERVER] [Turn:27] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:32:54] [DEBUG] [CHAT-SERVER] [Turn:27] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:32:54] [INFO] [CHAT-SERVER] [Turn:27] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:32:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:32:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:32:55] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-6853a5057d4e2f4ff48b60421adbe0ac turn_id=25 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:32:55] [DEBUG] [CHAT-SERVER] [Turn:25] Dedicated ASR connection closed
+[2026-03-18 15:32:55] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (10.189754375s)
+[2026-03-18 15:34:32] [INFO] [CHAT-SERVER] [Turn:28] -> VAD listening started
+[2026-03-18 15:34:32] [DEBUG] [CHAT-SERVER] [Turn:28] Connecting dedicated ASR WebSocket
+[2026-03-18 15:34:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:34:32] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-54c39bebd153e6ac7878c94704f3faf8
+[2026-03-18 15:34:32] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:33] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:34:33] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-1e30ae2fdd3b4ca2805b5df05afc293b turn_id=28
+[2026-03-18 15:34:33] [ERROR] [CHAT-SERVER] [Turn:28] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:34:33] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.361056625s)
+[2026-03-18 15:34:33] [DEBUG] [CHAT-SERVER] [Turn:28] Dedicated ASR connection closed
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:34:33] [WARN] [CHAT-SERVER] [Turn:28] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:34:33] [DEBUG] [CHAT-SERVER] [Turn:28] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:34:33] [INFO] [CHAT-SERVER] [Turn:28] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:33] [INFO] [CHAT-SERVER] [Turn:29] -> VAD listening started
+[2026-03-18 15:34:33] [DEBUG] [CHAT-SERVER] [Turn:29] Connecting dedicated ASR WebSocket
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:34:33] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-95d6bc11901ad1d7853dc847b8160c3c
+[2026-03-18 15:34:33] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:34] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:34:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:34:34] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f5f3ed24b8d18738d30d8241d45b831f turn_id=29
+[2026-03-18 15:34:34] [ERROR] [CHAT-SERVER] [Turn:29] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:34:34] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (722.019417ms)
+[2026-03-18 15:34:34] [DEBUG] [CHAT-SERVER] [Turn:29] Dedicated ASR connection closed
+[2026-03-18 15:34:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:34:34] [WARN] [CHAT-SERVER] [Turn:29] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:34:34] [DEBUG] [CHAT-SERVER] [Turn:29] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:34:34] [INFO] [CHAT-SERVER] [Turn:29] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:34:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:34:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:35] [INFO] [CHAT-SERVER] [Turn:30] -> VAD listening started
+[2026-03-18 15:34:35] [DEBUG] [CHAT-SERVER] [Turn:30] Connecting dedicated ASR WebSocket
+[2026-03-18 15:34:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:34:35] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-4f8b646dd4a3a51a7b422cafcf617d54
+[2026-03-18 15:34:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:36] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:34:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:34:36] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-69c71598f266eea977fc71229adc5385 turn_id=30
+[2026-03-18 15:34:36] [ERROR] [CHAT-SERVER] [Turn:30] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:34:36] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (658.006917ms)
+[2026-03-18 15:34:36] [DEBUG] [CHAT-SERVER] [Turn:30] Dedicated ASR connection closed
+[2026-03-18 15:34:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:34:36] [WARN] [CHAT-SERVER] [Turn:30] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:34:36] [DEBUG] [CHAT-SERVER] [Turn:30] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:34:36] [INFO] [CHAT-SERVER] [Turn:30] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:34:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:34:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:45] [INFO] [CHAT-SERVER] [Turn:31] -> VAD listening started
+[2026-03-18 15:34:45] [DEBUG] [CHAT-SERVER] [Turn:31] Connecting dedicated ASR WebSocket
+[2026-03-18 15:34:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:34:45] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b58cf25aa41c8014d8b5b1c1d939056e
+[2026-03-18 15:34:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:34:46] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:34:46] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-d4b1b586e145f547a56a6737ca5ddfd2 turn_id=31
+[2026-03-18 15:34:46] [ERROR] [CHAT-SERVER] [Turn:31] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:34:46] [DEBUG] [CHAT-SERVER] [Turn:31] Dedicated ASR connection closed
+[2026-03-18 15:34:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (677.286917ms)
+[2026-03-18 15:34:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:34:46] [WARN] [CHAT-SERVER] [Turn:31] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:34:46] [DEBUG] [CHAT-SERVER] [Turn:31] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:34:46] [INFO] [CHAT-SERVER] [Turn:31] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:34:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:34:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:34:59] [INFO] [CHAT-SERVER] [Turn:32] -> VAD listening started
+[2026-03-18 15:34:59] [DEBUG] [CHAT-SERVER] [Turn:32] Connecting dedicated ASR WebSocket
+[2026-03-18 15:34:59] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:34:59] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-c8328dff813afec41fef51cb61119a55
+[2026-03-18 15:34:59] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:00] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:00] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-95ca9a034fded20d55da544639a9d857 turn_id=32
+[2026-03-18 15:35:00] [ERROR] [CHAT-SERVER] [Turn:32] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:00] [DEBUG] [CHAT-SERVER] [Turn:32] Dedicated ASR connection closed
+[2026-03-18 15:35:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (897.318583ms)
+[2026-03-18 15:35:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:00] [WARN] [CHAT-SERVER] [Turn:32] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:00] [DEBUG] [CHAT-SERVER] [Turn:32] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:00] [INFO] [CHAT-SERVER] [Turn:32] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:06] [INFO] [CHAT-SERVER] [Turn:33] -> VAD listening started
+[2026-03-18 15:35:06] [DEBUG] [CHAT-SERVER] [Turn:33] Connecting dedicated ASR WebSocket
+[2026-03-18 15:35:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:35:06] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-6e82d6e528f887971f3e1931882be903
+[2026-03-18 15:35:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:07] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:07] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-a05f4093c3a6b9cee4307631368e04c1 turn_id=33
+[2026-03-18 15:35:07] [ERROR] [CHAT-SERVER] [Turn:33] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.477437209s)
+[2026-03-18 15:35:07] [DEBUG] [CHAT-SERVER] [Turn:33] Dedicated ASR connection closed
+[2026-03-18 15:35:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:08] [WARN] [CHAT-SERVER] [Turn:33] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:08] [DEBUG] [CHAT-SERVER] [Turn:33] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:08] [INFO] [CHAT-SERVER] [Turn:33] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:35:13] [INFO] [CHAT-SERVER] [Turn:34] -> VAD listening started
+[2026-03-18 15:35:13] [DEBUG] [CHAT-SERVER] [Turn:34] Connecting dedicated ASR WebSocket
+[2026-03-18 15:35:13] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-9f546257cca572d463c13d72d8006368
+[2026-03-18 15:35:13] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:14] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:14] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-eb0a00fedd21c0afa5fd31b67ed10c43 turn_id=34
+[2026-03-18 15:35:14] [ERROR] [CHAT-SERVER] [Turn:34] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:14] [DEBUG] [CHAT-SERVER] [Turn:34] Dedicated ASR connection closed
+[2026-03-18 15:35:14] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (744.228667ms)
+[2026-03-18 15:35:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:14] [WARN] [CHAT-SERVER] [Turn:34] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:14] [DEBUG] [CHAT-SERVER] [Turn:34] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:14] [INFO] [CHAT-SERVER] [Turn:34] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:14] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:29] [INFO] [CHAT-SERVER] [Turn:35] -> VAD listening started
+[2026-03-18 15:35:29] [DEBUG] [CHAT-SERVER] [Turn:35] Connecting dedicated ASR WebSocket
+[2026-03-18 15:35:29] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:35:29] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-47b525f96eea9599b4ba65067d05ad1d
+[2026-03-18 15:35:29] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:29] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:29] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:30] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-101562ae9e0947a5ffb96bef611dec44 turn_id=35
+[2026-03-18 15:35:30] [ERROR] [CHAT-SERVER] [Turn:35] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:30] [DEBUG] [CHAT-SERVER] [Turn:35] Dedicated ASR connection closed
+[2026-03-18 15:35:30] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (780.30925ms)
+[2026-03-18 15:35:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:30] [WARN] [CHAT-SERVER] [Turn:35] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:30] [DEBUG] [CHAT-SERVER] [Turn:35] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:30] [INFO] [CHAT-SERVER] [Turn:35] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:42] [INFO] [CHAT-SERVER] [Turn:36] -> VAD listening started
+[2026-03-18 15:35:42] [DEBUG] [CHAT-SERVER] [Turn:36] Connecting dedicated ASR WebSocket
+[2026-03-18 15:35:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:35:42] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-0c48a0005042501502a2edda692e2b5e
+[2026-03-18 15:35:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:43] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:43] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-9a7d62c7e392cb1494cc8dc7061e9982 turn_id=36
+[2026-03-18 15:35:43] [ERROR] [CHAT-SERVER] [Turn:36] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:43] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (684.955583ms)
+[2026-03-18 15:35:43] [DEBUG] [CHAT-SERVER] [Turn:36] Dedicated ASR connection closed
+[2026-03-18 15:35:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:43] [WARN] [CHAT-SERVER] [Turn:36] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:43] [DEBUG] [CHAT-SERVER] [Turn:36] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:43] [INFO] [CHAT-SERVER] [Turn:36] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:45] [INFO] [CHAT-SERVER] [Turn:37] -> VAD listening started
+[2026-03-18 15:35:45] [DEBUG] [CHAT-SERVER] [Turn:37] Connecting dedicated ASR WebSocket
+[2026-03-18 15:35:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:35:45] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-796afc12fcc358dbb25da3071a43f2e3
+[2026-03-18 15:35:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:35:46] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:35:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:35:46] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-c8e7fe6272e2dbdeda6d27dc0b45f8a3 turn_id=37
+[2026-03-18 15:35:46] [ERROR] [CHAT-SERVER] [Turn:37] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:35:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (648.681666ms)
+[2026-03-18 15:35:46] [DEBUG] [CHAT-SERVER] [Turn:37] Dedicated ASR connection closed
+[2026-03-18 15:35:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:35:46] [WARN] [CHAT-SERVER] [Turn:37] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:35:46] [DEBUG] [CHAT-SERVER] [Turn:37] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:35:46] [INFO] [CHAT-SERVER] [Turn:37] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:35:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:35:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:06] [INFO] [CHAT-SERVER] [Turn:38] -> VAD listening started
+[2026-03-18 15:36:06] [DEBUG] [CHAT-SERVER] [Turn:38] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:06] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-79cfddc426116115fec55dcb861cd1d0
+[2026-03-18 15:36:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:06] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:06] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f064b4db32379ee8a9905351f647ba10 turn_id=38
+[2026-03-18 15:36:06] [ERROR] [CHAT-SERVER] [Turn:38] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (694.840209ms)
+[2026-03-18 15:36:06] [DEBUG] [CHAT-SERVER] [Turn:38] Dedicated ASR connection closed
+[2026-03-18 15:36:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:07] [WARN] [CHAT-SERVER] [Turn:38] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:07] [DEBUG] [CHAT-SERVER] [Turn:38] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:07] [INFO] [CHAT-SERVER] [Turn:38] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:07] [INFO] [CHAT-SERVER] [Turn:39] -> VAD listening started
+[2026-03-18 15:36:07] [DEBUG] [CHAT-SERVER] [Turn:39] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:07] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b43856b37839f525ba41793ef900ec80
+[2026-03-18 15:36:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:08] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:08] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-d55b1d90e9e22fb1f02600dbc5bb2f25 turn_id=39
+[2026-03-18 15:36:08] [ERROR] [CHAT-SERVER] [Turn:39] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:08] [DEBUG] [CHAT-SERVER] [Turn:39] Dedicated ASR connection closed
+[2026-03-18 15:36:08] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (705.503042ms)
+[2026-03-18 15:36:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:08] [WARN] [CHAT-SERVER] [Turn:39] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:08] [DEBUG] [CHAT-SERVER] [Turn:39] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:08] [INFO] [CHAT-SERVER] [Turn:39] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:08] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:23] [INFO] [CHAT-SERVER] [Turn:40] -> VAD listening started
+[2026-03-18 15:36:23] [DEBUG] [CHAT-SERVER] [Turn:40] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:23] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-443d750d168db96ed557b7e42d9efde4
+[2026-03-18 15:36:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:24] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:24] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:24] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-b8a04aa8cda70ded205fcd81e3d8eb33 turn_id=40
+[2026-03-18 15:36:24] [ERROR] [CHAT-SERVER] [Turn:40] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:24] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (682.215792ms)
+[2026-03-18 15:36:24] [DEBUG] [CHAT-SERVER] [Turn:40] Dedicated ASR connection closed
+[2026-03-18 15:36:24] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:24] [WARN] [CHAT-SERVER] [Turn:40] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:24] [DEBUG] [CHAT-SERVER] [Turn:40] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:24] [INFO] [CHAT-SERVER] [Turn:40] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:24] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:24] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:34] [INFO] [CHAT-SERVER] [Turn:41] -> VAD listening started
+[2026-03-18 15:36:34] [DEBUG] [CHAT-SERVER] [Turn:41] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:34] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-c3f28512bf22b414b5931342d50d3874
+[2026-03-18 15:36:34] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:35] [WARN] [CHAT-SERVER] [Turn:41] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:35] [DEBUG] [CHAT-SERVER] [Turn:41] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:35] [INFO] [CHAT-SERVER] [Turn:41] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:42] [INFO] [CHAT-SERVER] [Turn:42] -> VAD listening started
+[2026-03-18 15:36:42] [DEBUG] [CHAT-SERVER] [Turn:42] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:42] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-26342d4250289ce4717c40deb1077b0f
+[2026-03-18 15:36:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:42] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:42] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-412fd738b8de04f7b89974e34c35756a turn_id=42
+[2026-03-18 15:36:42] [ERROR] [CHAT-SERVER] [Turn:42] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:42] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (814.806416ms)
+[2026-03-18 15:36:42] [DEBUG] [CHAT-SERVER] [Turn:42] Dedicated ASR connection closed
+[2026-03-18 15:36:42] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:43] [WARN] [CHAT-SERVER] [Turn:42] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:43] [DEBUG] [CHAT-SERVER] [Turn:42] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:43] [INFO] [CHAT-SERVER] [Turn:42] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:43] [INFO] [CHAT-SERVER] [Turn:43] -> VAD listening started
+[2026-03-18 15:36:43] [DEBUG] [CHAT-SERVER] [Turn:43] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:43] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-90690d60e21039827c12023f41a33822
+[2026-03-18 15:36:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:44] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:44] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:44] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-aa4b219e073f6e356b400c891624f338 turn_id=43
+[2026-03-18 15:36:44] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-230dc882f78812274192716bfc7166dc turn_id=41 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:36:44] [DEBUG] [CHAT-SERVER] [Turn:41] Dedicated ASR connection closed
+[2026-03-18 15:36:44] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (10.258847875s)
+[2026-03-18 15:36:44] [ERROR] [CHAT-SERVER] [Turn:43] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:44] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (840.498875ms)
+[2026-03-18 15:36:44] [DEBUG] [CHAT-SERVER] [Turn:43] Dedicated ASR connection closed
+[2026-03-18 15:36:44] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:44] [WARN] [CHAT-SERVER] [Turn:43] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:44] [DEBUG] [CHAT-SERVER] [Turn:43] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:44] [INFO] [CHAT-SERVER] [Turn:43] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:44] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:44] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:45] [INFO] [CHAT-SERVER] [Turn:44] -> VAD listening started
+[2026-03-18 15:36:45] [DEBUG] [CHAT-SERVER] [Turn:44] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:45] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b28dcd25657cc1c0f50bec60d1022106
+[2026-03-18 15:36:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:46] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:46] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-cbdd85e886d5cc3afa09f9ca32d823a4 turn_id=44
+[2026-03-18 15:36:46] [ERROR] [CHAT-SERVER] [Turn:44] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:46] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (766.779833ms)
+[2026-03-18 15:36:46] [DEBUG] [CHAT-SERVER] [Turn:44] Dedicated ASR connection closed
+[2026-03-18 15:36:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:46] [WARN] [CHAT-SERVER] [Turn:44] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:46] [DEBUG] [CHAT-SERVER] [Turn:44] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:46] [INFO] [CHAT-SERVER] [Turn:44] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:46] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:47] [INFO] [CHAT-SERVER] [Turn:45] -> VAD listening started
+[2026-03-18 15:36:47] [DEBUG] [CHAT-SERVER] [Turn:45] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:47] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-34ad7c789537098a41daf7fd6797eb14
+[2026-03-18 15:36:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:47] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:47] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-76cd7460ec5e6db60dfd1216f34564ec turn_id=45
+[2026-03-18 15:36:47] [ERROR] [CHAT-SERVER] [Turn:45] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:47] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (758.775458ms)
+[2026-03-18 15:36:47] [DEBUG] [CHAT-SERVER] [Turn:45] Dedicated ASR connection closed
+[2026-03-18 15:36:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:48] [WARN] [CHAT-SERVER] [Turn:45] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:48] [DEBUG] [CHAT-SERVER] [Turn:45] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:48] [INFO] [CHAT-SERVER] [Turn:45] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:50] [INFO] [CHAT-SERVER] [Turn:46] -> VAD listening started
+[2026-03-18 15:36:50] [DEBUG] [CHAT-SERVER] [Turn:46] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:50] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-f76ea2440f6a28bc993c54f006b5df0c
+[2026-03-18 15:36:50] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:51] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:51] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-b8fa2b1d040258e26bcd37fdf680a05e turn_id=46
+[2026-03-18 15:36:51] [ERROR] [CHAT-SERVER] [Turn:46] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:51] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (668.469208ms)
+[2026-03-18 15:36:51] [DEBUG] [CHAT-SERVER] [Turn:46] Dedicated ASR connection closed
+[2026-03-18 15:36:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:51] [WARN] [CHAT-SERVER] [Turn:46] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:51] [DEBUG] [CHAT-SERVER] [Turn:46] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:51] [INFO] [CHAT-SERVER] [Turn:46] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:51] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:55] [INFO] [CHAT-SERVER] [Turn:47] -> VAD listening started
+[2026-03-18 15:36:55] [DEBUG] [CHAT-SERVER] [Turn:47] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:55] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:55] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-4330b70d76b5c13398ed110a5047e290
+[2026-03-18 15:36:55] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:56] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:56] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-d1aa61a94263bbfb00639658ce721f27 turn_id=47
+[2026-03-18 15:36:56] [ERROR] [CHAT-SERVER] [Turn:47] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:56] [DEBUG] [CHAT-SERVER] [Turn:47] Dedicated ASR connection closed
+[2026-03-18 15:36:56] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (742.437875ms)
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:56] [WARN] [CHAT-SERVER] [Turn:47] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:56] [DEBUG] [CHAT-SERVER] [Turn:47] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:56] [INFO] [CHAT-SERVER] [Turn:47] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:56] [INFO] [CHAT-SERVER] [Turn:48] -> VAD listening started
+[2026-03-18 15:36:56] [DEBUG] [CHAT-SERVER] [Turn:48] Connecting dedicated ASR WebSocket
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:36:56] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-897e0f008501139791b8d6fc44e7c9b8
+[2026-03-18 15:36:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:36:57] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:36:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:36:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-ad9a498d70b638da575ec439242dcf26 turn_id=48
+[2026-03-18 15:36:57] [ERROR] [CHAT-SERVER] [Turn:48] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:36:57] [DEBUG] [CHAT-SERVER] [Turn:48] Dedicated ASR connection closed
+[2026-03-18 15:36:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (706.821125ms)
+[2026-03-18 15:36:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:36:57] [WARN] [CHAT-SERVER] [Turn:48] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:36:57] [DEBUG] [CHAT-SERVER] [Turn:48] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:36:57] [INFO] [CHAT-SERVER] [Turn:48] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:36:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:36:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:02] [INFO] [CHAT-SERVER] [Turn:49] -> VAD listening started
+[2026-03-18 15:37:02] [DEBUG] [CHAT-SERVER] [Turn:49] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:02] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-d69b3a9e3eb237e9042a67c8bb2afb10
+[2026-03-18 15:37:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:02] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:03] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-f2a259a0bf92dc3486fd5285561ae8e0 turn_id=49
+[2026-03-18 15:37:03] [ERROR] [CHAT-SERVER] [Turn:49] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:03] [DEBUG] [CHAT-SERVER] [Turn:49] Dedicated ASR connection closed
+[2026-03-18 15:37:03] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (954.953958ms)
+[2026-03-18 15:37:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:03] [WARN] [CHAT-SERVER] [Turn:49] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:03] [DEBUG] [CHAT-SERVER] [Turn:49] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:03] [INFO] [CHAT-SERVER] [Turn:49] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:03] [INFO] [CHAT-SERVER] [Turn:50] -> VAD listening started
+[2026-03-18 15:37:03] [DEBUG] [CHAT-SERVER] [Turn:50] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:03] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-deb8bdb385d138e88052c98ef3a3a1c1
+[2026-03-18 15:37:03] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:04] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:04] [WARN] [CHAT-SERVER] [Turn:50] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:04] [DEBUG] [CHAT-SERVER] [Turn:50] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:04] [INFO] [CHAT-SERVER] [Turn:50] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:04] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:04] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:05] [INFO] [CHAT-SERVER] [Turn:51] -> VAD listening started
+[2026-03-18 15:37:05] [DEBUG] [CHAT-SERVER] [Turn:51] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:05] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:05] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-30c5511fb1adb76d7bdd1d61df2fb67a
+[2026-03-18 15:37:05] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:06] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:06] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-9357f99dba648edc76058ce531da744c turn_id=51
+[2026-03-18 15:37:06] [ERROR] [CHAT-SERVER] [Turn:51] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:06] [DEBUG] [CHAT-SERVER] [Turn:51] Dedicated ASR connection closed
+[2026-03-18 15:37:06] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (742.628208ms)
+[2026-03-18 15:37:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:06] [WARN] [CHAT-SERVER] [Turn:51] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:06] [DEBUG] [CHAT-SERVER] [Turn:51] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:06] [INFO] [CHAT-SERVER] [Turn:51] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:06] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:11] [INFO] [CHAT-SERVER] [Turn:52] -> VAD listening started
+[2026-03-18 15:37:11] [DEBUG] [CHAT-SERVER] [Turn:52] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:11] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:11] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-e0c644f3e8b7c04192c41849583f0d58
+[2026-03-18 15:37:11] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:12] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset suppressed while awaiting reply
+[2026-03-18 15:37:12] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-66cfe918bbd433e804eb6120bddb17ac turn_id=52
+[2026-03-18 15:37:12] [ERROR] [CHAT-SERVER] [Turn:52] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:12] [DEBUG] [CHAT-SERVER] [Turn:52] Dedicated ASR connection closed
+[2026-03-18 15:37:12] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.041547583s)
+[2026-03-18 15:37:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:12] [WARN] [CHAT-SERVER] [Turn:52] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:12] [DEBUG] [CHAT-SERVER] [Turn:52] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:12] [INFO] [CHAT-SERVER] [Turn:52] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:12] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:13] [WARN] [AI-DOUBAO] [ai-doubao] asr stream failed request_id=chat-d699b5cb0f75c88bd6914fab0ab313de turn_id=50 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
+[2026-03-18 15:37:13] [DEBUG] [CHAT-SERVER] [Turn:50] Dedicated ASR connection closed
+[2026-03-18 15:37:13] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (9.9041825s)
+[2026-03-18 15:37:19] [INFO] [CHAT-SERVER] [Turn:53] -> VAD listening started
+[2026-03-18 15:37:19] [DEBUG] [CHAT-SERVER] [Turn:53] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:19] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:19] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-a2bea93c1efca1696e55f05f72447b16
+[2026-03-18 15:37:19] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:20] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:20] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:20] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-7235e47473a75589a0ace0881fee5285 turn_id=53
+[2026-03-18 15:37:20] [ERROR] [CHAT-SERVER] [Turn:53] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:20] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (774.457958ms)
+[2026-03-18 15:37:20] [DEBUG] [CHAT-SERVER] [Turn:53] Dedicated ASR connection closed
+[2026-03-18 15:37:20] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:20] [WARN] [CHAT-SERVER] [Turn:53] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:20] [DEBUG] [CHAT-SERVER] [Turn:53] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:20] [INFO] [CHAT-SERVER] [Turn:53] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:20] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:20] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:22] [INFO] [CHAT-SERVER] [Turn:54] -> VAD listening started
+[2026-03-18 15:37:22] [DEBUG] [CHAT-SERVER] [Turn:54] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:22] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:22] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-8fffa398502b16f823bad54488664ea6
+[2026-03-18 15:37:22] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:23] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:23] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-7613bad5948602e2861f55c6a20dfaf8 turn_id=54
+[2026-03-18 15:37:23] [ERROR] [CHAT-SERVER] [Turn:54] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:23] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (735.813ms)
+[2026-03-18 15:37:23] [DEBUG] [CHAT-SERVER] [Turn:54] Dedicated ASR connection closed
+[2026-03-18 15:37:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:23] [WARN] [CHAT-SERVER] [Turn:54] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:23] [DEBUG] [CHAT-SERVER] [Turn:54] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:23] [INFO] [CHAT-SERVER] [Turn:54] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:23] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:29] [INFO] [CHAT-SERVER] [Turn:55] -> VAD listening started
+[2026-03-18 15:37:29] [DEBUG] [CHAT-SERVER] [Turn:55] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:29] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:29] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-19010309957dd05653723181205ee0e7
+[2026-03-18 15:37:29] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:30] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:30] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-3f54dac437601270961f774be6c981b9 turn_id=55
+[2026-03-18 15:37:30] [ERROR] [CHAT-SERVER] [Turn:55] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:30] [DEBUG] [CHAT-SERVER] [Turn:55] Dedicated ASR connection closed
+[2026-03-18 15:37:30] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (642.105583ms)
+[2026-03-18 15:37:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:30] [WARN] [CHAT-SERVER] [Turn:55] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:30] [DEBUG] [CHAT-SERVER] [Turn:55] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:30] [INFO] [CHAT-SERVER] [Turn:55] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:30] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:35] [INFO] [CHAT-SERVER] [Turn:56] -> VAD listening started
+[2026-03-18 15:37:35] [DEBUG] [CHAT-SERVER] [Turn:56] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:35] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-35e51bb7fc05939117c576f04dc207b8
+[2026-03-18 15:37:35] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:36] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:36] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-6e59ac28c954f4cd6a3133b91c38e9cf turn_id=56
+[2026-03-18 15:37:36] [ERROR] [CHAT-SERVER] [Turn:56] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:36] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (738.057333ms)
+[2026-03-18 15:37:36] [DEBUG] [CHAT-SERVER] [Turn:56] Dedicated ASR connection closed
+[2026-03-18 15:37:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:36] [WARN] [CHAT-SERVER] [Turn:56] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:36] [DEBUG] [CHAT-SERVER] [Turn:56] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:36] [INFO] [CHAT-SERVER] [Turn:56] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:36] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:47] [INFO] [CHAT-SERVER] [Turn:57] -> VAD listening started
+[2026-03-18 15:37:47] [DEBUG] [CHAT-SERVER] [Turn:57] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:47] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-3f2c4285a8d4c46098ef43b7d02a4c75
+[2026-03-18 15:37:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:48] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:48] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-c04554feec5a420a4b5f64a26b320bfd turn_id=57
+[2026-03-18 15:37:48] [ERROR] [CHAT-SERVER] [Turn:57] asr run error: read asr ws: websocket: close 1006 (abnormal closure): unexpected EOF
+[2026-03-18 15:37:48] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (633.975208ms)
+[2026-03-18 15:37:48] [DEBUG] [CHAT-SERVER] [Turn:57] Dedicated ASR connection closed
+[2026-03-18 15:37:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:AppState:code=asr_failed message=read asr ws:websocket:close 1006 (abnormal closure):unexpected EOF
+[2026-03-18 15:37:48] [WARN] [CHAT-SERVER] [Turn:57] ASR final wait timed out for trigger_llm; falling back
+[2026-03-18 15:37:48] [DEBUG] [CHAT-SERVER] [Turn:57] "" -> LLM Trigger (skipped, empty text)
+[2026-03-18 15:37:48] [INFO] [CHAT-SERVER] [Turn:57] turn_nack sent to frontend, skipped DB persistence
+[2026-03-18 15:37:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:turn_nack received, activeReply=2
+[2026-03-18 15:37:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:55] [INFO] [CHAT-SERVER] [Turn:58] -> VAD listening started
+[2026-03-18 15:37:55] [DEBUG] [CHAT-SERVER] [Turn:58] Connecting dedicated ASR WebSocket
+[2026-03-18 15:37:55] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
+[2026-03-18 15:37:55] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream open request_id=svc-b9b7eca74361a584efa568a3fd05ef57
+[2026-03-18 15:37:55] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:37:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:37:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:37:56] [DEBUG] [AI-DOUBAO] Finish signal received, sending ending frame to ASR server
+[2026-03-18 15:37:56] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
+[2026-03-18 15:37:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:37:57] [DEBUG] [AI-DOUBAO] [ai-doubao] asr stream closed request_id=chat-982593bfd12bef9e8931c13fb253591c turn_id=58
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [Turn:58] "一年为什么这么多？" -> ASR final (segment), full="一年为什么这么多？"
+[2026-03-18 15:37:57] [DEBUG] [CHAT-SERVER] [Turn:58] ASR final received for trigger_llm
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [Turn:58] "一年为什么这么多？" -> LLM Triggered
+[2026-03-18 15:37:57] [DEBUG] [CHAT-SERVER] [Turn:58] Dedicated ASR connection closed
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (1.670320542s)
+[2026-03-18 15:37:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (6.592875ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.065875ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.927042ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.408375ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.6795ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.737375ms)
+[2026-03-18 15:37:57] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.2735ms)
+[2026-03-18 15:37:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Thinking
+[2026-03-18 15:37:57] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws request_id=chat-92a209e75acdc4ed045fb1be99bce41a turn_id=58
+[2026-03-18 15:37:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset suppressed while awaiting reply
+[2026-03-18 15:38:00] [DEBUG] [AI-DOUBAO] [ai-doubao] llm ws finished request_id=chat-92a209e75acdc4ed045fb1be99bce41a turn_id=58
+[2026-03-18 15:38:00] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:GET /api/tool/ws [101] (3.294081333s)
+[2026-03-18 15:38:01] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (1.545779s)
+[2026-03-18 15:38:01] [INFO] [CHAT-SERVER] [Turn:58] "你说的有点模糊呀，是..." -> TTS start sending...
+[2026-03-18 15:38:01] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Speaking
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:ai.speech.tts [200] (723.956875ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [Turn:58] -> TTS finished sending
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (7.729125ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (3.493667ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (2.812166ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (3.22525ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.192375ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (2.8135ms)
+[2026-03-18 15:38:02] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.425166ms)
+[2026-03-18 15:38:02] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (1.863375ms)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (933.125µs)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (915.833µs)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.420667ms)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (1.680084ms)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.execute [200] (877µs)
+[2026-03-18 15:38:07] [INFO] [CHAT-SERVER] [chat-server] System:HTTP:storage.database.query [200] (635.334µs)
+[2026-03-18 15:38:07] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Idle

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"kagent/pkg/hubsvc"
 )
 
 const (
@@ -32,6 +34,7 @@ type ServiceToolDescriptor struct {
 	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
+	WSPath               string         `json:"ws_path,omitempty"`
 	ScopeSupport         []string       `json:"scope_support,omitempty"`
 }
 
@@ -54,6 +57,7 @@ type HubServiceRegisterRequest struct {
 	PID        int             `json:"pid,omitempty"`
 	Endpoint   string          `json:"endpoint,omitempty"`
 	StartedAt  int64           `json:"started_at_ms,omitempty"`
+	Healthy    *bool           `json:"healthy,omitempty"`
 }
 
 type HubServiceHeartbeatRequest struct {
@@ -61,13 +65,16 @@ type HubServiceHeartbeatRequest struct {
 	InstanceID string `json:"instance_id"`
 	PID        int    `json:"pid,omitempty"`
 	Endpoint   string `json:"endpoint,omitempty"`
+	Healthy    *bool  `json:"healthy,omitempty"`
 }
 
-type HubServiceSessionClaims struct {
-	ServiceID  string `json:"service_id"`
-	InstanceID string `json:"instance_id"`
-	ExpMS      int64  `json:"exp_ms"`
-	Nonce      string `json:"nonce"`
+type HubServiceAuth struct {
+	ServiceID   string `json:"service_id"`
+	InstanceID  string `json:"instance_id"`
+	S2HToken    string `json:"s2h_token,omitempty"`
+	H2SToken    string `json:"h2s_token,omitempty"`
+	IssuedAtMS  int64  `json:"issued_at_ms,omitempty"`
+	ExpiresAtMS int64  `json:"expires_at_ms,omitempty"`
 }
 
 type HubServiceRegistration struct {
@@ -85,6 +92,7 @@ type HubServiceRegistration struct {
 	RegisteredAtMS int64           `json:"registered_at_ms"`
 	LastSeenAtMS   int64           `json:"last_seen_at_ms"`
 	Status         string          `json:"status"`
+	Healthy        bool            `json:"healthy"`
 	ConflictReason string          `json:"conflict_reason,omitempty"`
 	Manifest       ServiceManifest `json:"manifest"`
 }
@@ -141,15 +149,34 @@ type HubPlatform struct {
 
 	dataRoot       string
 	routeStatePath string
-	serviceSecret  []byte
-	sessionTTL     time.Duration
 
 	services      map[string]HubServiceRegistration
+	serviceAuths  map[string]HubServiceAuth
 	conflicts     map[string][]HubServiceRegistration
 	toolProviders map[string][]string
 	bindings      map[string]HubToolBinding
 	manualBind    map[string]string
 	stats         map[string]map[string]*HubToolProviderStat
+	builtinTools  []ServiceToolDescriptor
+}
+
+var hubBuiltinTools = []ServiceToolDescriptor{
+	{
+		ToolID:      "hub.system.report_log",
+		Category:    "hub",
+		Type:        "system",
+		Tool:        "report_log",
+		Description: "Report a structured log message to the Hub. For internal audit and system overview.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"level":   map[string]any{"type": "string", "enum": []string{"DEBUG", "INFO", "WARN", "ERROR"}, "default": "INFO"},
+				"module":  map[string]any{"type": "string", "default": "business"},
+				"content": map[string]any{"type": "string"},
+			},
+			"required": []string{"content"},
+		},
+	},
 }
 
 func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
@@ -157,22 +184,17 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 	if root == "" {
 		return nil, fmt.Errorf("hub data root is empty")
 	}
-	secretPath := filepath.Join(root, ".service_secret")
-	secret, err := loadOrCreateSecret(secretPath)
-	if err != nil {
-		return nil, fmt.Errorf("load hub service secret: %w", err)
-	}
 	hub := &HubPlatform{
 		dataRoot:       root,
 		routeStatePath: filepath.Join(root, "hub", "route_state.json"),
-		serviceSecret:  secret,
-		sessionTTL:     30 * time.Minute,
 		services:       map[string]HubServiceRegistration{},
+		serviceAuths:   map[string]HubServiceAuth{},
 		conflicts:      map[string][]HubServiceRegistration{},
 		toolProviders:  map[string][]string{},
 		bindings:       map[string]HubToolBinding{},
 		manualBind:     map[string]string{},
 		stats:          map[string]map[string]*HubToolProviderStat{},
+		builtinTools:   hubBuiltinTools,
 	}
 	hub.loadPersistedStateLocked()
 	return hub, nil
@@ -258,8 +280,6 @@ func (h *HubPlatform) savePersistedStateLocked() {
 type HubServiceRegisterResult struct {
 	Registered bool                   `json:"registered"`
 	Service    HubServiceRegistration `json:"service"`
-	Token      string                 `json:"service_session_token,omitempty"`
-	ExpMS      int64                  `json:"exp_ms,omitempty"`
 }
 
 func (h *HubPlatform) RegisterService(req HubServiceRegisterRequest) (HubServiceRegisterResult, error) {
@@ -298,7 +318,12 @@ func (h *HubPlatform) RegisterService(req HubServiceRegisterRequest) (HubService
 		RegisteredAtMS: startedAt,
 		LastSeenAtMS:   now,
 		Status:         ServiceStatusActive,
+		Healthy:        boolOrDefault(req.Healthy, true),
 		Manifest:       manifest,
+	}
+	if !reg.Healthy {
+		reg.Status = ServiceStatusDown
+		reg.ConflictReason = "service registered as unhealthy"
 	}
 
 	h.mu.Lock()
@@ -318,16 +343,10 @@ func (h *HubPlatform) RegisterService(req HubServiceRegisterRequest) (HubService
 	h.conflicts[manifest.ServiceID] = nil
 	h.rebuildToolProvidersLocked()
 	h.refreshBindingsLocked("service_register")
-	token, expMS, err := h.issueServiceSessionTokenLocked(manifest.ServiceID, instanceID, h.sessionTTL)
-	if err != nil {
-		return HubServiceRegisterResult{}, err
-	}
 	h.savePersistedStateLocked()
 	return HubServiceRegisterResult{
 		Registered: true,
 		Service:    reg,
-		Token:      token,
-		ExpMS:      expMS,
 	}, nil
 }
 
@@ -372,8 +391,16 @@ func (h *HubPlatform) AcceptServiceHeartbeat(req HubServiceHeartbeatRequest) (Hu
 		reg.Endpoint = ep
 	}
 	reg.LastSeenAtMS = nowMS()
-	reg.Status = ServiceStatusActive
-	reg.ConflictReason = ""
+	if req.Healthy != nil {
+		reg.Healthy = *req.Healthy
+	}
+	if reg.Healthy {
+		reg.Status = ServiceStatusActive
+		reg.ConflictReason = ""
+	} else {
+		reg.Status = ServiceStatusDown
+		reg.ConflictReason = "heartbeat unhealthy"
+	}
 	h.services[sid] = reg
 	h.refreshBindingsLocked("service_heartbeat")
 	return reg, nil
@@ -395,6 +422,7 @@ func (h *HubPlatform) UnregisterService(serviceID string, instanceID string) {
 		return
 	}
 	delete(h.services, sid)
+	delete(h.serviceAuths, sid)
 	delete(h.conflicts, sid)
 	h.rebuildToolProvidersLocked()
 	h.refreshBindingsLocked("service_unregister")
@@ -413,6 +441,7 @@ func (h *HubPlatform) MarkServiceDown(serviceID string, reason string) {
 		return
 	}
 	reg.Status = ServiceStatusDown
+	reg.Healthy = false
 	reg.ConflictReason = strings.TrimSpace(reason)
 	reg.LastSeenAtMS = nowMS()
 	h.services[sid] = reg
@@ -432,6 +461,7 @@ func (h *HubPlatform) MarkServiceActive(serviceID string) {
 		return
 	}
 	reg.Status = ServiceStatusActive
+	reg.Healthy = true
 	reg.ConflictReason = ""
 	reg.LastSeenAtMS = nowMS()
 	h.services[sid] = reg
@@ -439,79 +469,122 @@ func (h *HubPlatform) MarkServiceActive(serviceID string) {
 	h.savePersistedStateLocked()
 }
 
-func (h *HubPlatform) IssueServiceSessionToken(serviceID string, instanceID string, ttl time.Duration) (string, int64, error) {
+func (h *HubPlatform) PrepareServiceBootstrap(serviceID string, instanceID string, registerURL string, ttl time.Duration) (hubsvc.BootstrapSecret, error) {
 	if h == nil {
-		return "", 0, fmt.Errorf("hub is nil")
+		return hubsvc.BootstrapSecret{}, fmt.Errorf("hub is nil")
+	}
+	sid := strings.TrimSpace(serviceID)
+	iid := strings.TrimSpace(instanceID)
+	if sid == "" || iid == "" {
+		return hubsvc.BootstrapSecret{}, fmt.Errorf("service_id and instance_id are required")
+	}
+	if ttl <= 0 {
+		ttl = 10 * time.Minute
+	}
+	issuedAtMS := nowMS()
+	expiresAtMS := issuedAtMS + ttl.Milliseconds()
+	s2hToken, err := randomAuthToken()
+	if err != nil {
+		return hubsvc.BootstrapSecret{}, err
+	}
+	h2sToken, err := randomAuthToken()
+	if err != nil {
+		return hubsvc.BootstrapSecret{}, err
+	}
+	for h2sToken == s2hToken {
+		h2sToken, err = randomAuthToken()
+		if err != nil {
+			return hubsvc.BootstrapSecret{}, err
+		}
+	}
+	auth := HubServiceAuth{
+		ServiceID:   sid,
+		InstanceID:  iid,
+		S2HToken:    s2hToken,
+		H2SToken:    h2sToken,
+		IssuedAtMS:  issuedAtMS,
+		ExpiresAtMS: expiresAtMS,
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.issueServiceSessionTokenLocked(serviceID, instanceID, ttl)
+	h.serviceAuths[sid] = auth
+	h.mu.Unlock()
+	bootstrap := hubsvc.BootstrapSecret{
+		ServiceID:      sid,
+		InstanceID:     iid,
+		HubRegisterURL: strings.TrimSpace(registerURL),
+		S2HToken:       s2hToken,
+		H2SToken:       h2sToken,
+		IssuedAtMS:     issuedAtMS,
+		ExpiresAtMS:    expiresAtMS,
+	}
+	if err := bootstrap.Validate(); err != nil {
+		return hubsvc.BootstrapSecret{}, err
+	}
+	return bootstrap, nil
 }
 
-func (h *HubPlatform) issueServiceSessionTokenLocked(serviceID string, instanceID string, ttl time.Duration) (string, int64, error) {
-	if ttl <= 0 {
-		ttl = h.sessionTTL
-	}
-	claims := HubServiceSessionClaims{
-		ServiceID:  strings.TrimSpace(serviceID),
-		InstanceID: strings.TrimSpace(instanceID),
-		ExpMS:      nowMS() + ttl.Milliseconds(),
-		Nonce:      newRequestID(),
-	}
-	if claims.ServiceID == "" || claims.InstanceID == "" {
-		return "", 0, fmt.Errorf("service token requires service_id and instance_id")
-	}
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", 0, err
-	}
-	raw := base64.RawURLEncoding.EncodeToString(payload)
-	mac := hmac.New(sha256.New, h.serviceSecret)
-	_, _ = mac.Write([]byte(raw))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return raw + "." + sig, claims.ExpMS, nil
-}
-
-func (h *HubPlatform) VerifyServiceSessionToken(token string) (HubServiceSessionClaims, error) {
+func (h *HubPlatform) ServiceHubAuth(serviceID string) (HubServiceAuth, bool) {
 	if h == nil {
-		return HubServiceSessionClaims{}, fmt.Errorf("hub is nil")
+		return HubServiceAuth{}, false
 	}
-	parts := strings.Split(strings.TrimSpace(token), ".")
-	if len(parts) != 2 {
-		return HubServiceSessionClaims{}, fmt.Errorf("invalid service token")
-	}
-	raw := parts[0]
-	sig := parts[1]
-	mac := hmac.New(sha256.New, h.serviceSecret)
-	_, _ = mac.Write([]byte(raw))
-	expect := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expect), []byte(sig)) {
-		return HubServiceSessionClaims{}, fmt.Errorf("invalid service token signature")
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil {
-		return HubServiceSessionClaims{}, fmt.Errorf("decode service token payload: %w", err)
-	}
-	var claims HubServiceSessionClaims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return HubServiceSessionClaims{}, fmt.Errorf("decode service token claims: %w", err)
-	}
-	if claims.ExpMS <= nowMS() {
-		return HubServiceSessionClaims{}, fmt.Errorf("service token expired")
+	sid := strings.TrimSpace(serviceID)
+	if sid == "" {
+		return HubServiceAuth{}, false
 	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	reg, ok := h.services[claims.ServiceID]
+	auth, ok := h.serviceAuths[sid]
+	return auth, ok
+}
+
+func (h *HubPlatform) VerifyServiceAuth(serviceID string, instanceID string, token string) (HubServiceAuth, error) {
+	if h == nil {
+		return HubServiceAuth{}, fmt.Errorf("hub is nil")
+	}
+	sid := strings.TrimSpace(serviceID)
+	iid := strings.TrimSpace(instanceID)
+	expectedToken := strings.TrimSpace(token)
+	if sid == "" || iid == "" || expectedToken == "" {
+		return HubServiceAuth{}, fmt.Errorf("service auth headers are required")
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	auth, ok := h.serviceAuths[sid]
 	if !ok {
-		return HubServiceSessionClaims{}, fmt.Errorf("service not registered")
+		return HubServiceAuth{}, fmt.Errorf("service auth missing")
 	}
-	if reg.InstanceID != claims.InstanceID {
-		return HubServiceSessionClaims{}, fmt.Errorf("service instance mismatch")
+	if strings.TrimSpace(auth.InstanceID) != iid {
+		return HubServiceAuth{}, fmt.Errorf("service instance mismatch")
 	}
-	if reg.Status != ServiceStatusActive {
-		return HubServiceSessionClaims{}, fmt.Errorf("service is not active")
+	if strings.TrimSpace(auth.S2HToken) != expectedToken {
+		return HubServiceAuth{}, fmt.Errorf("service auth token mismatch")
 	}
-	return claims, nil
+	return auth, nil
+}
+
+func (h *HubPlatform) VerifyHubAuth(serviceID string, instanceID string, token string) (HubServiceAuth, error) {
+	if h == nil {
+		return HubServiceAuth{}, fmt.Errorf("hub is nil")
+	}
+	sid := strings.TrimSpace(serviceID)
+	iid := strings.TrimSpace(instanceID)
+	expectedToken := strings.TrimSpace(token)
+	if sid == "" || expectedToken == "" {
+		return HubServiceAuth{}, fmt.Errorf("hub auth headers are required")
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	auth, ok := h.serviceAuths[sid]
+	if !ok {
+		return HubServiceAuth{}, fmt.Errorf("service auth missing")
+	}
+	if iid != "" && strings.TrimSpace(auth.InstanceID) != iid {
+		return HubServiceAuth{}, fmt.Errorf("service instance mismatch")
+	}
+	if strings.TrimSpace(auth.H2SToken) != expectedToken {
+		return HubServiceAuth{}, fmt.Errorf("hub auth token mismatch")
+	}
+	return auth, nil
 }
 
 func (h *HubPlatform) SetManualBinding(toolID string, serviceID string) error {
@@ -792,9 +865,25 @@ func (h *HubPlatform) ListTools() []HubToolView {
 		}
 	}
 
-	toolIDs := make([]string, 0, len(h.toolProviders))
+	for _, t := range h.builtinTools {
+		toolID := strings.TrimSpace(t.ToolID)
+		if toolID == "" {
+			continue
+		}
+		if _, ok := meta[toolID]; !ok {
+			meta[toolID] = t
+		}
+	}
+
+	toolIDs := make([]string, 0, len(h.toolProviders)+len(h.builtinTools))
 	for tid := range h.toolProviders {
 		toolIDs = append(toolIDs, tid)
+	}
+	for _, t := range h.builtinTools {
+		tid := strings.TrimSpace(t.ToolID)
+		if _, ok := h.toolProviders[tid]; !ok {
+			toolIDs = append(toolIDs, tid)
+		}
 	}
 	sort.Strings(toolIDs)
 	out := make([]HubToolView, 0, len(toolIDs))
@@ -893,8 +982,15 @@ func (h *HubPlatform) HasTool(toolID string) bool {
 	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	_, ok := h.toolProviders[tid]
-	return ok
+	if _, ok := h.toolProviders[tid]; ok {
+		return true
+	}
+	for _, t := range h.builtinTools {
+		if strings.TrimSpace(t.ToolID) == tid {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeServiceManifest(in ServiceManifest) (ServiceManifest, error) {
@@ -938,6 +1034,10 @@ func normalizeToolDescriptor(in ServiceToolDescriptor) ServiceToolDescriptor {
 	t.Description = strings.TrimSpace(t.Description)
 	t.SideEffect = strings.TrimSpace(t.SideEffect)
 	t.Streaming = strings.TrimSpace(t.Streaming)
+	t.WSPath = strings.TrimSpace(t.WSPath)
+	if t.WSPath != "" && !strings.HasPrefix(t.WSPath, "/") {
+		t.WSPath = "/" + t.WSPath
+	}
 	if t.ToolID == "" {
 		if t.Category != "" && t.Type != "" && t.Tool != "" {
 			t.ToolID = t.Category + "." + t.Type + "." + t.Tool
@@ -955,6 +1055,14 @@ func manifestHash(manifest ServiceManifest) (string, error) {
 	}
 	sum := sha256.Sum256(raw)
 	return base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
+func randomAuthToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate auth token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 func normalizeReliability(v string) string {
@@ -1012,6 +1120,13 @@ func clamp01(v float64) float64 {
 		return 1
 	}
 	return v
+}
+
+func boolOrDefault(v *bool, fallback bool) bool {
+	if v == nil {
+		return fallback
+	}
+	return *v
 }
 
 func EnsureServiceConfigFiles(serviceRoot string) error {

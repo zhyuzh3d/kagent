@@ -80,6 +80,22 @@ func (m *RuntimeConfigManager) Snapshot() PublicConfig {
 	return m.snapshot
 }
 
+func (m *RuntimeConfigManager) ApplySnapshot(snapshot map[string]any) error {
+	if len(snapshot) == 0 {
+		return nil
+	}
+	next := cloneMap(snapshot)
+	var cfg PublicConfig
+	if err := mapToStruct(next, &cfg); err != nil {
+		return fmt.Errorf("decode snapshot config: %w", err)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.effectiveMap = next
+	m.snapshot = cfg
+	return nil
+}
+
 func (m *RuntimeConfigManager) UpdateEffectiveMap(next map[string]any) (map[string]any, error) {
 	m.mu.RLock()
 	base := cloneMap(m.defaultMap)
