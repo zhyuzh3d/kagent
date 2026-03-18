@@ -555,6 +555,26 @@ func renderErrorContent(messageType string, payload map[string]any) string {
 	}
 }
 
+func formatActionReportText(report ActionReport) string {
+	result := strings.TrimSpace(report.ResultSummary)
+	if result == "" {
+		result = "{}"
+	}
+	effect := strings.TrimSpace(report.EffectSummary)
+	if effect == "" {
+		effect = "{}"
+	}
+	tail := ""
+	if report.ManualConfirm != "" {
+		tail += " manual_confirm=" + report.ManualConfirm
+	}
+	if report.BlockReason != "" {
+		tail += " block_reason=" + report.BlockReason
+	}
+	return fmt.Sprintf("[action_report] name=%s status=%s followup=%s result=%s effect=%s%s",
+		report.ActionName, report.Status, normalizeFollowup(report.Followup), result, effect, tail)
+}
+
 func humanizeActionStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "ok", "success", "complete", "completed":

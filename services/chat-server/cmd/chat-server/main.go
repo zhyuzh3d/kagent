@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -158,47 +157,6 @@ func main() {
 		return app.NewHubDatabaseStore(client, uid, firstNonEmpty(pid, *projectID), firstNonEmpty(tid, *threadID))
 	}
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{
-			"ok":           true,
-			"timestamp_ms": time.Now().UnixMilli(),
-		})
-	})
-	mux.HandleFunc("/service/info", func(w http.ResponseWriter, _ *http.Request) {
-		caps := make([]string, 0, len(manifest.Provides))
-		for _, p := range manifest.Provides {
-			if strings.TrimSpace(p.ToolID) != "" {
-				caps = append(caps, p.ToolID)
-			}
-		}
-		writeJSON(w, app.AIServiceInfo{
-			ServiceID:    manifest.ServiceID,
-			ServiceName:  manifest.ServiceName,
-			Version:      manifest.Version,
-			Provider:     "chat-app",
-			Capabilities: caps,
-			Transport:    "http+ws",
-		})
-	})
-	mux.HandleFunc("/service/tools", func(w http.ResponseWriter, _ *http.Request) {
-		tools := make([]app.AIServiceToolDescriptor, 0, len(manifest.Provides))
-		for _, p := range manifest.Provides {
-			tools = append(tools, app.AIServiceToolDescriptor{
-				Name:             p.ToolID,
-				Description:      p.Description,
-				InputSchema:      p.InputSchema,
-				OutputSchema:     p.OutputSchema,
-				SideEffect:       p.SideEffect,
-				TimeoutMSDefault: p.TimeoutMSDefault,
-				Streaming:        p.Streaming,
-				WSPath:           p.WSPath,
-			})
-		}
-		writeJSON(w, app.AIServiceListToolsResponse{
-			ServiceID: manifest.ServiceID,
-			Tools:     tools,
-		})
-	})
 	mux.HandleFunc("/service/tool/exec", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
@@ -247,27 +205,11 @@ func main() {
 			})
 			return
 		}
-		hubOnly := isHubOnlyContext(req.Context)
-		if !hubOnly {
-			delete(req.Args, "healthz")
-		}
 		meta := app.Meta{
 			RequestID:  strings.TrimSpace(req.Context.RequestID),
 			TraceID:    strings.TrimSpace(req.Context.TraceID),
 			ServiceID:  strings.TrimSpace(manifest.ServiceID),
 			InstanceID: strings.TrimSpace(instance),
-		}
-		if hubOnly && healthzRequested(req.Args) {
-			writeToolResponse(w, http.StatusOK, app.CallResponse{
-				Ok: true,
-				Result: map[string]any{
-					"service_id": strings.TrimSpace(manifest.ServiceID),
-					"hub_only":   true,
-					"healthz":    true,
-				},
-				Meta: meta,
-			})
-			return
 		}
 		caller := app.Caller{
 			Type:      strings.ToLower(strings.TrimSpace(r.Header.Get("X-Caller-Type"))),
@@ -442,34 +384,6 @@ func main() {
 		writeToolResponse(w, statusCode, resp)
 	})
 
-	mux.HandleFunc("/admin/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", http.MethodPost)
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			http.Error(w, "bad remote addr", http.StatusBadRequest)
-			return
-		}
-		ip := net.ParseIP(host)
-		if ip == nil || !ip.IsLoopback() {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-
-		app.Warnf("chat-server shutdown requested from %s", r.RemoteAddr)
-		writeJSON(w, map[string]any{"ok": true, "message": "shutting down"})
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
-		go func() {
-			time.Sleep(20 * time.Millisecond)
-			shutdownNow("admin shutdown requested")
-		}()
-	})
-
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  32 * 1024,
 		WriteBufferSize: 32 * 1024,
@@ -591,11 +505,6 @@ func firstNonEmpty(items ...string) string {
 	return ""
 }
 
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
-}
-
 func writeToolResponse(w http.ResponseWriter, statusCode int, resp app.CallResponse) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
@@ -636,58 +545,6 @@ func asInt(v any, defaultValue int) int {
 		}
 	}
 	return defaultValue
-}
-
-func healthzRequested(args map[string]any) bool {
-	if args == nil {
-		return false
-	}
-	value, ok := args["healthz"]
-	if !ok {
-		return false
-	}
-	switch tv := value.(type) {
-	case bool:
-		return tv
-	case string:
-		switch strings.ToLower(strings.TrimSpace(tv)) {
-		case "1", "true", "yes", "on":
-			return true
-		}
-	case int:
-		return tv != 0
-	case int64:
-		return tv != 0
-	case float64:
-		return tv != 0
-	}
-	return false
-}
-
-func isHubOnlyContext(ctx *app.CallContext) bool {
-	if ctx == nil || ctx.Meta == nil {
-		return false
-	}
-	value, ok := ctx.Meta["hub_only"]
-	if !ok {
-		return false
-	}
-	switch tv := value.(type) {
-	case bool:
-		return tv
-	case string:
-		switch strings.ToLower(strings.TrimSpace(tv)) {
-		case "1", "true", "yes", "on":
-			return true
-		}
-	case float64:
-		return tv != 0
-	case int:
-		return tv != 0
-	case int64:
-		return tv != 0
-	}
-	return false
 }
 
 func buildHubToolCallURL(registerURL string) string {

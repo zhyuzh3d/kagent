@@ -1,14 +1,11 @@
 package app
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"kagent/pkg/sqlitedriver"
 )
 
 type StorageScopeTarget struct {
@@ -17,6 +14,13 @@ type StorageScopeTarget struct {
 	SurfaceID string `json:"surface_id,omitempty"`
 	ServiceID string `json:"service_id,omitempty"`
 	DBName    string `json:"db_name,omitempty"`
+}
+
+type SurfaceFSListEntry struct {
+	Name        string `json:"name"`
+	IsDir       bool   `json:"is_dir"`
+	SizeBytes   int64  `json:"size_bytes"`
+	UpdatedAtMS int64  `json:"updated_at_ms"`
 }
 
 type ScopedFileService struct {
@@ -227,117 +231,23 @@ func resolveStorageScopeRoot(dataRoot string, target StorageScopeTarget) (string
 	}
 }
 
-type ScopedDatabaseService struct {
-	dataRoot string
-}
-
-func NewScopedDatabaseService(dataRoot string) (*ScopedDatabaseService, error) {
-	root := strings.TrimSpace(dataRoot)
-	if root == "" {
-		return nil, fmt.Errorf("data root is empty")
+func normalizeRelativePath(raw string) (string, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" || clean == "." || clean == "/" {
+		return ".", nil
 	}
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return nil, fmt.Errorf("resolve data root: %w", err)
+	clean = filepath.Clean(clean)
+	if clean == "." {
+		return ".", nil
 	}
-	return &ScopedDatabaseService{dataRoot: absRoot}, nil
-}
-
-func (s *ScopedDatabaseService) Query(target StorageScopeTarget, query string, args []any) ([]map[string]any, error) {
-	db, err := s.openDB(target)
-	if err != nil {
-		return nil, err
+	if filepath.IsAbs(clean) {
+		return "", fmt.Errorf("absolute path is forbidden")
 	}
-	defer db.Close()
-	rows, err := db.Query(strings.TrimSpace(query), args...)
-	if err != nil {
-		return nil, err
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path traversal is forbidden")
 	}
-	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, err
+	if strings.Contains(clean, "\x00") {
+		return "", fmt.Errorf("invalid path")
 	}
-	out := make([]map[string]any, 0, 16)
-	for rows.Next() {
-		values := make([]any, len(cols))
-		scans := make([]any, len(cols))
-		for i := range values {
-			scans[i] = &values[i]
-		}
-		if err := rows.Scan(scans...); err != nil {
-			return nil, err
-		}
-		item := map[string]any{}
-		for i, c := range cols {
-			item[c] = normalizeDBValue(values[i])
-		}
-		out = append(out, item)
-	}
-	return out, nil
-}
-
-func (s *ScopedDatabaseService) Execute(target StorageScopeTarget, query string, args []any) (int64, int64, error) {
-	db, err := s.openDB(target)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer db.Close()
-	res, err := db.Exec(strings.TrimSpace(query), args...)
-	if err != nil {
-		return 0, 0, err
-	}
-	affected, _ := res.RowsAffected()
-	lastID, _ := res.LastInsertId()
-	return affected, lastID, nil
-}
-
-func (s *ScopedDatabaseService) Schema(target StorageScopeTarget) ([]map[string]any, error) {
-	return s.Query(target, `
-		SELECT type, name, tbl_name, sql
-		FROM sqlite_master
-		WHERE type IN ('table', 'index', 'view')
-		ORDER BY type, name
-	`, nil)
-}
-
-func (s *ScopedDatabaseService) openDB(target StorageScopeTarget) (*sql.DB, error) {
-	root, err := resolveStorageScopeRoot(s.dataRoot, target)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return nil, err
-	}
-	dbName := strings.TrimSpace(target.DBName)
-	if dbName == "" {
-		dbName = "kagent.db"
-	}
-	if !strings.HasSuffix(strings.ToLower(dbName), ".db") {
-		dbName += ".db"
-	}
-	cleanName := filepath.Base(dbName)
-	if cleanName == "." || cleanName == "" || cleanName == ".." {
-		return nil, fmt.Errorf("invalid db_name")
-	}
-	dbPath := filepath.Join(root, cleanName)
-	db, err := sqlitedriver.Open(dbPath)
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`PRAGMA journal_mode=WAL`); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	return db, nil
-}
-
-func normalizeDBValue(v any) any {
-	switch t := v.(type) {
-	case []byte:
-		return string(t)
-	default:
-		return t
-	}
+	return clean, nil
 }

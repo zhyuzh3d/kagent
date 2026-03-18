@@ -14,7 +14,6 @@ type ServiceToolDescriptor struct {
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
 	WSPath               string         `json:"ws_path,omitempty"`
-	ScopeSupport         []string       `json:"scope_support,omitempty"`
 }
 
 type ServiceManifest struct {

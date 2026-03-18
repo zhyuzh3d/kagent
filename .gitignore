@@ -16,3 +16,5 @@ logs/
 run/
 log.txt
 log.txt.bak
+tmp/
+**/run/

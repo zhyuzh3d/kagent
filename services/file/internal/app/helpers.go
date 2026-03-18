@@ -7,18 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
-const secretLen = 32
+func nowMS() int64 {
+	return time.Now().UnixMilli()
+}
 
 func loadOrCreateSecret(path string) ([]byte, error) {
 	if raw, err := os.ReadFile(path); err == nil {
 		decoded, err := hex.DecodeString(strings.TrimSpace(string(raw)))
-		if err == nil && len(decoded) >= secretLen {
-			return decoded[:secretLen], nil
+		if err == nil && len(decoded) >= 32 {
+			return decoded[:32], nil
 		}
 	}
-	secret := make([]byte, secretLen)
+	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
 		return nil, fmt.Errorf("generate secret: %w", err)
 	}

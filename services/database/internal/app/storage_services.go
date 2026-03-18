@@ -17,6 +17,13 @@ type StorageScopeTarget struct {
 	DBName    string `json:"db_name,omitempty"`
 }
 
+type SurfaceFSListEntry struct {
+	Name        string `json:"name"`
+	IsDir       bool   `json:"is_dir"`
+	SizeBytes   int64  `json:"size_bytes"`
+	UpdatedAtMS int64  `json:"updated_at_ms"`
+}
+
 type ScopedFileService struct {
 	dataRoot string
 }
@@ -31,6 +38,27 @@ func NewScopedFileService(dataRoot string) (*ScopedFileService, error) {
 		return nil, fmt.Errorf("resolve data root: %w", err)
 	}
 	return &ScopedFileService{dataRoot: absRoot}, nil
+}
+
+func normalizeRelativePath(raw string) (string, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" || clean == "." || clean == "/" {
+		return ".", nil
+	}
+	clean = filepath.Clean(clean)
+	if clean == "." {
+		return ".", nil
+	}
+	if filepath.IsAbs(clean) {
+		return "", fmt.Errorf("absolute path is forbidden")
+	}
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path traversal is forbidden")
+	}
+	if strings.Contains(clean, "\x00") {
+		return "", fmt.Errorf("invalid path")
+	}
+	return clean, nil
 }
 
 func (s *ScopedFileService) ReadFile(target StorageScopeTarget, relPath string) ([]byte, error) {

@@ -2,8 +2,10 @@ package app
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -164,6 +166,26 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 	}
 	hub.loadPersistedStateLocked()
 	return hub, nil
+}
+
+func loadOrCreateSecret(path string) ([]byte, error) {
+	if raw, err := os.ReadFile(path); err == nil {
+		decoded, err := hex.DecodeString(strings.TrimSpace(string(raw)))
+		if err == nil && len(decoded) >= 32 {
+			return decoded[:32], nil
+		}
+	}
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return nil, fmt.Errorf("generate secret: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("create secret dir: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(hex.EncodeToString(secret)+"\n"), 0o600); err != nil {
+		return nil, fmt.Errorf("write secret: %w", err)
+	}
+	return secret, nil
 }
 
 type hubPersistState struct {

@@ -23,6 +23,14 @@ func unmarshalMap(raw []byte) (map[string]any, error) {
 	return m, nil
 }
 
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return `{}`
+	}
+	return string(b)
+}
+
 func collectStringsByKeys(v any, keySet map[string]struct{}, out *[]string) {
 	switch t := v.(type) {
 	case map[string]any:
@@ -39,6 +47,17 @@ func collectStringsByKeys(v any, keySet map[string]struct{}, out *[]string) {
 			collectStringsByKeys(it, keySet, out)
 		}
 	}
+}
+
+func cloneAnyMap(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 func firstNonEmpty(items ...string) string {

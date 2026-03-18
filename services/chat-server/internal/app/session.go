@@ -315,31 +315,10 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		// Explicit signal from frontend that a new turn is starting voice input
 		tid := s.adoptTurnID(ctrl.TurnID)
 		Infof("[Turn:%d] -> VAD listening started", tid)
-		if shouldInterruptOnStartListen(s.getState()) {
-			s.interruptTurnWithReason(InterruptVAD)
-		}
 		s.setUserTurnActive(true)
 		s.cancelASR()
 		s.startASRTurn(tid)
 		s.setState(StateListening, "listening to user")
-	case "utterance_end":
-		// Backward compatibility fallback until frontend is fully updated mapping VAD to trigger_llm.
-		tid := s.turnID.Load()
-		text := s.consumeLastASRText()
-
-		if text != "" {
-			Infof("[Turn:%d] %q -> Legacy utterance end", tid, Snippet(text))
-		} else {
-			Debugf("[Turn:%d] \"\" -> Legacy utterance end (skipped, empty text)", tid)
-		}
-
-		s.cancelASR()
-		s.setUserTurnActive(false)
-		if text != "" {
-			s.startTurn(text, tid)
-		} else {
-			s.tryStartContinuation()
-		}
 	case "action_result":
 		s.handleActionResult(ctrl)
 	case "state_change":
@@ -471,12 +450,6 @@ func (s *Session) interruptTurnLocked() {
 		s.turnCancel = nil
 	}
 	s.turnMu.Unlock()
-}
-
-func shouldInterruptOnStartListen(state string) bool {
-	// In the Client-Driven architecture, starting to listen (e.g., for barge-in ASR)
-	// should not proactively kill the AI response. We only kill it on explicit 'interrupt'.
-	return false
 }
 
 func shouldInterruptForRecognizedSpeech(state string, activeGeneratedTurnID uint64, speechTurnID uint64, text string) bool {

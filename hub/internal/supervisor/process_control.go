@@ -123,7 +123,7 @@ func ServiceRuntimeAlive(hubPlatform *app.HubPlatform, reg app.HubServiceRegistr
 			epAlive = resp.Ok
 		}
 	}
-	if !epAlive {
+	if !epAlive && strings.TrimSpace(reg.ServiceID) != "account" {
 		if healthzURL := BuildServiceControlURL(reg.Endpoint, "/healthz"); healthzURL != "" {
 			epAlive = IsServiceEndpointAlive(healthzURL)
 		}
