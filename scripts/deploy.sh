@@ -8,7 +8,7 @@ hub_addr="${HUB_ADDR:-127.0.0.1:18080}"
 hub_pid_file="run/hub.pid"
 hub_log="log.txt"
 hub_log_backup="log.txt.bak"
-hub_shutdown_url="http://${hub_addr}/admin/shutdown"
+
 
 log_deploy() {
   local level="${1:-INFO}"
@@ -32,7 +32,9 @@ stop_hub() {
   pid=$(cat "${hub_pid_file}" 2>/dev/null || true)
   if [[ -n "${pid}" ]] && is_pid_alive "${pid}"; then
     log_deploy "INFO" "Stopping hub (pid=${pid})..."
-    curl -sS -m 2 -X POST "${hub_shutdown_url}" >/dev/null 2>&1 || true
+    curl -sS -m 2 -X POST "http://${hub_addr}/api/tool/call" \
+      -H "Content-Type: application/json" \
+      -d '{"tool_id": "hub.system.shutdown"}' >/dev/null 2>&1 || true
     
     # Wait up to 3 seconds for graceful exit
     local waited=0

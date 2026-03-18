@@ -1,3 +1,157 @@
+## [2026-03-18 23:10 CST] Hub 治理协议解析优化 (Protocol Parsing Optimization)
+- 时间范围：2026-03-18 23:05 -> 2026-03-18 23:10
+- 主要变更：
+  - **性能优化**：在 `hub/internal/supervisor/handler.go` 中，移除了注册和心跳工具中的 `json.Marshal/Unmarshal` 二次解析逻辑。
+  - **直接映射实现**：新增了 `parseRegisterRequest` 和 `parseHeartbeatRequest` 高效解析器，直接从 `map[string]any` 提取字段，消除内存分配开销。
+  - **清理冗余**：移除了 `hub/internal/supervisor/handler.go` 中不再需要的 `encoding/json` 引用。
+- 关键文件/模块：
+  - `hub/internal/supervisor/handler.go`
+- 开发结果：
+  - 成功：`go build` 校验通过，Hub 关键治理路径的执行效率得到显著提升。
+- 关键思路：
+  - **零拷贝思想**：针对高频的心跳和重量级的注册请求，避免不必要的序列化往返，提高系统整体吞吐量。
+
+## [2026-03-18 23:05 CST] 修复 Hub 引导逻辑中的路径不一致问题 (Path Re-alignment)
+- 时间范围：2026-03-18 23:00 -> 2026-03-18 23:05
+- 主要变更：
+  - **路径归一化**：在 `hub/cmd/hub/main.go` 中，将注入给 `LifecycleManager` 的注册 URL 从 `/api/service/register` 正式修改为工具调用入口 `/api/tool/call`。
+  - **协议同步**：确保所有经由 Hub 拉起的子服务获取到的“控制平面”入口完全对齐到统一工具网关。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+- 开发结果：
+  - 成功：`go build` 校验通过，Hub 启动逻辑与工具化架构达成一致。
+- 关键思路：
+  - **架构对齐**：通过将治理接口收缩到单一入口 `/api/tool/call`，从根源上消除了物理端口和路由的复杂性。
+  - **环境透明性**：确保子服务通过 `registerURL` 环境变量拿到的不再是已废弃的旧路由，避免服务启动时陷入死循环或 404 陷阱。
+
+## [2026-03-18 23:00 CST] Hub 治理工具安全加固 (Governance Hardening)
+- 时间范围：2026-03-18 22:55 -> 2026-03-18 23:00
+- 主要变更：
+  - **加固治理接口**：在 `hub/internal/supervisor/handler.go` 中为 `hub.governance.service.register` 和 `hub.governance.service.heartbeat` 工具增加了强制 Loopback 校验。
+  - **细化 Drain 策略**：为 `hub.governance.service.drain` 工具在 `IdentityService` 类型调用时增加了 Loopback 校验，同时保持对 `IdentityUser`（管理员）的灵活访问。
+  - **上下文对齐**：完善了从 `ToolHandler` 注入的 `RemoteAddr` 在治理逻辑中的应用，确保所有治理操作均符合“本地域安全”原则。
+- 关键文件/模块：
+  - `hub/internal/supervisor/handler.go`
+- 开发结果：
+  - 成功：`go build` 校验通过，Hub 的治理防线已在工具化架构下完整复盖。
+
+## [2026-03-18 22:40 CST] Hub 接口全量迁往工具模式 (Pure Tool-Centric Arch)
+- 时间范围：2026-03-18 22:25 -> 2026-03-18 22:40
+- 主要变更：
+  - **残余 REST 接口清零**：彻底删除了 `/version`, `/api/internal/healthz`, `/admin/shutdown` 等最后几个传统 HTTP 端点。
+  - **工具清单对齐**：在 `hub/internal/gateway/hub_manifest.go` 中新增 `hub.system.shutdown` 和 `hub.system.health` 工具定义。
+  - **逻辑闭环实现**：在 `SystemHandler` 中实现了 `handleShutdownTool` 和 `handleHealthTool`。
+  - **安全加固**：通过在 `ToolHandler` 中注入 `RemoteAddr` 到 Context，确保 `hub.system.shutdown` 工具即使通过匿名调用也能强制执行回环地址（Loopback）校验。
+  - **运维脚本适配**：同步重构了 `scripts/deploy.sh`，将其停止服务的逻辑从旧的 REST URL 切换到通过 `curl` 调用统一的工具入口 `/api/tool/call`。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `hub/internal/gateway/hub_manifest.go`
+  - `hub/internal/gateway/system_handler.go`
+  - `hub/internal/gateway/tool_handler.go`
+  - `scripts/deploy.sh`
+- 开发结果：
+  - 成功：`go build` 校验通过；Hub 现在仅保留 `/api/tool/*` 和静态文件服务出口。
+- 经验与结论：
+  - 有效实践：将 `RemoteAddr` 注入 Context 是在统一工具框架下处理“物理安全校验”的有效手段。
+  - 架构收益：从此所有外部调用（包括管理操作）均可通过工具流水记录、审计以及实施统一的权限策略。
+
+## [2026-03-18 22:20 CST] Hub 内部功能工具化与架构收归落地 (DevComplete)
+- 时间范围：2026-03-18 21:25 -> 2026-03-18 22:20
+- 主要变更：
+  - **核心分发器重构**：在 `hub/internal/gateway/tool_handler.go` 中实现了 `InternalToolRegistry`，支持内存级工具（Go 函数）的直接调度，消除了 `hub.*` 工具的外部 RPC 开销。
+  - **治理与管理功能工具化**：
+    - 重构 `AdminHandler`：将服务列表、路由绑定、审计查询等 5 个管理接口转为 `hub.admin.*` 工具。
+    - 重构 `SupervisorHandler`：将服务注册、心跳、Drain 等 3 个治理接口转为 `hub.governance.*` 工具。
+  - **系统接口与流式工具适配**：
+    - 重构 `SystemHandler`：将版本获取、配置热更新、冒烟测试、日志上报等接口转为 `hub.system.*` 工具.
+    - 新增流式工具：实现了 `hub.system.logs.subscribe` WebSocket 工具，支持实时订阅 Hub 运行日志。
+  - **身份平面全量接入**：所有内部工具均通过 `IdentityMiddleware` 进行调用方身份识别与权限校验（`IdentityUser` / `IdentityService` / `IdentityAnonymous`）。
+  - **端点清理与终态收拢**：在 `hub/cmd/hub/main.go` 中注释并移除了所有不再需要的旧有 REST API 路由，Hub 现已全面转向“工具驱动”的单一入口架构。
+- 关键文件/模块：
+  - `hub/internal/gateway/tool_handler.go`
+  - `hub/internal/gateway/admin_handler.go`
+  - `hub/internal/gateway/system_handler.go`
+  - `hub/internal/supervisor/handler.go`
+  - `hub/internal/app/logger.go`
+  - `hub/cmd/hub/main.go`
+- 开发结果：
+  - 成功：`go build ./hub/cmd/hub/` 编译通过；`hub.*` 命名空间工具注册闭环；日志订阅 WS 工具可用。
+- 经验与结论：
+  - 有效实践：使用匿名接口 (`interface { RegisterTool(...) }`) 在 `main.go` 中进行依赖注入，能在保持各 Handler 独立性的同时，实现工具碎片的解耦注册。
+  - 有效实践：将日志订阅内置于 Logger 的 PubSub 模式，比读取磁盘文件更实时且更安全（支持内存级多路复用）。
+- 下一步：
+  - 验证前端（WebUI）对 `hub.admin.*` 工具的调用适配情况，并逐步清理完全无用的 Legacy Handler 代码（目前仅为注释状态）。
+
+## [2026-03-18 21:25 CST] Hub 内部功能工具化与架构收归计划 (DevPlan)
+- 时间范围：2026-03-18 21:01 -> 2026-03-18 21:25
+- 主要变更：
+  - **制定全量工具化计划**：产出 `plan/2603182125-hub-internal-toolification-devplan.md`，确立了“Hub 作为虚拟服务”与“统一工具分发器”的核心架构转型方案。
+  - **明确命名空间结构**：定义了 `hub.admin.*`、`hub.governance.*` 和 `hub.system.*` 的逻辑划分，并拟定了废弃旧有 REST API 路由的演进路径。
+  - **身份验证集成方案**：规划了 Hub 从“账号管理者”向“无状态验证者”转变的底层流程，包括基于 `account-service` 同步公钥的身份平面下沉。
+  - **统一调度闭环**：确立了内部分发器（Internal Dispatcher）的接口规范，支持同步与 WebSocket 流式工具的统一调度。
+- 关键文件/模块：
+  - `plan/2603182125-hub-internal-toolification-devplan.md`
+  - `hub/internal/gateway/tool_handler.go` (规划中)
+- 开发结果：
+  - 成功：完成了 Hub 向“逻辑网关”转型的顶层设计与实施计划，确保架构逻辑高度一致性。
+- 下一步：
+  - 开始按照计划分阶段实施 Hub 内建 Manifest 与内存调度器的逻辑开发。
+
+## [2026-03-18 21:01 CST] Account Service Tool-First 重构落地 (DevComplete)
+- 时间范围：2026-03-18 18:35 -> 2026-03-18 21:01
+- 主要变更：
+  - 新增 `services/account` 标准 tool service，落地 `account.auth.register/login/logout/me/password_change` 与内部工具 `account.system.keys.get`、`account.session.dump_active`，并使用 Ed25519 私钥签发 token。
+  - Hub 从内建 `/api/auth/*` 完整切换到 account 体系：删除路由暴露，改为解析 `svc.account.token`，执行公钥验签 + `sid` 单会话校验。
+  - 扩展 tool 协议：`CallResponse` 新增顶层 `effects`（set_cookie/set_header），`ServiceTool` 新增 `allowed_caller_types`；Hub 网关统一执行副作用与 caller type 权限校验。
+  - 前端账号链路全切 tool：`webui/page/account` 与 `webui/page/chat` 不再访问 `/api/auth/*`，改为调用 `/api/tool/call` 的 `account.auth.*`。
+  - 服务治理配置更新：`account` 纳入 `hub/config/config.json`、`config/services.json`、`hub/config/services.json`；`scripts/reset_db.sh` 增加 account 停止与 pid 清理。
+  - 清理历史实现：删除 `services/auth/` 全目录。
+- 关键文件/模块：
+  - `services/account/cmd/account/main.go`
+  - `services/account/manifest.json`
+  - `hub/internal/app/auth.go`
+  - `hub/internal/app/identity.go`
+  - `hub/internal/gateway/tool_handler.go`
+  - `pkg/toolproto/v1.go`
+  - `pkg/toolproto/supervisor.go`
+  - `hub/cmd/hub/main.go`
+  - `webui/page/account/index.html`
+  - `webui/page/chat/index.html`
+  - `config/services.json`
+  - `hub/config/services.json`
+- 开发结果：
+  - 成功：`go test ./...` 全量通过；`rg "/api/auth/" webui/page` 无残留；`services/auth/` 已删除。
+  - 失败/问题：未发现阻塞性失败；当前 keyring/sid 同步依赖 account 注册回调，Hub 冷启动窗口期可能出现短暂 401（已记录到项目说明“待确认事项”）。
+- 经验与结论：
+  - 有效实践：将登录态写入统一收敛到 `effects`，能避免 service 直接操作浏览器响应并天然获得跨 service 隔离。
+  - 有效实践：将 caller 权限约束放进 tool 描述（`allowed_caller_types`）并在网关统一执行，比按 endpoint 白名单硬编码更稳定。
+  - 失败教训：账号体系迁移涉及协议、网关、前端、配置和脚本，必须按“协议 -> 网关 -> 服务 -> 前端 -> 清理”顺序推进，否则中间态容易不可用。
+- 下一步：
+  - 在联调环境执行一次端到端 smoke（含 SSO 旧 token 失效）并观测 Hub 重启后 account key/sid 恢复稳定性。
+
+## [2026-03-18 18:35 CST] Hub 主程序重构与模块化解耦 (Refactor-Complete)
+- 时间范围：2026-03-18 16:30 -> 2026-03-18 18:35
+- 主要变更：
+  - **Hub 主入口瘦身**：将 `hub/cmd/hub/main.go` 从 1300+ 行重构为 220 行。逻辑按职责全量下沉至 `internal/` 包。
+  - **Handler 职责分离**：
+    - 抽离 `gateway/admin_handler.go`：接管所有 Admin API 路由。
+    - 抽离 `gateway/system_handler.go`：接管 Auth、System、Shutdown 与静态资源路由。
+    - 抽离 `supervisor/handler.go`：接管 Service 注册、心跳与管控逻辑。
+  - **基础库增强**：在 `internal/app/httputil.go` 沉淀了统一的 JSON 写入、Loopback 判定与 RequestObserver 等工具函数。
+  - **治理逻辑收拢**：在 `internal/supervisor/process_control.go` 沉淀了跨平台的进程管理逻辑，消除了代码冗余。
+  - **架构健壮性**：通过 `ServiceSyncer` 接口解耦了 `supervisor` 与 `routing` 包的循环依赖，显著提升了编译稳定性。
+- 关键文件/模块：
+  - `hub/cmd/hub/main.go`
+  - `hub/internal/gateway/{admin_handler,system_handler,middleware}.go`
+  - `hub/internal/supervisor/{handler,process_control}.go`
+  - `hub/internal/app/httputil.go`
+- 开发结果：
+  - 成功：通过 `go build ./hub/cmd/hub/` 编译校验与 `go test ./hub/...` 全量回归测试。
+- 经验与结论：
+  - 有效实践：大型 `main.go` 的重构应遵循“先抽工具 -> 后抽 Handler -> 最后装配”的节奏，辅以 struct-based DI 模式能极大提升测试性。
+- 下一步：
+  - 观察重构后多服务环境下的长时间运行指标，确认无内存泄漏。
+
 ## [2026-03-18 14:38 CST] 部署脚本重定向循环修复与实时日志优化 (Bug-Fix)
 - 时间范围：2026-03-18 14:25 -> 2026-03-18 14:38
 - 主要变更：
@@ -139,778 +293,3 @@
 - 下一步：
   - 根据评估结论，分阶段实施 `deploy.sh` 的配置化重构与 Hub 侧冒烟测试逻辑开发。
 
-## [2026-03-17 13:45 CST] 全面重构项目技术说明文档 (doc/_instruction.md)
-- 时间范围：2026-03-17 13:32 -> 2026-03-17 13:45
-- 主要变更：
-  - **文档架构重置**：彻底重写 `doc/_instruction.md`，从单纯的“分服说明”提升为“框架级技术白皮书”形态。
-  - **核心理念固化**：首次在主文档中明确“交互在前端，治理在 Hub，执行在 Service”的协作原则，并定义了“逻辑路径优先”与“Client-Driven”等核心理念。
-  - **编码规范标准化**：沉淀了 Tool Protocol 通信标准、全链路身份传递 (X-Caller) 规范以及基于 Context-Aware 的统一日志撰写要求。
-  - **术语与索引补全**：整合了 `plan/` 与日志中的高频术语（如 Capability Token, Identity Context），并更新了包含 3 级深度的详细目录树。
-  - **环境验证对齐**：同步了最新的 `scripts/deploy.sh` (7服务联动) 与健康检查路径。
-- 关键文件/模块：
-  - `doc/_instruction.md`
-  - `plan/260316-kagent-architecture-philosophy-ana.md`
-- 开发结果：
-  - 成功：文档已完成全量覆盖，具备了最高的指导性与全面索引性质。
-- 经验与结论：
-  - 有效实践：将“ANA 分析文档”中的理念沉淀为“Instruction 事实文档”，能有效解决架构设计与工程现状的认知断层。
-- 下一步：
-  - 持续根据 Service 侧的具体工具实现更新 Tool Protocol 细节。
-
-## [2026-03-14 16:15 CST] 实现对话项目（Project）与线程（Thread）管理系统
-- 时间范围：2026-03-14 15:20 -> 2026-03-14 16:15
-- 主要变更：
-  - **后端存储升级**：`internal/sqlite_store.go` 中 `projects` 和 `threads` 表新增 `order_index` 字段并支持自动迁移；实现完整的 CRUD 接口。
-  - **WebSocket 动态上下文**：修改 `main.go`，WebSocket 握手支持通过 query params (`project_id`, `thread_id`) 建立指定上下文的连接。
-  - **侧边栏 (Sidebar) 落地**：`webui/` 新增侧边栏 UI，支持项目/会话的展示、切换、增删改。
-  - **交互增强**：利用 HTML5 Drag and Drop API 实现项目/会话的手放排序及跨项目移动会话；支持自动创建默认项目/会话。
-  - **架构一致性**：`session-controller.js` 适配重连逻辑；`chat-store.js` 补齐切换会话时的清理动作。
-- 关键文件/模块：
-  - `internal/sqlite_store.go`
-  - `main.go`
-  - `webui/page/chat/index.html`
-  - `webui/page/chat/sidebar-controller.js`
-  - `webui/page/chat/session-controller.js`
-- 开发结果：
-  - 成功：实现了完整的项目与会话管理闭环，支持动态切换对话上下文，UI 交互流畅。
-- 经验与结论：
-  - 有效实践：将 WebSocket 的路由参数化（URL Query Params）是解决单连接多上下文切换的轻量级方案。
-  - 设计权衡：在侧边栏渲染时一次性拉取所有项目及首层会话，平衡了首屏加载速度与交互响应度。
-- 下一步：
-  - 适配移动端侧边栏的滑动手势。
-
-## [2026-03-14 15:20 CST] 修复点击“开始对话”导致历史消息重复加载的 Bug
-- 时间范围：2026-03-14 15:05 -> 2026-03-14 15:20
-- 主要变更：
-  - **前端启动逻辑优化**：修改 `session-controller.js`，在 `ws_open` 事件处理器中增加 `app.messages.length === 0` 判定，避免因 `startAll` 触发重复连接而导致的冗余历史拉取。
-  - **消息存储去重防御**：在 `chat-store.js` 的 `handleHistorySync` 中引入基于 `message_id` 的去重逻辑，确保即便后端返回重复历史，前端 UI 也不会出现重影。
-- 关键文件/模块：
-  - `webui/page/chat/session-controller.js`
-  - `webui/page/chat/chat-store.js`
-- 开发结果：
-  - 成功：解决了用户反馈的“每次点击开始对话历史消息重读一遍”的问题；增强了系统的健壮性。
-- 经验与结论：
-  - 有效实践：对于幂等性要求高的初始化操作（如拉取历史），除了在触发端做节流/状态检查，在消费端做 ID 维度的去重是极佳的防御性编程实践。
-- 下一步：
-  - 观察在极弱网环境下 WebSocket 频繁断连重读时的 UI 表现，确认是否仍有体验瑕疵。
-
-
-## [2026-03-14 15:05 CST] 重构数据库重置脚本支持分级清理
-- 时间范围：2026-03-14 14:55 -> 2026-03-14 15:05
-- 主要变更：
-  - 重构 `scripts/reset_db.sh`，引入参数化控制清理范围。
-  - 支持 `messages` (默认，仅清空消息表)、`log` (清空所有用户 ops 日志)、`data` (清空所有 Surface 数据)、`all` (清理以上全部)。
-  - 增加安全保护逻辑：强制排除 `.jwt_secret` 和 `user_custom_config.json`，不再执行暴力 `rm -rf data/`。
-  - 优化数据库清理方式：使用 `sqlite3 DELETE` 代替直接删除文件，避免丢失账号和项目元数据。
-- 关键文件/模块：
-  - `scripts/reset_db.sh`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：脚本重构成功并已同步文档。
-- 经验与结论：
-  - 通过分级清理，可以更好地平衡“重测对话逻辑”与“保留用户信息”的需求。
-- 下一步：
-  - 观察测试过程中日志量，如有必要增加按日期清理的功能。
-
-
-## [2026-03-03 19:39 CST] 项目文档与安全基线初始化
-- 时间范围：N/A（初始化，无历史日志） -> 2026-03-03 19:39 CST
-- 主要变更：
-  - 重写项目说明，按真实仓库结构补齐模块职责、约束、术语表与待确认事项
-  - 新增 `.gitignore`，显式忽略 `configx.json`（私密配置）与 `.DS_Store`
-  - 脱敏 `ref/doubao-doc.md` 中的鉴权示例，移除疑似真实 Bearer Token，补充安全提示
-  - 明确约束：Go/JS 依赖必须本地可用，不依赖网络资源；前端以 WebComponent 为主、3D 仅允许本地 THREEJS
-- 关键文件/模块：
-  - `doc/_instruction.md`
-  - `doc/_devlog.md`
-  - `.gitignore`
-  - `ref/doubao-doc.md`
-  - `configx.json`
-- 开发结果：
-  - 成功：完成说明文档与开发日志初始化；建立 `configx.json` 的 Git 忽略与文档脱敏基线
-  - 失败/问题：当前目录下未初始化 `.git/`；且系统 `git` 命令提示未同意 Xcode License（后续若要接入远程 Git 需先处理）
-- 经验与结论：
-  - 有效实践：先做“结构扫描 + 安全清点”，再写说明文档，能避免文档与仓库真实状态不一致
-  - 失败教训：参考资料中若直接粘贴 `curl` 示例，极易把真实 Token 一并提交到仓库
-  - 后续规避：所有示例/文档一律使用占位符；敏感信息仅进入 `configx.json`（并确保被忽略/不上传）
-- 下一步：
-  - 初始化 Git 仓库并确认 `configx.json` 未被纳入版本管理（必要时执行取消跟踪）
-  - 产出实现阶段的架构/目录规划文档到 `plan/`（例如 Go 引擎、Web UI、资源本地化策略）
-  - 定义 `config.json` 的公开配置结构与 `configx.json` 的私密配置边界（提供示例模板）
-
-## [2026-03-04 12:34 CST] T0 MVP 代码落地与结果归档
-- 时间范围：2026-03-03 19:39 CST -> 2026-03-04 12:34 CST
-- 主要变更：
-  - 落地 Go 服务入口与本地 HTTP/WS 运行链路（`main.go`）
-  - 新增核心模块：配置、协议、会话状态机、ASR/LLM/TTS、编排与工具函数（`internal/*.go`）
-  - 落地纯原生前端页面与音频链路（采集、上行、下行播放、打断、调试日志）（`static/index.html`）
-  - 新增基础测试（配置解析、分段编排、能量判定）并完成本地测试验证
-  - 新增计划与结果文档：`T0-2026-03-03-01.md`、`T0-2026-03-03-01-dev-plan.md`、`T0-2026-03-03-01-dev-result.md`
-- 关键文件/模块：
-  - `main.go`
-  - `go.mod`, `go.sum`
-  - `internal/config.go`, `internal/protocol.go`, `internal/session.go`
-  - `internal/asr.go`, `internal/llm.go`, `internal/tts.go`, `internal/pipeline.go`
-  - `internal/config_test.go`, `internal/pipeline_test.go`, `internal/session_test.go`
-  - `static/index.html`
-  - `plan/T0-2026-03-03-01-dev-result.md`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：
-    - ASR 与 LLM 链路可运行，前端可见识别和生成文本
-    - Start/Stop/Interrupt/utterance_end 事件链路与资源回收机制已具备
-    - `go test ./...` 通过；`go build -buildvcs=false ./...` 通过
-  - 失败/问题：
-    - 真实 TTS 仍出现 `403 resource not granted`、`tts server error(type=0xF/code=148)`、`i/o timeout`，导致发声不稳定
-    - 本机默认 `go build ./...` 受 VCS stamping + Xcode License 影响报错（需 `-buildvcs=false` 规避）
-- 经验与结论：
-  - 有效实践：
-    - 将协议差异封装在 Provider 层，保持 `session/pipeline` 状态逻辑稳定
-    - 先打通可观测性（status/error/debug），排障效率显著提升
-  - 失败教训：
-    - TTS 真实接口问题并非单点错误，常由资源授权、协议细节、网络超时叠加导致
-    - 若缺少“资源ID-音色-模型”对照表，排障会被 403/148 类错误反复阻塞
-  - 后续规避：
-    - 以官方示例逐字段回归 `tts.go` 帧编码与事件序列
-    - 固化可用 `resourceId` 与 `voiceType` 组合，提供可复制配置模板
-- 下一步：
-  - 对齐官方 TTS 双向流式示例，补抓包级调试信息并定位 `code=148` 根因
-  - 在 TTS 稳定后完成 10.3 手工清单回归（多轮、连续打断、各状态 Stop）
-  - 将当前未跟踪文件整理为可追溯 Git 提交，补齐版本化证据链
-
-## [2026-03-04 14:02 CST] 流式 TTS 与对话流水线延迟修复
-- 时间范围：2026-03-04 12:34 CST -> 2026-03-04 14:02 CST
-- 主要变更：
-  - 重构 `TTSClient` 接口为 `NewStream`，利用真实的双向 WebSocket (`BidirectionalTTS`) 长连接替代原有的频繁截断短连接
-  - 修改 `TurnPipeline.RunTurn` 逻辑，在回合首字下发前直接建连并持续 `SendText`，彻底改变 TTS 同步推送方式
-  - 将 `TextSegmenter` 的最少字符截断限制从 16 字精简为 2 字，让短开场白（如“你好”）迅速触发语音合成首包
-  - 将 `StateSpeaking` 状态和相关判定前置至流式产生首字时，加快页面响应感
-  - 输出需求计划和成果报告：`plan/T0-26030401-fix.md`，`plan/T0-26030401-fix-dev-plan.md`，`plan/T0-26030401-fix-dev-result.md`
-- 关键文件/模块：
-  - `internal/tts.go`
-  - `internal/pipeline.go`
-  - `internal/pipeline_test.go`
-  - `plan/T0-26030401-fix-dev-result.md`
-- 开发结果：
-  - 成功：完全解决了 TTS 由于频繁反复建连引起的静音、丢字问题。同时，降低截断长度大幅提升了 LLM 返回第一句的朗读首发速度（TTFB 优化）。
-  - 成功：`go build` 和 `go test ./...` 编译与测试均一次性通过。
-- 经验与结论：
-  - 有效实践：遇到流式生成接口频繁卡死、丢包时，优先检查是否滥用了建立长连接资源。改为全程长连 `SendText` 是根本有效的解决方案。
-  - 后续规避：未来如有更多长序列流转化场景，一定要复用 Session 并利用句级分隔事件（如 `ttsEventTTSSentenceHead`），而不是每次请求从头连网。
-- 下一步：
-  - 启动项目并实机前端录音体验，确保没有卡顿和连词顿挫。
-  - 在后续优化中，若网络抖动，必要时可考虑在 webui 层加入音频缓存 (Jitter Buffer)。
-
-## [2026-03-04 14:22 CST] 修复 TTS 卡顿/丢声/LLM重复回复
-- 时间范围：2026-03-04 14:02 CST -> 2026-03-04 14:22 CST
-- 主要变更：
-  - 回退 `TTSClient` 接口为原有的 `Synthesize(ctx, text) ([]byte, format, error)`，彻底废弃违反火山协议的流式 `NewStream/SendText/Finish` 方案
-  - 恢复 `pipeline.go` 中的 channel + Worker goroutine 模式，每段文本独立建连、合成完整音频后再推送前端
-  - 将 `TextSegmenter.minRunes` 调整为 6（前次设为 2 导致过于碎片化，原始 16 又太大），新增顿号 `、` 作为分句符
-  - 在 LLM 首个 delta 到达时立即广播 `StateSpeaking`，减少前端等待感
-  - 将 `session.go` 中 `isDuplicateTurn` 的去重窗口从 1200ms 扩大到 3000ms，防止 ASREndpoint 和 utterance_end 双触发
-- 关键文件/模块：
-  - `internal/tts.go`
-  - `internal/pipeline.go`
-  - `internal/pipeline_test.go`
-  - `internal/session.go`
-- 开发结果：
-  - 成功：`go build` 和 `go test ./...` 均通过
-  - 根因确认：火山 TTS 双向流式协议要求 session 内顺序执行，不支持同 session 并发多个 `task_request`。之前的流式方案在同一 session 连续推送导致服务端丢弃或损坏音频。
-- 经验与结论：
-  - 失败教训：在改造第三方协议交互模式前，必须先确认协议的并发/顺序语义，不能想当然地假设"双向"就等于"并发"
-  - 有效实践：回退到已验证可工作的模式 + 精细调优参数（minRunes、dedup window），比激进重构更安全
-- 下一步：
-  - 重启服务进行实机语音对话验证
-  - 若仍有末尾丢句，可考虑在 pipeline 层对 TTS 失败的 segment 进行有限重试
-
-## [2026-03-06 16:04 CST] 版本号体系、部署脚本与配置目录迁移
-- 时间范围：2026-03-04 14:22 CST -> 2026-03-06 16:04 CST
-- 主要变更：
-  - 前后端独立版本号落地：新增 `version.json`（同一文件记录 `backend/webui` CalVer），后端启动日志输出版本并提供 `/version`，前端页面头部与控制台展示版本
-  - 部署工作流脚本落地：新增 `scripts/gitpush.sh`（按变更路径自动 bump `version.json` 并 commit/push）、新增 `scripts/deploy.sh`（构建后端、停旧启新、健康检查）
-  - 快速重启支撑：新增 `POST /admin/shutdown`（loopback 限制）用于 deploy 触发自停机；脚本按 100ms 轮询 PID，超时 3s 进入终端 Y/N 强杀确认
-  - UI 目录结构调整：将 `static/` 更名为 `webui/`，并在服务端保留 `/static/` 兼容别名
-  - 配置文件迁移：`config*.json` 移入 `config/`，并调整默认 `-config` 与 deploy 默认 `KAGENT_CONFIG`
-  - 工程卫生：`.gitignore` 增加 `bin/ logs/ run/` 忽略，避免构建/运行产物入库
-- 关键文件/模块：
-  - `version.json`
-  - `scripts/gitpush.sh`, `scripts/deploy.sh`
-  - `main.go`, `internal/version.go`, `webui/index.html`
-  - `.gitignore`, `config/configx.json`, `config/configx.json.example`
-  - `doc/_instruction.md`, `AGENTS.md`, `.codex/skills/{plan,dev}/SKILL.md`
-- 开发结果：
-  - 成功：版本号与展示链路形成闭环（后端日志 + `/version` + 前端显示）；deploy 具备快速重启与基本健康检查
-  - 失败/问题：`doc/_devlog.md` 中存在部分历史条目与当前仓库代码/文件命名不完全一致（缺少 Git 证据链），本次仅追加“以当前文件扫描为准”的状态更新，未改写历史
-- 经验与结论：
-  - 有效实践：用“一个文件记录两个组件版本号”保持单一事实源，同时避免前后端不必要联动 bump
-  - 有效实践：提供 `/admin/shutdown` 作为未来“退出前持久化/清理”的挂钩点，部署脚本先走自停机、超时再强杀兼顾速度与可扩展性
-  - 后续规避：对外部生成/手工补写的开发日志，若无 Git 提交或可核验证据，必须显式标注“不可核验/待确认”，避免污染事实链
-- 下一步：
-  - 若要强化安全性：为 `/admin/shutdown` 增加 token 校验（仅在本机 loopback 之外开放时必需）
-  - 将关键变更整理为可追溯 Git 提交（避免“代码存在但无提交证据链”导致日志不可核验）
-
-## [2026-03-08 01:46 CST] 实时对话机制收敛、回滚复盘与句级 TTS 拼组
-- 时间范围：2026-03-06 16:04 CST -> 2026-03-08 01:46 CST
-- 主要变更：
-  - 围绕实时语音对话链路重新梳理前后端职责：前端保留 `start_listen / interrupt / trigger_llm` 主导权，后端负责 ASR Finish 收尾、turn 生命周期与 TTS 编排
-  - 修复前端消息与播放隔离问题：新增 `playbackEpoch` 防旧音频回流，新增 `sessionEpoch` 防止停止后重新开始时新识别结果覆盖旧会话首条气泡
-  - 调整后端 `session.go / asr.go`：`trigger_llm` 时显式 `Finish()` 并短等 ASR final；空文本回发 `turn_nack`；将 `finish last sequence` 等正常 close 视为可接受结束；新 ASR turn 启动前清空旧音频队列
-  - 重写 `pipeline.go` 的 TTS 编排：由先前的短片段试探改为“整句切分 + backlog 动态拼句”，并保留“单段 TTS 失败不中断整轮、整轮无有效音频才报错”的容错策略
-  - 将前端文本渲染改为 `textContent`，消除直接写入 `innerHTML` 的注入风险；同步补齐 `pipeline_test.go` 对句级切分、拼句上限、单段失败继续的覆盖
-- 关键文件/模块：
-  - `internal/session.go`
-  - `internal/asr.go`
-  - `internal/pipeline.go`
-  - `internal/pipeline_test.go`
-  - `webui/index.html`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：
-    - 当前对话机制已收敛为“前端停顿触发 LLM、后端句级 backlog 拼组 TTS”的可运行版本
-    - 停止后重新开始的消息覆盖问题已修复；打断后旧音频 decode 回流问题已修复
-    - `go test ./...`、`go test -race ./...`、`go build -buildvcs=false ./...` 均通过
-  - 失败/问题：
-    - 本轮中途曾尝试更激进的 ASR/打断改法，导致本地 ASR 一度无法工作；随后确认其中夹杂用户麦克风硬件问题，并已按用户要求回滚到 `2026-03-07 18:41 +0800` 的 Git 版本后重新增量实现
-    - TTS 片段策略在“首段弱标点提前切”与“整句起播”之间反复验证，最终根据主观听感回退为整句起播
-- 经验与结论：
-  - 有效实践：
-    - 在实时链路上优先修“过期音频/过期消息污染”这类状态问题，收益高于继续堆更多激进的低延迟技巧
-    - TTS 分组应先稳定在句级单位，再根据播放积压逐步拼句，比分字/短词段试探更容易获得可控听感
-    - 对第三方 TTS 任务采用“单段失败继续、整轮无音频才失败”的策略，能显著降低整句被截断的概率
-  - 失败教训：
-    - 在 ASR 已失稳的情况下继续叠加打断逻辑会放大故障面；正确顺序应是先恢复基线，再逐步加回优化
-    - 只靠 `turn_id` 复用聊天气泡不够，停止后重开会话时必须显式隔离世代
-  - 后续规避：
-    - 以后所有实时链路优化都按“小步实现 -> 单项验证 -> 实机试听”推进，避免一次跨越 ASR/LLM/TTS 多层逻辑
-    - backlog 阈值与字数上限先保守迭代，不再频繁切换首句切分策略
-- 下一步：
-  - 基于真实试听继续微调 `pipeline.go` 的 backlog 阈值与单次拼句上限
-  - 如果后续需要更新说明文档，应以当前 `doc/_instruction.md` 的句级 TTS 与会话隔离机制为准继续追加
-
-## [2026-03-08 01:57 CST] 前端静态资源目录重构
-- 时间范围：2026-03-08 01:46 CST -> 2026-03-08 01:57 CST
-- 主要变更：
-  - 将 `webui/` 目录从 `/webui/` 路径挂载改为根路径 `/` 挂载，使 `/favicon.ico` 等根级资源可直接访问
-  - 将对话页面从 `webui/index.html` 迁移至 `webui/page/chat/index.html`，为后续新增页面预留 `page/` 层级
-  - `main.go` 路由调整：移除旧的 `/webui/` 和 `/static/` 路由，改为统一的根静态文件服务；`/` 重定向到 `/page/chat/`
-  - 更新 `doc/_instruction.md` 中的目录结构、路由说明和访问地址
-- 关键文件/模块：
-  - `main.go`
-  - `webui/page/chat/index.html`（从 `webui/index.html` 迁移）
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：`go build ./...` 通过；`/version`、`/ws`、`/admin/shutdown` 等 API 路由不受影响
-  - `/favicon.ico` 现可正常访问；对话页面通过 `/page/chat/` 访问
-
-## [2026-03-09 18:16 CST] 公开配置体系落地与聊天页模块化重构
-- 时间范围：2026-03-08 01:57 CST -> 2026-03-09 18:16 CST
-- 主要变更：
-  - 建立公开运行时配置体系：新增 `config/config.json`、`internal/public_config.go`、`internal/runtime_config.go`、`internal/runtime_config_test.go`，并在 `main.go` 提供 `GET /api/config` 与 `PUT /api/config`
-  - 将一批后端硬编码参数接入公开配置：包括 `session` 队列与历史窗口、ASR 请求参数与超时、LLM `systemPrompt`、TTS 音色与超时、pipeline backlog 拼句规则
-  - 新增 `webui/json/config_info.json`，前端开始使用元数据控制配置抽屉字段的展示、说明、控件形式和 `mtrca` 标签
-  - 聊天页完成多轮模块化拆分：新增 `config-store.js`、`config-drawer.js`、`chat-store.js`、`audio-playback.js`、`audio-capture.js`、`event-router.js`、`session-controller.js`、`io-worker.js`，`index.html` 收敛为装配层
-  - 配置抽屉支持读取、保存、重载、撤销和未保存草稿回滚；会话控制增加 Worker 超时、停止清理与页面卸载静默停止
-  - 核对并确认一个仍待修复的边缘问题：旧 turn 的 `asr_partial` 气泡在被新 turn 顶掉后，可能因 stale 过滤而长期保持斜体
-- 关键文件/模块：
-  - `config/config.json`
-  - `main.go`
-  - `internal/public_config.go`
-  - `internal/runtime_config.go`
-  - `internal/runtime_config_test.go`
-  - `internal/asr.go`
-  - `internal/llm.go`
-  - `internal/pipeline.go`
-  - `internal/session.go`
-  - `internal/tts.go`
-  - `webui/json/config_info.json`
-  - `webui/page/chat/index.html`
-  - `webui/page/chat/config-store.js`
-  - `webui/page/chat/config-drawer.js`
-  - `webui/page/chat/chat-store.js`
-  - `webui/page/chat/audio-playback.js`
-  - `webui/page/chat/audio-capture.js`
-  - `webui/page/chat/event-router.js`
-  - `webui/page/chat/session-controller.js`
-  - `webui/page/chat/io-worker.js`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：
-    - 公开配置读写链路已贯通，单机版可通过 `config.json + user_custom_config overrides` 驱动前后端运行时参数
-    - 配置抽屉已可实际编辑并保存部分公开参数，且未保存草稿关闭时会自动回滚
-    - 前端聊天页已从单文件大脚本拆为多个职责明确的运行模块
-    - 本地验证通过：`go test ./...`、`go build -buildvcs=false ./...`、新增前端模块语法检查均通过
-  - 失败/问题：
-    - 尚未补浏览器自动化或完整实机回归，当前前端验证仍以模块语法检查和局部逻辑核验为主
-    - `partial` 用户气泡在 superseded turn 下的收口逻辑仍不完整，已定位但未正式修复
-- 经验与结论：
-  - 有效实践：
-    - 配置体系应先统一事实源和保存链路，再做抽屉 UI，否则容易出现“改了但不生效”的假配置
-    - 聊天页模块化按运行域拆分（配置、消息、播放、采集、事件、会话控制）比按视觉结构拆分更稳
-    - 对单机版软件，`JSON overrides` 比 SQLite 更轻、更直观，也更便于手工恢复
-  - 失败教训：
-    - 只靠 `asr_final` 单一路径去掉 partial 样式，在 turn 被快速 supersede 时会留下悬挂消息
-    - 配置抽屉若允许“预览即生效”，关闭时必须同时处理未保存状态回滚，否则用户会误判为已经保存
-  - 后续规避：
-    - 下一步修补旧 partial 气泡问题时，应优先考虑“允许旧 `asr_final` 收口 + superseded fallback”，避免简单粗暴地把所有旧 partial 一律转正
-    - 后续继续迭代前端前，先补实机回归和关键边缘场景验证
-- 下一步：
-  - 修复旧 turn `partial` 气泡在 stale 场景下无法收口的问题
-  - 补一轮浏览器侧真实语音链路回归，重点验证空 turn、barge-in、连续快说和配置抽屉实时预览
-  - 视需要继续收敛 `index.html` 的页面装配层和说明文档中的模块边界
-
-## [2026-03-12 15:40 CST] 修复 Operation 日志 I/O 性能瓶颈
-- 时间范围：2026-03-12 15:32 CST -> 2026-03-12 15:40 CST
-- 主要变更：
-  - 重构 `internal/operation_log.go`，将 `AppendOperationLog` 变更为 `OperationLogger` 结构体，支持按用户和日期保持文件句柄常驻打开，替换了前一版本每次写入高频调用 `os.OpenFile` 和 `f.Close` 的实现。
-  - 调整 `internal/session.go`，在初始化 `Session` 时挂载挂载 `opsLogger`，并在 `cleanup` 时统一关闭底层文件流。
-- 关键文件/模块：
-  - `internal/operation_log.go`
-  - `internal/session.go`
-- 开发结果：
-  - 成功：成功将 Operation 日志的 IO 消耗从“每条开关一次”降低为“按日持流”。项目通过了 `go build` 静态编译验证。
-- 经验与结论：
-  - 有效实践：过程日志这种“低价值高吞吐”数据的核心诉求就是不要拖慢主业务系统，持流长宽并延缓 Close 能有效降低磁盘句柄频繁创建的损耗。
-  - 存在风险：如果应用发生非预期 Crash，可能导致部分在 Buffer 中的最后几行日志未 flush 到磁盘。对于过程操作日志这是可接受的权衡。
-- 下一步：
-  - 前面“提取机制预留表”由于当前无抽取场景，仍作空转。继续按照主线观察前端多实例切换的需求时机。
-
-## [2026-03-12 15:43 CST] 剔除空对讲(turn_nack)的消息落盘
-- 时间范围：2026-03-12 15:40 CST -> 2026-03-12 15:43 CST
-- 主要变更：
-  - 更新 `internal/session.go` 中的 `trigger_llm` 以及无声结束逻辑：当遇到没有有效语音输入的空回合（返回 `turn_nack`）时，仅通过 WebSocket (`sendEvent`) 将事件同步给前端页面进行状态恢复，不再调用 `s.appendHistoryMessage` 进行 `messages` 数据库落盘。
-- 关键文件/模块：
-  - `internal/session.go`
-- 开发结果：
-  - 成功：成功移除了 `turn_nack` 这个高频且无价值的消息类型的入库行为。
-- 经验与结论：
-  - 架构收益：用户在实际使用 VAD 时，不可避免产生各种环境噪音导致的“空触发”，屏蔽这批垃圾数据入库能避免 DB 快速膨胀和污染查询分析面板。仅在 WebSocket 维持一致性用于前端解挂是最佳平衡。
-- 下一步：
-  - 继续观察是否有其他由前端发起但对后台持久化无意义的过渡状态数据可以被剔除。
-
-## [2026-03-12 16:35 CST] 前端全接管 Action 并在闭合时不响应业务
-- 时间范围：2026-03-12 16:24 CST -> 2026-03-12 16:35 CST
-- 主要变更：
-  - 修改 `webui/page/chat/surface-bridge.js` 逻辑，在面板关闭时主动断除 `stateCache`，并向 EventRouter 推送 `event_type="surface_closed" / status="closed"` 的事件。
-  - 拦截组件自动调用 `setVisible(true)` 强行在背景唤起窗口的动作，将其重构为“当组件处于非可见状态时，接收外部动作请求直接打回 `{ ok: false, reason: "surface_closed" }` 予以拒绝”。
-  - 将所有针对 Surface Action (例如 `surface.get_state`) 的响应权彻底下放到前端执行和校验，后端保持瘦持久层定位，只做记录与分发中转。
-- 关键文件/模块：
-  - `webui/page/chat/surface-bridge.js`
-- 开发结果：
-  - 成功：修复了“幽灵面板（已经被用户手动关闭，却还能被 AI 检测到甚至将其召唤出）”这个典型的死缓存 Bug。系统可以精确报告“已被关闭”，促使 AI 改口解释不能看面板了。
-- 经验与结论：
-  - 有效实践：“彻头彻尾的客户端驱动（Client-Driven）模式”。UI 在哪，状态与仲裁就在哪，后端不要使用缓存给大模型发过期报告，容易引发不可逆的状态分裂。
-- 下一步：
-  - 基于彻底解耦的 Client-Driven 协议扩展对 `hostops` (后台无声宿主操作) 的支持验证等机制。
-
-## [2026-03-12 16:36 CST] 数据库 Schema 升级：动态 ID 与日历字段支持
-- 时间范围：2026-03-12 16:30 CST -> 2026-03-12 16:36 CST
-- 主要变更：
-  - 重构 `internal/sqlite_store.go`，移除原有的 `default` 等硬编码静态 ID。采用 `app.newRequestID()` 动态生成唯一的十六进制 ID 作为 `user_id`, `project_id`, `thread_id`，从而支持前端自由修改项目或会话名称而不会导致主键碰撞或业务逻辑崩溃。
-  - 增强 `projects` 和 `threads` 的数据表 Schema，强制新增并补齐了 `created_at_local_weekday`（星期）和 `created_at_local_lunar`（农历）字段的存储。
-  - 在 `needsSchemaReset()` 中加入了针对旧版 `projects` 表缺失 `created_at_local_lunar` 字段的自动重置触发逻辑，系统启动时会自动抹除旧的不兼容数据重新建库。
-- 关键文件/模块：
-  - `internal/sqlite_store.go`
-  - `data/*.db` (本地执行了清理重置)
-- 开发结果：
-  - 成功：数据库结构已成功升级，新系统完全采用动态生成的全局唯一 Hex ID 进行主键绑定，所有的消息现在都能正确保存农历与星期的信息。
-- 经验与结论：
-  - 有效实践：单用户场景下，采用 “应用初次启动时从数据表检索，不存在则生成唯一种子 UUID 进行持久化” 的方案极大提高了系统的鲁棒性，彻底剥离了展示名称与底层数据身份的强耦合关系。
-- 下一步：
-  - 视后续功能需求，可以考虑在全量历史消息回溯或日志面板上直接渲染展示详细的星期与农历数据。
-
-## [2026-03-12 22:05 CST] 文档对齐：DB 主库与 Surface Action 协议
-- 时间范围：2026-03-12 16:36 CST -> 2026-03-12 22:05 CST
-- 主要变更：
-  - 对齐项目说明 `doc/_instruction.md` 的 4.4 数据与存储：明确 `data/kagent.db` 为默认主库、启动时清理 legacy `chat_state.db* / action_records.jsonl`，并补充 `data/users/<user_id>/ops/<YYYYMMDD>.jsonl` 的 operation 分桶现状。
-  - 在项目说明中补齐 Surface 打开/关闭的 action 协议约定（`get_surfaces/open_surface/close_surface` 且 `followup=report`），避免文档与实际 ActionEngine/LLM 提示词脱节。
-  - 同步术语表与待确认事项：将 `message_uid/kagent.db/operation/surface_type/surface_version` 的定义切换为“现状可核验”，并将 `summary/memory/file ref` 明确为“预留表待接线”。
-- 关键文件/模块：
-  - `doc/_instruction.md`
-  - `plan/260312-db-*.md`
-  - `main.go`
-  - `internal/sqlite_store.go`
-  - `internal/operation_log.go`
-  - `internal/storage_reset.go`
-- 开发结果：
-  - 成功：项目说明中关于主库路径、legacy 清理与 ops 分桶的描述与当前代码/落盘现状一致。
-- 经验与结论：
-  - 有效实践：用 `plan/` 里的规划与复盘作为“意图来源”，再以代码与可核验落盘路径作为“事实来源”更新 `doc/_instruction.md`，可以显著降低文档漂移。
-- 下一步：
-  - 若要启用 `thread_summaries/memories/files/file_refs` 的真实产出链路，需明确写入触发点（LLM/前端/后端）与消费面板，并定义哪些进入 `messages`，哪些只进入 `ops`。
-
-## [2026-03-13 20:20 CST] JWT 认证系统与多用户数据隔离修复
-- 时间范围：2026-03-12 22:05 CST -> 2026-03-13 20:20 CST
-- 主要变更：
-  - **身份认证基座**：落地 JWT 签发/校验机制与 salted SHA-256 密码哈希，支持用户注册、登录、登出流程。
-  - **前端鉴权保护**：新增 `page/account/` 账户管理页；在 `page/chat/` 引入 Auth Guard 守卫，并在头部增加了用户头像及退出菜单。
-  - **存储架构升级**：`users` 表增加 `username`/`password_hash` 字段；`SQLiteStore` 修复了初始化阶段“盲抓 ID”的漏洞，强制锁定认证身份，实现严格的多用户数据物理隔离。
-  - **持久化安全**：JWT 签名密钥自动生成并持久化于 `data/.jwt_secret`，Cookie 有效期 30 天。
-- 关键文件/模块：
-  - `internal/auth.go`, `internal/sqlite_store.go`, `main.go`
-  - `webui/page/account/index.html`, `webui/page/chat/index.html`
-- 开发结果：
-  - 成功：通过 18 项后端测试（含新增认证与隔离专项测试）；实机验证不同用户数据完全隔离。
-- 经验与结论：
-  - 有效实践：使用 `SameSite=Strict` 的 Cookie 配合前端 Auth Guard 能在不破坏单页应用体验的前提下提供足够的安全性。
-  - 安全规避：严格禁止在数据库初始化阶段推断 UserID，必须由认证上下文显式传入并锁定。
-- 下一步：
-  - 考虑为用户增加默认随机头像，提升 UI 个人化程度。
-
-## [2026-03-14 14:00 CST] 消息模型统一与 show more 调试视图落地
-- 时间范围：2026-03-13 20:20 CST -> 2026-03-14 14:00 CST
-- 主要变更：
-  - 按 `plan/260313-message-model-prd.md` 完成消息主结构升级：后端消息对象与 SQLite `messages` 表新增 `say/aside/action_json/ref_message_id/ref_action_slot/raw_data/parse_error`。
-  - 落地 assistant JSON envelope 解析与异常兜底：解析失败写入 `parse_error` 与 `raw_data`，并提供“消息格式异常”预览文本。
-  - 调整 action 落盘链路为可追溯结构：在 observer 侧补齐 `execute -> report` 串联，并通过 `ref_message_id` 关联 call。
-  - 调整 followup 机制：引入 pending 缓冲与 1 秒去抖；用户新 turn 到来时清空 pending continuation 触发机会。
-  - 前端 chat 页新增 show more 切换，支持查看 observer/system 消息及 `action_json/parse_error/raw_data` 调试信息。
-- 关键文件/模块：
-  - `internal/message_types.go`
-  - `internal/sqlite_store.go`
-  - `internal/session.go`
-  - `internal/assistant_envelope.go`
-  - `webui/page/chat/chat-store.js`
-  - `webui/page/chat/action-engine.js`
-  - `webui/page/chat/index.html`
-  - `webui/page/chat/io-worker.js`
-- 开发结果：
-  - 成功：`go test ./...`、`go build -buildvcs=false ./...`、`node --check webui/page/chat/{chat-store,action-engine,event-router,io-worker}.js` 均通过。
-  - 失败/问题：未做浏览器端完整语音回归（当前仍以后端测试与前端语法检查为主）。
-- 经验与结论：
-  - 有效实践：将“展示字段（say/aside）”与“调试字段（raw_data/parse_error/action_json）”分层落库，能同时降低 UI 复杂度并提高排障效率。
-  - 失败教训：消息模型升级涉及前后端与 DB 三端联动，若不先统一字段语义，容易在 action 链路中出现引用断点。
-  - 后续规避：后续继续迭代消息协议时，先保持 `message_id + ref_*` 的稳定约束，再做 UI 展示扩展。
-- 下一步：
-  - 补一轮浏览器实机回归，重点覆盖 show more 切换、解析失败气泡、action 调度与 followup 去抖场景。
-
-## [2026-03-14 14:55 CST] Client-Driven 确权打断与智能回避机制落地
-- 时间范围：2026-03-14 14:00 CST -> 2026-03-14 14:55 CST
-- 主要变更：
-  - **Client-Driven 架构深化**：确立“前端决策、后端执行”的单一事实源原则，移除后端主动打断逻辑。
-  - **智能回避 (Ducking)**：前端 `audio-capture.js` 集成 VAD 能量检测，开口瞬间自动压低 AI 播放音量 (10%)。
-  - **确权打断 (Commit Stop)**：在 `event-router.js` 中实现 ASR 语义过滤，仅在识别到有效文本时执行物理打断 (`interrupt`)，防止环境噪音误伤。
-  - **平滑控制**：`audio-playback.js` 引入 `GainNode` 支撑 ramped 线性音量变化，提升交互听感。
-- 关键文件/模块：
-  - `webui/page/chat/audio-capture.js`
-  - `webui/page/chat/audio-playback.js`
-  - `webui/page/chat/event-router.js`
-  - `internal/session.go`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：解决了“敲击桌面噪音误打断”的问题，实现了即便环境嘈杂也能稳定对话的体验。
-  - 成功：`go build` 校验通过，前端模块语法检查通过。
-- 经验与结论：
-  - 有效实践：将“物理感反馈 (Ducking)”与“逻辑态变更 (Interrupt)”解耦，能极大缓解延迟感并提升鲁棒性。
-  - 核心原则：坚持 Client-Driven，避免前后端状态分裂。
-- 下一步：
-  - 进行全场景浏览器实机回归测试。
-
-## [2026-03-15 23:42 CST] Hub/Service 目录硬拆分、旧单体清理与全链路回归
-- 时间范围：2026-03-14 16:15 CST -> 2026-03-15 23:42 CST
-- 主要变更：
-  - 完成运行入口硬切换：Hub 入口迁移到 `hub/cmd/hub`，chat/ai 入口迁移到 `services/chat-server/cmd/chat-server`、`services/ai-doubao/cmd/ai-doubao`。
-  - 删除旧单体路径：移除根目录 `main.go`、`cmd/*`、`internal/*`，消除“新旧并行入口”状态。
-  - 升级部署链路：`scripts/deploy.sh` 构建目标改为新目录并保持 `ai-doubao -> chat-server` 启动顺序。
-  - 执行数据库全量重置：`scripts/reset_db.sh` 清空 `data/*` 并重建 `data/users/default`。
-  - 完成回归验证：`go test ./...` 通过；deploy 成功；`/api/auth/register`、`/api/auth/me`、`/api/projects`、`/api/projects/{id}/threads`、`/ws` smoke 成功。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `hub/cmd/hub/chat_proxy.go`
-  - `hub/internal/app/*`
-  - `services/chat-server/cmd/chat-server/main.go`
-  - `services/chat-server/internal/app/*`
-  - `services/ai-doubao/cmd/ai-doubao/main.go`
-  - `services/ai-doubao/internal/app/*`
-  - `scripts/deploy.sh`
-  - `scripts/reset_db.sh`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：目录架构已从根单体切换为 `hub + services` 主运行结构；chat 主链路验证通过。
-  - 失败/问题：在沙箱内执行部署时出现 `bind: operation not permitted`，需提权运行本地端口监听验证；该问题为执行环境限制，非代码逻辑故障。
-- 经验与结论：
-  - 有效实践：采用“先切入口、再删旧代码、最后跑 deploy+smoke”的门禁顺序，可避免误删导致不可运行。
-  - 失败教训：在受限沙箱中进行本地服务监听验证会产生假失败，需尽早切换到提权执行验证路径。
-  - 后续规避：后续重构阶段继续保持“删除动作以可运行回归结果作为前置条件”。
-- 下一步：
-  - 按计划继续将 `file/database/auth/surface-manager` 从占位形态推进为独立可执行服务实现。
-  - 对 `services/*/internal/app` 进行职责细分，进一步降低服务间重复代码。
-
-## [2026-03-16 00:06 CST] 多服务架构补全（auth/file/database/surface-manager）与 Hub 路由代理落地
-- 时间范围：2026-03-15 23:42 CST -> 2026-03-16 00:06 CST
-- 主要变更：
-  - 新增 4 个独立可执行服务：`services/auth/cmd/auth/main.go`、`services/file/cmd/file/main.go`、`services/database/cmd/database/main.go`、`services/surface-manager/cmd/surface-manager/main.go`。
-  - 为新服务补齐独立依赖目录：`services/{auth,file,database,surface-manager}/internal/app/*`，确保每个服务在自身子项目内可独立构建运行。
-  - Hub 新增路径级代理：`hub/cmd/hub/service_proxy.go`，并在 `hub/cmd/hub/main.go` 前置拦截并转发以下路径：
-    - `/api/auth/*` -> auth-service
-    - `/api/storage/file/*`、`/api/blob/*`、`/api/admin/blob/gc` -> file-service
-    - `/api/storage/database/*` -> database-service
-    - `/api/surfaces*`、`/api/surfacefs/*`、`/api/admin/surfaces*`、`/surfacefs/static/*` -> surface-manager
-  - Hub 移除 builtin service 注册，改为依赖真实 service 注册，消除 `service_id` 冲突状态。
-  - 升级 `scripts/deploy.sh`：支持 7 服务统一 build/start/healthcheck/log/pid 管理；Hub 启动参数新增 4 个 service URL。
-  - 升级 `scripts/reset_db.sh`：停机范围扩展到 7 服务并清理新增 pid 文件。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `hub/cmd/hub/service_proxy.go`
-  - `services/auth/cmd/auth/main.go`
-  - `services/file/cmd/file/main.go`
-  - `services/database/cmd/database/main.go`
-  - `services/surface-manager/cmd/surface-manager/main.go`
-  - `scripts/deploy.sh`
-  - `scripts/reset_db.sh`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：7 服务部署成功；Hub 代理链路可用；chat/page/surface 关键后端接口在新架构下通过回归。
-  - 成功：`go test ./...` 通过。
-  - 成功：`register -> me -> project/thread -> ws`、`storage.file.*`、`storage.database.*`、`/api/surfaces` 经 Hub 代理调用成功。
-  - 问题：执行环境中服务进程在命令结束后不持久，需要在同一提权命令内完成 deploy+smoke 验证；该问题为执行环境限制。
-- 经验与结论：
-  - 有效实践：先通过 Hub 前置路径代理切流，再逐步清理 Hub 旧实现，可在不回退页面功能的前提下完成架构迁移。
-  - 有效实践：将多服务验证串联到单条命令（deploy+smoke+reset），可规避环境进程生命周期差异导致的假失败。
-  - 后续规避：后续清理阶段继续以“可运行 smoke 通过”为删减门禁，避免一次性过度删除导致回归。
-- 下一步：
-  - 继续瘦身 Hub，移除已被代理接管的历史本地 handler 代码块。
-  - 逐服务收敛 `internal/app` 重复代码，形成更小的服务内依赖集。
-
-## [2026-03-16 00:55 CST] 项目废弃文件清理与环境瘦身
-- 时间范围：2026-03-16 00:06 CST -> 2026-03-16 00:55 CST
-- 主要变更：
-  - **废弃目录清理**：彻底删除 build 产物目录 `bin/`、历史分析目录 `ana/`、运行时日志目录 `logs/` 与进程 PID 目录 `run/`。
-  - **冗余文件清除**：删除根目录残留日志 `log.txt`, `log.txt.bak` 及二进制文件 `kagent`。
-  - **Surface 资源精简**：删除 `webui/surface/buildin/counter/demo-counter.html` 残留演示文件。
-  - **工作流卫生**：全项目扫描并清理所有 `.DS_Store` 噪音文件。
-- 关键文件/模块：
-  - `bin/`, `ana/`, `logs/`, `run/`
-  - `log.txt`, `log.txt.bak`, `kagent`, `demo-counter.html`
-- 开发结果：
-  - 成功：成功清理了所有已确认的无用文件与文件夹，仓库环境恢复纯净。
-  - 成功：经核验，被清理的文件均不影响 Hub 及各独立服务的构建与运行路由。
-- 经验与结论：
-  - 有效实践：定期清理 Git 忽略但实际存在的本地构建产物，能有效防止 AI 在上下文分析中被过期的 .log 或 .bak 文件干扰。
-  - 核心原则：保持“代码即文档，源码即事实”，除 `data/` 目录外的非源码文件应保持最小化。
-- 下一步：
-  - 维持此纯净状态，后续重构产生的临时文件应及时入 `plan/` 或执行清理。
-
-## [2026-03-16 01:05 CST] 架构改进 PRD 撰写与需求定义
-- 时间范围：2026-03-16 00:55 -> 2026-03-16 01:05
-- 主要变更：
-  - 撰写 `plan/260316-hub-service-platform-architecture-prd.md`，定义架构改进的需求描述文档。
-  - 整理 Hub 的 5 大核心功能：统一入口、服务治理、工具聚合与路由、三层安全鉴权、审计与观测。
-  - 提炼 Service 的 5 大设计理念：逻辑路径唯一、无感知透明、独立配置边界、Manifest 驱动、Session 绑定。
-  - 定义 6 个核心服务的具体需求设计（Chat, AI, Auth, File, Database, Surface）。
-  - 确立全平台重构的完成标准（DoD）。
-- 关键文件/模块：
-  - `plan/260316-hub-service-platform-architecture-prd.md`
-- 开发结果：
-  - 成功：产出了指导后续重构的架构需求文档。
-- 经验与结论：
-  - 有效实践：在进入详细设计前，先对 Hub/Service 的职责边界进行 PRD 维度的固化，能有效避免重构过程中的逻辑漂移。
-- 下一步：
-  - 基于 PRD 开展具体服务的工具协议 (Tool Protocol) 详细设计。
-
-## [2026-03-16 01:10 CST] PRD 完善：级联退出与反向心跳机制定义
-- 时间范围：2026-03-16 01:07 -> 2026-03-16 01:10
-- 主要变更：
-  - 更新 `plan/260316-hub-service-platform-architecture-prd.md`，整合服务生命周期管理需求。
-  - 新增 **Hub 级联退出** 功能需求：Hub 退出前需尝试正常终止所有已注册 Service。
-  - 新增 **Service 反向心跳监测** 需求：Service 每 3 秒自检 Hub 状态，Hub 异常则自律退出。
-  - 新增 **启动预清理** 需求：Hub 启动新 Service 实例前需确保同 ID 旧实例已清理。
-- 关键文件/模块：
-  - `plan/260316-hub-service-platform-architecture-prd.md`
-- 开发结果：
-  - 成功：在架构需求层面锁定了服务级的生命周期协同逻辑，增强了本地平台的鲁棒性。
-- 经验与结论：
-  - 有效实践：对于本地分布式小架构，通过“Hub 级联杀”+“Service 自守心跳”的双向保险，可以有效防止“僵尸进程”堆积。
-- 下一步：
-  - 为服务骨干代码增加反向心跳监测逻辑模板。
-
-## [2026-03-16 20:41 CST] 修复 ASR 401 鉴权故障（分服配置密钥丢失问题）
-- 时间范围：2026-03-16 20:33 -> 2026-03-16 20:41
-- 主要变更：
-  - **故障定位**：确认 `/page/chat` 语音识别无反应是由于 `ai-doubao` 服务在重构后使用独立的 `services/ai-doubao/config/configx.json`，而该文件仅包含占位符，导致 ASR 请求返回 401。
-  - **密钥同步**：将根目录 `config/configx.json` 中的真实 ASR/TTS/Chat 密钥同步至 `services/ai-doubao/config/configx.json` 和 `services/chat-server/config/configx.json`。
-  - **服务重启**：执行 `deploy.sh` 重新构建并部署全部 7 个服务。
-  - **验证**：通过 deploy 脚本自带的 smoke 检查（Auth + Tool Calls），并确认 `ai-doubao` 服务 normal 注册。
-- 关键文件/模块：
-  - `services/ai-doubao/config/configx.json`
-  - `services/chat-server/config/configx.json`
-- 开发结果：
-  - 成功：解决了重构导致的密钥丢失问题，恢复了 ASR/TTS 核心能力。
-- 经验与结论：
-  - 有效实践：多服务架构下，密钥配置的分散虽然增加了安全性，但也带来了同步成本。后续应考虑在 `deploy.sh` 中增加密钥占位符检查或自动同步机制。
-- 下一步：
-  - 观察用户实机反馈，确认 ASR 识别流是否恢复顺畅。
-
-## [2026-03-16 20:53 CST] 优化 Hub 日志展示：增加前端来源标签并过滤冗余日志
-- 时间范围：2026-03-16 20:48 -> 2026-03-16 20:53
-- 主要变更：
-  - **前端来源标记**：更新 Hub `/api/debug/log` 接口及前端 `appendDebug` 函数，支持 `source` 字段，将原有 `[HUB] [FRONTEND]` 格式改为更精确的 `[PAGE]` 或 `[SURF]` 标签。
-  - **日志静默过滤**：在 Hub 访问日志中间件中增加过滤逻辑，对于所有以 `/debug/log` 结尾的请求不再在终端打印访问日志，减少高频调试带来的控制台干扰。
-  - **组件化适配**：在 `index.html` 中通过闭包包装，确保 `SurfaceBridge` 发出的所有日志自动带上 `SURF` 来源，常规页面逻辑带上 `PAGE` 来源。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `webui/page/chat/index.html`
-  - `webui/page/surface/main.js`
-- 开发结果：
-  - 成功：控制台日志更加清爽，且能清晰分辨日志来源于主聊天页面还是 Surface 插件。
-- 经验与结论：
-  - 有效实践：对于跨屏/跨组件协作的 Web 应用，在统一日志网关中引入 context/source 字段对排查跨端协作问题至关重要。
-- 下一步：
-  - 检查其他潜在的高频日志点（如心跳反馈），视情况进一步过滤。
-
-## [2026-03-16 21:03 CST] 进一步收紧日志格式：移除冗余 Level 并增加 Page:Module 命名空间
-- 时间范围：2026-03-16 20:58 -> 2026-03-16 21:03
-- 主要变更：
-  - **移除重复 INFO**：修改 Hub `/api/debug/log` 处理器，不再在内容中打印 `[body.Level]`，因为 Hub 日志前缀已经包含级别。
-  - **结构化命名空间**：更新前端 `appendDebug` 与 Hub，支持 `page` 字段。输出格式统一为 `[TIMESTAMP] [LEVEL] [TAG] page:module:action`。
-  - **语义化对齐**：将 chat 状态变更的 module 名从 `AppState` 改为更具动作感的 `status_update`，满足 `chat:status_update:Listening` 格式要求。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `webui/page/chat/index.html`
-  - `webui/page/chat/event-router.js`
-- 开发结果：
-  - 成功：日志输出极其精简且具备完整的命名空间信息，方便在大规模并发调试时快速过滤。
-- 下一步：
-  - 持续观察是否有其他模块需要类似的语义化重命名。
-
-## [2026-03-16 21:24 CST] 优化 deploy.sh 构建流程：构建先行，失败不关服务
-- 时间范围：2026-03-16 21:22 -> 2026-03-16 21:24
-- 主要变更：
-  - **调整执行顺序**：将 `go build` 逻辑移至 `stop_service` 之前。
-  - **安全性增强**：由于脚本开启了 `set -e`，若任何一个服务构建失败，脚本将立即退出，不会触发后续的停止旧服务动作。
-- 关键文件/模块：
-  - `scripts/deploy.sh`
-- 开发结果：
-  - 成功：实现了“构建成功才切换”的部署逻辑，避免了因代码编译错误导致的服务意外停机。
-
-## [2026-03-16 22:33 CST] 进一步细节优化：Hub 日志内容格式化与冒号对齐
-- 时间范围：2026-03-16 21:24 -> 2026-03-16 22:33
-- 主要变更：
-  - **连接符替换**：修改 Hub `/api/debug/log` 处理器，将 `page-module-content` 的连接符统一由 `-` 替换为 `:`。
-  - **内容紧凑化**：在 Hub 层引入 `strings.ReplaceAll(body.Content, ": ", ":")`，自动消除前端上报内容中冒号后的多余空格，实现如 `project:prj-xxx` 的一致性展示。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：控制台输出格式与用户预期完全对齐，日志可读性进一步增强。
-- 经验与结论：
-  - 有效实践：在日志网关层进行简单的文本清洗（如 ReplaceAll），比修改所有前端业务模块的日志调用成本更低且更易保持全局一致。
-- 下一步：
-  - 检查是否还有其他微小的 UI/日志不一致点。
-
-## [2026-03-16 23:39 CST] Hub 全局统一身份识别与增强日志系统落地
-- 时间范围：2026-03-16 22:33 -> 2026-03-16 23:39
-- 主要变更：
-  - **Identity 实体定义**：新增 `hub/internal/app/identity.go`，定义 `Identity{Type, ID, Name}` 结构体、`IdentityType` 常量（USER/SERVICE/SURFACE/ANONYMOUS）、Context 读写 helper（`IdentityFromContext`/`ContextWithIdentity`）。
-  - **IdentityMiddleware 落地**：在请求最前端一次性解析 JWT Cookie 并将身份注入 `r.Context()`，后续所有 Handler 和 Logger 可从 Context 直接读取，无需重复解析。
-  - **Context-Aware Logger**：增强 `hub/internal/app/logger.go`，新增 `InfofCtx`/`InfofCtxTag`/`WarnfCtx`/`ErrorfCtx` 系列函数，支持自动从 Context 提取身份名并输出 `[USERNAME]` 标签。
-  - **main.go 中间件链重构**：将 `IdentityMiddleware` 包裹在 `loggingMux` 外层作为 Server Handler；`loggingMux` 移除内部 `extractJWTClaims` 调用，改为从 Context 获取 `Identity.Name`；`/api/debug/log` 前端上报接口启用 `InfofCtxTag` 自动补齐用户名。
-  - **extractJWTClaims 统一收口**：将 `main.go` 和 `gateway/tool_handler.go` 中各自独立的 `extractJWTClaims` 函数合并为 `app.ExtractJWTClaims`，消除代码重复。
-  - **自动化测试**：新增 `hub/internal/app/identity_test.go`，覆盖 7 个测试用例（Context 默认值、Context 读写幂等性、有效 JWT→USER、无 Cookie→ANONYMOUS、无效 JWT→ANONYMOUS、ExtractJWTClaims 正常/无 Cookie）。
-- 关键文件/模块：
-  - `hub/internal/app/identity.go`（新增）
-  - `hub/internal/app/identity_test.go`（新增）
-  - `hub/internal/app/logger.go`（增强）
-  - `hub/cmd/hub/main.go`（中间件链重构 + extractJWTClaims 统一）
-  - `hub/internal/gateway/tool_handler.go`（删除重复 extractJWTClaims）
-  - `plan/260316-hub-identity-logging-devplan.md`（开发计划文档）
-- 开发结果：
-  - 成功：`go build ./hub/...` 通过。
-  - 成功：`go test ./hub/... -v` 通过，14/14 测试全部通过（7 新增 + 7 既有）。
-  - 成功：日志输出格式变为 `[TS] [LEVEL] [TAG] [USERNAME] message`，前端上报日志和网关访问日志均自动携带用户标识。
-  - 成功：PRD DoD 三项全部完成：① 所有请求日志含 `[USERNAME]`；② 移除重复 JWT 解析；③ `/api/debug/log` 自动关联用户。
-- 经验与结论：
-  - 有效实践：将身份识别收敛为中间件层单次执行并注入 Context，是同时解决"日志匿名"和"代码重复"两个问题的最佳切入点。
-  - 有效实践：使用 `context.WithValue` + struct key 类型避免 key 碰撞，比 string key 更安全。
-  - 架构收益：JWT 解析从"每请求多次"降为"每请求一次"，在请求链路上只有性能增益没有回退。
-- 下一步：
-  - 部署后观察控制台日志，确认登录用户、匿名访问、前端上报三个场景的 `[USERNAME]` 标识均正确显示。
-  - 后续可考虑扩展 Identity 支持 SERVICE 和 SURFACE 类型的探测（当前仅实现 USER/ANONYMOUS）。
-
-## [2026-03-17 00:20 CST] AI & Chat 服务标准化与 Hub-Centric 架构重构
-- 时间范围：2026-03-16 23:39 -> 2026-03-17 00:20
-- 主要变更：
-  - **流式配置 Bug 修复**：修正 `ai-doubao/main.go` 与 `chat-server/main.go` 中错误的 `Streaming` 字段比对（不再仅校验 `"stream"`），正确解析 `ws_binary`/`sse`，并补全注册所需的 `TimeoutMS` 与 `CapabilitiesRequired` 字段。
-  - **ai-doubao 暴露私有标准端点**：实现统一的 `/service/tool/exec` 接口并关联 Hub 共享服务令牌校验（`X-Hub-Service-Token`）；打断内部 `app.NewDoubaoTTSClient` 和其余功能的直连。
-  - **Hub 动态 WS 路由代理**：改造 Hub `/api/tool/ws`，通过 `service_id` 查询参数进行动态服务转发，兼容未传时降级为 `chat-server`。
-  - **彻底剥离 chat-server 直连机制**：删除 `chat-server` 内部用于管控和绕过 Hub 端点的 `AIServiceManager`、`ServiceProviderFactory` 等残留逻辑。
-  - **海量冗余死代码清理**：在 `ai-doubao` 单体拆分初期为了快速跑通遗留的超过 2500+ 行无用代码（包括 `session.go`、`sqlite_store.go`、`provider_factory.go`、`operation_log.go`、`pipeline.go` 等属于 chat 层级的实现）被全部安全剥离，真正使 ai-doubao 成为无状态原子能力提供者。
-- 关键文件/模块：
-  - `kagent/services/ai-doubao/cmd/ai-doubao/main.go`
-  - `kagent/services/chat-server/cmd/chat-server/main.go`
-  - `kagent/hub/cmd/hub/main.go`
-  - `kagent/services/ai-doubao/internal/app/utils.go`（抽取存活的极少必须工具）
-  - `kagent/plan/260317-ai-chat-refactor-devreport.md`
-- 开发结果：
-  - 成功：全系统彻底实现了 `Service -> Hub -> Service` 的拓扑结构约定，`ai-doubao` 从臃肿的大单体副本降级精炼为单一职责的 Provider。
-  - 成功：`go build ./...` 与 `go test ./hub/...` 均验证通过。
-- 经验与结论：
-  - 有效实践：不要畏惧大段删除“因为历史原因复制过来但实际上完全不用”的祖传代码，但删除前必须验证函数引用深度，把仅存的 50 行实用 Helper（例如 `mustJSON`）前置抽取后，即可放心删掉 3000 行冗余实现。
-- 下一步：
-  - 启动系统进行真实跨端语聊，确认 WebSocket 连接从 `chat -> doubao` 变成了正确的 `chat -> hub -> doubao` 拓扑。
-
-## [2026-03-17 12:45 CST] Hub 全局日志格式统一与标准化
-- 时间范围：2026-03-17 00:20 -> 2026-03-17 12:45
-- 主要变更：
-  - **日志格式标准化**：在 `hub/cmd/hub/main.go` 中统一所有 Hub 相关日志输出为 `[time][type][source][user]source_name:action_or_subclass:params_or_desc`。
-  - **中间件日志增强**：重构 HTTP 请求日志中间件使用 `InfofCtxTag`，确保所有访问日志均携带 `[user]` 标识，格式为 `System:HTTP:Method Path [Status] (Duration)`。
-  - **系统日志对齐**：将启动信息、版本输出、内部管理（Supervisor）日志全部切换为 `System:Category:Message` 格式，例如 `System:Startup:Listening`。
-  - **修复 Lint 隐患**：在重构过程中顺带修复了中间件内变量定义与作用域相关的 lint 错误。
-- 关键文件/模块：
-  - `hub/cmd/hub/main.go`
-  - `doc/_instruction.md`
-- 开发结果：
-  - 成功：`go build ./hub/cmd/hub` 通过。
-  - 成功：控制台输出与 `[PAGE]` 日志格式高度一致，极大提升了多端协作下的日志分析效率。
-- 经验与结论：
-  - 有效实践：通过 `InfofCtxTag` 强制关联 Context 身份，能自然地将分布式系统的追踪能力下沉到基础日志层。
-  - 有效实践：将日志消息正文划分为 `source_name:action_or_subclass:params_or_desc` 的固定模式，有利于后续使用文本处理工具进行结构化提取。
-- 下一步：
-  - 检查其他独立服务（chat-server, ai-doubao 等）是否也需要对齐此格式标准。
-
-## [2026-03-17 23:55 CST] 规划统一身份解析与日志增强
-- 时间范围：2026-03-17 23:38 -> 2026-03-17 23:55
-- 主要变更：
-  - **完成排查分析**：定位了现有日志匿名化的原因（IdentityMiddleware 仅支持 JWT），并明确了 Service 和 Surface 身份解析的改进方向。
-  - **制定实施计划**：产出了 [260317-hub-identity-logging-devplan.md](file:///Users/zhyuzh/.gemini/antigravity/brain/02c9c1bc-f063-457c-8959-8d0cf2c1b063/implementation_plan.md)，计划通过增强中间件实现全量身份识别，并动态调整网关日志 Source 标签。
-- 关键文件/模块：
-  - `hub/internal/app/identity.go`
-  - `hub/cmd/hub/main.go`
-- 开发结果：
-  - 成功：需求对齐并完成方案设计，待用户审核通过后进入 EXECUTION 阶段。
-- 下一步：
-  - 增强 `IdentityMiddleware` 以支持 Service Token 校验。
-  - 重构 Hub 日志中间件实现动态标签。
-
-## [2026-03-18 00:12 CST] 完成统一身份解析与动态日志标签
-- 时间范围：2026-03-17 23:55 -> 2026-03-18 00:12
-- 主要变更：
-  - **增强身份识别**：重构了 `IdentityMiddleware`，支持解析 `X-Hub-Service-Token` (Service) 和 `X-Surface-Token` (Surface)。
-  - **实现动态日志标签**：Hub 访问日志根据请求身份动态切换标签。Service 调用标记为服务 ID（如 `[CHAT-SERVER]`），User 调用标记为 `[PAGE]`，Surface 标记为 `[SURF]`。
-  - **规范调试日志**：针对 `/api/debug/log`，后端依据身份校验结果强制修正标签，并优化了 Surface 日志的 Page/Module 描述。
-- 关键文件/模块：
-  - `hub/internal/app/identity.go`
-  - `hub/cmd/hub/main.go`
-  - `hub/internal/app/identity_test.go`
-- 开发结果：
-  - 成功：通过单元测试和冒烟测试验证。终端日志已能清晰分辨 Service 与 User 来源，解决了 anonymous 泛滥问题。
-- 下一步：
-  - 进一步完善 Surface 专属令牌的签发与完整校验逻辑。
-
-## [2026-03-18 02:00 CST] 实现虚拟日志工具与三类日志架构
-- 时间范围：2026-03-18 01:50 -> 2026-03-18 02:00
-- 主要变更：
-  - **虚拟工具机制**：在 Hub 中引入了虚拟工具拦截机制，注册了内建工具 `hub.system.report_log`，支持跨服务统一日志上报。
-  - **三类日志架构**：
-    - **System:Internal**：用于 Hub 自身的启动、监听和管理事件。
-    - **System:HTTP**：用于网关 HTTP 审计流水。
-    - **Service:Report**：用于接收并格式化来自 Service/Page 的主动报告。
-  - **身份系统兼容**：优化了 `resolveCaller` 以支持匿名身份下的日志追踪。
-- 关键文件/模块：
-  - `hub/internal/app/hub_platform.go`
-  - `hub/internal/gateway/tool_handler.go`
-  - `hub/cmd/hub/main.go`
-- 开发结果：
-  - 成功：通过 `curl` 模拟 Service 和 Page 端的日志上报，Hub 终端输出符合三类日志分类方案。
-- 下一步：
-  - 考虑将前端 UI 产生的日志也全面迁移到虚拟工具协议，废弃原始的 HTTP Debug 接口。

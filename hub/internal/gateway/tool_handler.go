@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,14 +17,20 @@ import (
 	"kagent/hub/internal/security"
 	"kagent/hub/internal/supervisor"
 	"kagent/hub/internal/transport"
-	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
 	defaultToolTimeout = 30 * time.Second
 	maxToolTimeout     = 120 * time.Second
 )
+
+var effectKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+type InternalToolFunc func(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error)
+type InternalWSToolFunc func(ctx context.Context, conn *websocket.Conn, req toolproto.CallRequest) error
 
 type ToolHandler struct {
 	authService *app.AuthService
@@ -33,6 +40,8 @@ type ToolHandler struct {
 	transport   *transport.Client
 	audit       *observability.Store
 	endpoints   map[string]transport.Endpoint
+	registry    map[string]InternalToolFunc
+	wsRegistry  map[string]InternalWSToolFunc
 }
 
 func NewToolHandler(authService *app.AuthService, hubPlatform *app.HubPlatform, router *routing.Engine, supervisorRegistry *supervisor.Registry, transportClient *transport.Client, auditStore *observability.Store, defaultEndpoints map[string]transport.Endpoint) *ToolHandler {
@@ -56,7 +65,17 @@ func NewToolHandler(authService *app.AuthService, hubPlatform *app.HubPlatform, 
 		transport:   transportClient,
 		audit:       auditStore,
 		endpoints:   endpoints,
+		registry:    map[string]InternalToolFunc{},
+		wsRegistry:  map[string]InternalWSToolFunc{},
 	}
+}
+
+func (h *ToolHandler) RegisterTool(toolID string, fn func(context.Context, toolproto.CallRequest) (toolproto.CallResponse, error)) {
+	h.registry[toolID] = fn
+}
+
+func (h *ToolHandler) RegisterWSTool(toolID string, fn func(context.Context, *websocket.Conn, toolproto.CallRequest) error) {
+	h.wsRegistry[toolID] = fn
 }
 
 func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
@@ -88,16 +107,37 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Context.TraceID) == "" {
 		req.Context.TraceID = "tr_" + app.NewRequestID()
 	}
-	caller, callerReliability, err := h.resolveCaller(r)
-	if err != nil {
-		writeToolError(w, http.StatusUnauthorized, toolproto.ErrorCodeUnauthorized, "unauthorized", req.Context.RequestID, req.Context.TraceID, "", "")
-		return
+	identity := app.IdentityFromContext(r.Context())
+	ctx := context.WithValue(r.Context(), app.RemoteAddrContextKey, r.RemoteAddr)
+
+	caller := toolproto.Caller{
+		Type:      strings.ToLower(string(identity.Type)),
+		UserID:    identity.ID,
+		ServiceID: identity.ID, // For services, ID is the serviceID
+	}
+	if identity.Type != app.IdentityUser {
+		caller.UserID = ""
+	}
+	if identity.Type != app.IdentityService {
+		caller.ServiceID = ""
 	}
 	req.Context.Caller = caller
 
 	// 1. Intercept Internal Tools (hub.*)
 	if strings.HasPrefix(req.ToolID, "hub.") {
-		h.handleInternalTool(w, r, req)
+		if fn, ok := h.registry[req.ToolID]; ok {
+			resp, err := fn(ctx, req)
+			if err != nil {
+				writeToolError(w, http.StatusInternalServerError, toolproto.ErrorCodeInternalError, err.Error(), req.Context.RequestID, req.Context.TraceID, "hub", "")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		writeToolError(w, http.StatusNotFound, toolproto.ErrorCodeToolNotFound, "internal tool not found", req.Context.RequestID, req.Context.TraceID, "hub", "")
 		return
 	}
 
@@ -108,6 +148,19 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 		} else {
 			writeToolError(w, http.StatusNotFound, toolproto.ErrorCodeToolNotFound, "tool not found", req.Context.RequestID, req.Context.TraceID, "", "")
 		}
+		return
+	}
+	toolDescriptor, hasDescriptor := findToolDescriptor(selection.Service.Manifest, req.ToolID)
+	if hasDescriptor && !isCallerTypeAllowed(caller.Type, toolDescriptor.AllowedCallerTypes) {
+		statusCode := http.StatusForbidden
+		errorCode := toolproto.ErrorCodeForbidden
+		message := "caller type is not allowed for this tool"
+		if strings.EqualFold(strings.TrimSpace(caller.Type), "anonymous") {
+			statusCode = http.StatusUnauthorized
+			errorCode = toolproto.ErrorCodeUnauthorized
+			message = "authentication required"
+		}
+		writeToolError(w, statusCode, errorCode, message, req.Context.RequestID, req.Context.TraceID, selection.Service.ServiceID, selection.Instance.InstanceID)
 		return
 	}
 
@@ -121,6 +174,15 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	body, _ := json.Marshal(req)
 	headers := security.SanitizeForwardHeaders(r.Header)
 	headers.Set("Content-Type", "application/json")
+
+	// Resolve caller reliability for headers
+	callerReliability := "untrusted"
+	if identity.Type == app.IdentityUser || identity.Type == app.IdentityService {
+		// In a real system, we'd check if the token/auth was fully verified.
+		// IdentityMiddleware already verified them if they are not ANONYMOUS.
+		callerReliability = "trusted"
+	}
+
 	security.InjectCallerHeaders(headers, req.Context, callerReliability)
 	security.InjectHubAuthHeaders(headers, selection.Service.ServiceID, hubAuthInstanceID, hubAuthToken)
 
@@ -158,6 +220,12 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 		toolResp.Error = &toolproto.Error{
 			Code:    toolproto.ErrorCodeToolExecError,
 			Message: "service returned failed response without error body",
+		}
+	}
+	if toolResp.Ok {
+		h.applyToolEffects(w, r, selection.Service.ServiceID, toolResp.Effects)
+		if strings.TrimSpace(selection.Service.ServiceID) == "account" {
+			h.syncAccountSessionFromResult(req.ToolID, toolResp.Result, req.Context.Caller)
 		}
 	}
 
@@ -281,11 +349,24 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	caller, callerReliability, err := h.resolveCaller(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
+	identity := app.IdentityFromContext(r.Context())
+	caller := toolproto.Caller{
+		Type:      strings.ToLower(string(identity.Type)),
+		UserID:    identity.ID,
+		ServiceID: identity.ID,
 	}
+	if identity.Type != app.IdentityUser {
+		caller.UserID = ""
+	}
+	if identity.Type != app.IdentityService {
+		caller.ServiceID = ""
+	}
+
+	callerReliability := "untrusted"
+	if identity.Type != app.IdentityAnonymous {
+		callerReliability = "trusted"
+	}
+
 	toolID := strings.TrimSpace(r.URL.Query().Get("tool_id"))
 	if toolID == "" {
 		startedAt := time.Now()
@@ -305,6 +386,36 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 			h.audit.Add("gateway", "tool_ws_close", "ok", fields)
 		}
 		return
+	}
+
+	if strings.HasPrefix(toolID, "hub.") {
+		if fn, ok := h.wsRegistry[toolID]; ok {
+			upgrader := websocket.Upgrader{
+				CheckOrigin: func(r *http.Request) bool { return true },
+			}
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+			req := toolproto.CallRequest{
+				ToolID: toolID,
+				Context: &toolproto.Context{
+					RequestID: "req_" + app.NewRequestID(),
+					TraceID:   "tr_" + app.NewRequestID(),
+					Caller:    caller,
+				},
+			}
+			if err := fn(r.Context(), conn, req); err != nil {
+				h.audit.Add("gateway", "tool_ws_close", "error", map[string]any{
+					"tool_id":     toolID,
+					"service_id":  "hub",
+					"caller_type": caller.Type,
+					"error":       err.Error(),
+				})
+			}
+			return
+		}
 	}
 
 	selection, ok := h.selectTool(toolID)
@@ -393,32 +504,6 @@ func (h *ToolHandler) proxyWS(w http.ResponseWriter, r *http.Request, serviceID 
 	return nil
 }
 
-func (h *ToolHandler) resolveCaller(r *http.Request) (toolproto.Caller, string, error) {
-	serviceID, instanceID, serviceAuth := hubsvc.ExtractServiceAuthHeaders(r.Header)
-	if serviceID != "" || instanceID != "" || serviceAuth != "" {
-		if verified, err := h.hubPlatform.VerifyServiceAuth(serviceID, instanceID, serviceAuth); err == nil {
-			return toolproto.Caller{
-				Type:      "service",
-				UserID:    "",
-				ServiceID: strings.TrimSpace(verified.ServiceID),
-				SurfaceID: "",
-			}, "untrusted", nil
-		}
-	}
-	claims, err := app.ExtractJWTClaims(r, h.authService)
-	if err != nil {
-		return toolproto.Caller{
-			Type: "anonymous",
-		}, "untrusted", nil
-	}
-	return toolproto.Caller{
-		Type:      "user",
-		UserID:    strings.TrimSpace(claims.UserID),
-		ServiceID: "",
-		SurfaceID: "",
-	}, "trusted", nil
-}
-
 func (h *ToolHandler) resolveHubAuth(serviceID string, instanceID string) (string, string, error) {
 	auth, ok := h.hubPlatform.ServiceHubAuth(serviceID)
 	if !ok {
@@ -461,6 +546,32 @@ func findToolWSPath(manifest app.ServiceManifest, toolID string) string {
 		return path
 	}
 	return ""
+}
+
+func findToolDescriptor(manifest app.ServiceManifest, toolID string) (app.ServiceToolDescriptor, bool) {
+	target := strings.TrimSpace(toolID)
+	if target == "" {
+		return app.ServiceToolDescriptor{}, false
+	}
+	for _, tool := range manifest.Provides {
+		if strings.TrimSpace(tool.ToolID) == target {
+			return tool, true
+		}
+	}
+	return app.ServiceToolDescriptor{}, false
+}
+
+func isCallerTypeAllowed(callerType string, allowedCallerTypes []string) bool {
+	if len(allowedCallerTypes) == 0 {
+		return true
+	}
+	target := strings.ToLower(strings.TrimSpace(callerType))
+	for _, item := range allowedCallerTypes {
+		if target == strings.ToLower(strings.TrimSpace(item)) {
+			return true
+		}
+	}
+	return false
 }
 
 func parseServiceURL(endpoint string) (*url.URL, error) {
@@ -507,67 +618,166 @@ func (h *ToolHandler) resolveEndpoint(selection routing.Selection) transport.End
 	return resolved
 }
 
-func (h *ToolHandler) handleInternalTool(w http.ResponseWriter, r *http.Request, req toolproto.CallRequest) {
-	switch req.ToolID {
-	case "hub.system.report_log":
-		h.handleInternalReportLog(w, r, req)
-	default:
-		writeToolError(w, http.StatusNotFound, toolproto.ErrorCodeToolNotFound, "internal tool not found", req.Context.RequestID, req.Context.TraceID, "hub", "")
+func (h *ToolHandler) SyncAccountState(ctx context.Context) error {
+	if h == nil {
+		return fmt.Errorf("tool handler is nil")
+	}
+	keysResp, _, err := h.ProbeServiceTool(ctx, "account", "account.system.keys.get", map[string]any{}, 3000)
+	if err != nil {
+		return fmt.Errorf("probe account.system.keys.get: %w", err)
+	}
+	if !keysResp.Ok {
+		return fmt.Errorf("account.system.keys.get returned not ok")
+	}
+	keys, keyErr := parseAccountPublicKeys(keysResp.Result)
+	if keyErr != nil {
+		return keyErr
+	}
+
+	sessionsResp, _, err := h.ProbeServiceTool(ctx, "account", "account.session.dump_active", map[string]any{}, 3000)
+	if err != nil {
+		return fmt.Errorf("probe account.session.dump_active: %w", err)
+	}
+	if !sessionsResp.Ok {
+		return fmt.Errorf("account.session.dump_active returned not ok")
+	}
+	sessions, sessionErr := parseAccountSessions(sessionsResp.Result)
+	if sessionErr != nil {
+		return sessionErr
+	}
+	h.authService.SetAccountPublicKeys(keys)
+	h.authService.ReplaceActiveSessions(sessions)
+	return nil
+}
+
+func parseAccountPublicKeys(result any) ([]app.AccountPublicKey, error) {
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("marshal keys result failed: %w", err)
+	}
+	var wrapper toolproto.AccountPublicKeysResult
+	if err := json.Unmarshal(raw, &wrapper); err != nil {
+		return nil, fmt.Errorf("decode account keys payload failed: %w", err)
+	}
+	if len(wrapper.Keys) == 0 {
+		return nil, fmt.Errorf("invalid account keys payload")
+	}
+	out := make([]app.AccountPublicKey, 0, len(wrapper.Keys))
+	for _, item := range wrapper.Keys {
+		out = append(out, app.AccountPublicKey{
+			KID:       strings.TrimSpace(item.KID),
+			Alg:       strings.TrimSpace(item.Alg),
+			PublicKey: strings.TrimSpace(item.PublicKey),
+		})
+	}
+	return out, nil
+}
+
+func parseAccountSessions(result any) (map[string]string, error) {
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("marshal sessions result failed: %w", err)
+	}
+	var wrapper toolproto.AccountActiveSessionsResult
+	if err := json.Unmarshal(raw, &wrapper); err != nil {
+		return nil, fmt.Errorf("decode sessions payload failed: %w", err)
+	}
+	if len(wrapper.Items) == 0 {
+		return nil, fmt.Errorf("invalid account sessions payload")
+	}
+	out := map[string]string{}
+	for _, item := range wrapper.Items {
+		userID := strings.TrimSpace(item.UserID)
+		sessionID := strings.TrimSpace(item.SID)
+		if userID == "" || sessionID == "" {
+			continue
+		}
+		out[userID] = sessionID
+	}
+	return out, nil
+}
+
+func (h *ToolHandler) applyToolEffects(w http.ResponseWriter, r *http.Request, serviceID string, effects *toolproto.Effects) {
+	if effects == nil {
+		return
+	}
+	sid := strings.TrimSpace(serviceID)
+	if sid == "" {
+		return
+	}
+	for _, item := range effects.SetCookies {
+		key := strings.TrimSpace(item.Name)
+		if !effectKeyPattern.MatchString(key) {
+			continue
+		}
+		maxAge := item.MaxAgeSec
+		switch {
+		case maxAge < 0:
+			maxAge = -1
+		case maxAge == 0:
+			maxAge = app.JWTMaxAgeSec
+		case maxAge > app.JWTMaxAgeSec:
+			maxAge = app.JWTMaxAgeSec
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     "svc." + sid + "." + key,
+			Value:    strings.TrimSpace(item.Value),
+			Path:     "/",
+			MaxAge:   maxAge,
+			SameSite: http.SameSiteStrictMode,
+			HttpOnly: true,
+			Secure:   r != nil && r.TLS != nil,
+		})
+	}
+	for _, item := range effects.SetHeaders {
+		key := strings.TrimSpace(item.Name)
+		if !effectKeyPattern.MatchString(key) {
+			continue
+		}
+		headerName := "X-Svc-" + sid + "-" + strings.ReplaceAll(key, "_", "-")
+		w.Header().Set(headerName, strings.TrimSpace(item.Value))
 	}
 }
 
-func (h *ToolHandler) handleInternalReportLog(w http.ResponseWriter, r *http.Request, req toolproto.CallRequest) {
-	var body struct {
-		Level   string `json:"level"`
-		Module  string `json:"module"`
-		Content string `json:"content"`
+func (h *ToolHandler) syncAccountSessionFromResult(toolID string, result any, caller toolproto.Caller) {
+	if h == nil || h.authService == nil {
+		return
 	}
-	raw, _ := json.Marshal(req.Args)
-	_ = json.Unmarshal(raw, &body)
+	tool := strings.TrimSpace(toolID)
+	switch tool {
+	case "account.auth.register", "account.auth.login", "account.auth.password_change":
+		payload, ok := result.(map[string]any)
+		if !ok {
+			return
+		}
+		userID := strings.TrimSpace(asString(payload["user_id"]))
+		sid := strings.TrimSpace(asString(payload["sid"]))
+		if userID == "" || sid == "" {
+			return
+		}
+		h.authService.SetActiveSession(userID, sid)
+	case "account.auth.logout":
+		payload, _ := result.(map[string]any)
+		userID := ""
+		if payload != nil {
+			userID = strings.TrimSpace(asString(payload["user_id"]))
+		}
+		if userID == "" {
+			userID = strings.TrimSpace(caller.UserID)
+		}
+		if userID != "" {
+			h.authService.SetActiveSession(userID, "")
+		}
+	}
+}
 
-	level := strings.ToUpper(strings.TrimSpace(body.Level))
-	if level == "" {
-		level = "INFO"
+func asString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	default:
+		return ""
 	}
-	module := strings.TrimSpace(body.Module)
-	if module == "" {
-		module = "business"
-	}
-	content := strings.TrimSpace(body.Content)
-
-	identity := app.IdentityFromContext(r.Context())
-	tag := "HUB"
-	switch identity.Type {
-	case app.IdentityService:
-		tag = strings.ToUpper(identity.Name)
-	case app.IdentityUser:
-		tag = "PAGE"
-	case app.IdentitySurface:
-		tag = "SURF"
-	}
-
-	// Category 3: Service:Report:
-	prefix := "Service:Report"
-	if identity.Type == app.IdentityAnonymous || identity.Type == app.IdentityUser {
-		// If it's a user/anonymous tool call to hub.report_log,
-		// maybe it's semi-system or fake reporting.
-		// We keep it as Service:Report for now as it's a Tool Call.
-	}
-
-	app.InfofCtxTag(r.Context(), tag, "%s:%s:%s", prefix, module, content)
-
-	resp := toolproto.CallResponse{
-		Ok:     true,
-		Result: map[string]any{"ok": true},
-		Meta: toolproto.Meta{
-			RequestID: req.Context.RequestID,
-			TraceID:   req.Context.TraceID,
-			ServiceID: "hub",
-		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func resolveTimeout(timeoutMS int) time.Duration {

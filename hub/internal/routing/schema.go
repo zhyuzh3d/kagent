@@ -14,8 +14,10 @@ type ToolRegistryItem struct {
 	Streaming            bool     `json:"streaming"`
 	DefaultTimeoutMS     int      `json:"default_timeout_ms"`
 	CapabilitiesRequired []string `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string `json:"allowed_caller_types,omitempty"`
 	InputSchemaRef       string   `json:"input_schema_ref,omitempty"`
 	OutputSchemaRef      string   `json:"output_schema_ref,omitempty"`
+	WSPath               string   `json:"ws_path,omitempty"`
 	OwnerServiceID       string   `json:"owner_service_id"`
 	Enabled              bool     `json:"enabled"`
 }
@@ -83,8 +85,10 @@ func buildToolRegistry(services []app.HubServiceRegistration) []ToolRegistryItem
 					Streaming:            parseStreaming(descriptor.Streaming),
 					DefaultTimeoutMS:     descriptor.TimeoutMSDefault,
 					CapabilitiesRequired: copyStrings(descriptor.CapabilitiesRequired),
+					AllowedCallerTypes:   uniqueStrings(descriptor.AllowedCallerTypes),
 					InputSchemaRef:       inlineSchemaRef(serviceID, toolID, "input", descriptor.InputSchema),
 					OutputSchemaRef:      inlineSchemaRef(serviceID, toolID, "output", descriptor.OutputSchema),
+					WSPath:               strings.TrimSpace(descriptor.WSPath),
 					OwnerServiceID:       serviceID,
 					Enabled:              serviceEnabled,
 				}
@@ -106,11 +110,17 @@ func buildToolRegistry(services []app.HubServiceRegistration) []ToolRegistryItem
 			if len(current.CapabilitiesRequired) == 0 && len(descriptor.CapabilitiesRequired) > 0 {
 				current.CapabilitiesRequired = copyStrings(descriptor.CapabilitiesRequired)
 			}
+			if len(current.AllowedCallerTypes) == 0 && len(descriptor.AllowedCallerTypes) > 0 {
+				current.AllowedCallerTypes = uniqueStrings(descriptor.AllowedCallerTypes)
+			}
 			if current.InputSchemaRef == "" {
 				current.InputSchemaRef = inlineSchemaRef(serviceID, toolID, "input", descriptor.InputSchema)
 			}
 			if current.OutputSchemaRef == "" {
 				current.OutputSchemaRef = inlineSchemaRef(serviceID, toolID, "output", descriptor.OutputSchema)
+			}
+			if current.WSPath == "" {
+				current.WSPath = strings.TrimSpace(descriptor.WSPath)
 			}
 			byToolID[toolID] = current
 		}
@@ -259,6 +269,29 @@ func copyStrings(values []string) []string {
 		if trimmed == "" {
 			continue
 		}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
 		out = append(out, trimmed)
 	}
 	if len(out) == 0 {

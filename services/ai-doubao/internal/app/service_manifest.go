@@ -12,6 +12,7 @@ type ServiceToolDescriptor struct {
 	OutputSchema         map[string]any `json:"output_schema,omitempty"`
 	SideEffect           string         `json:"side_effect,omitempty"`
 	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
 	WSPath               string         `json:"ws_path,omitempty"`
@@ -50,6 +51,7 @@ func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor
 			OutputSchema:         cloneAnyMap(t.OutputSchema),
 			SideEffect:           strings.TrimSpace(t.SideEffect),
 			CapabilitiesRequired: uniqueNonEmpty(t.CapabilitiesRequired),
+			AllowedCallerTypes:   uniqueNonEmpty(t.AllowedCallerTypes),
 			TimeoutMSDefault:     t.TimeoutMSDefault,
 			Streaming:            strings.TrimSpace(t.Streaming),
 			WSPath:               strings.TrimSpace(t.WSPath),

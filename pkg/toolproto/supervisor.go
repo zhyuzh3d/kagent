@@ -12,6 +12,26 @@ type ServiceTool struct {
 	WSPath               string   `json:"ws_path,omitempty"`
 	TimeoutMS            int      `json:"timeout_ms,omitempty"`
 	CapabilitiesRequired []string `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string `json:"allowed_caller_types,omitempty"`
+}
+
+type AccountPublicKey struct {
+	KID       string `json:"kid"`
+	Alg       string `json:"alg"`
+	PublicKey string `json:"public_key"`
+}
+
+type AccountPublicKeysResult struct {
+	Keys []AccountPublicKey `json:"keys"`
+}
+
+type AccountActiveSession struct {
+	UserID string `json:"user_id"`
+	SID    string `json:"sid"`
+}
+
+type AccountActiveSessionsResult struct {
+	Items []AccountActiveSession `json:"items"`
 }
 
 type SupervisorRegisterRequest struct {

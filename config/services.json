@@ -20,6 +20,10 @@
         "dir": "services/chat-server"
       },
       {
+        "service_id": "account",
+        "dir": "services/account"
+      },
+      {
         "service_id": "file",
         "dir": "services/file"
       },

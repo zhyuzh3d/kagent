@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 	app "kagent/services/chat-server/internal/app"
 
 	"github.com/gorilla/websocket"
@@ -89,7 +90,8 @@ func main() {
 		instance = "chat-server-" + app.NewRequestID()
 	}
 
-	if registerURL != "" {
+	hubToolCallURL := buildHubToolCallURL(registerURL)
+	if hubToolCallURL != "" {
 		healthy := true
 		registerPayload := app.SupervisorRegisterRequest{
 			ServiceID:  strings.TrimSpace(manifest.ServiceID),
@@ -102,29 +104,35 @@ func main() {
 			Tools:   toSupervisorTools(manifest),
 			Healthy: &healthy,
 		}
-		raw, _ := json.Marshal(registerPayload)
-		req, _ := http.NewRequest(http.MethodPost, registerURL, bytes.NewReader(raw))
-		req.Header.Set("Content-Type", "application/json")
-		hubsvc.ApplyServiceAuthHeaders(req.Header, serviceBootstrap)
-		resp, err := http.DefaultClient.Do(req)
+		callReq := toolproto.CallRequest{
+			ToolID: "hub.governance.service.register",
+			Args:   structToMap(registerPayload),
+			Context: &toolproto.Context{
+				RequestID: "reg-" + app.NewRequestID(),
+				TraceID:   "tr-" + app.NewRequestID(),
+				Caller: toolproto.Caller{
+					Type:      "service",
+					ServiceID: strings.TrimSpace(manifest.ServiceID),
+				},
+			},
+		}
+		rawResp, statusCode, err := postHubToolCall(hubToolCallURL, serviceBootstrap, callReq)
 		if err != nil {
 			app.Errorf("register chat-server to hub failed: %v", err)
 			os.Exit(1)
 		}
-		rawResp, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode >= 300 {
-			app.Errorf("register chat-server to hub status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(rawResp)))
+		if statusCode >= 300 {
+			app.Errorf("register chat-server to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
 			os.Exit(1)
 		}
-		if _, err := app.DecodeSupervisorRegisterResult(rawResp); err != nil {
+		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
 			app.Errorf("decode register response failed: %v", err)
 			os.Exit(1)
 		}
 		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
 			app.Warnf("delete bootstrap secret failed: %v", err)
 		}
-		app.Infof("register chat-server to hub status=%d", resp.StatusCode)
+		app.Infof("register chat-server to hub status=%d", statusCode)
 	}
 
 	mux := http.NewServeMux()
@@ -269,6 +277,31 @@ func main() {
 		}
 		if caller.Type == "" {
 			caller = req.Context.Caller
+		}
+		if req.ToolID == "service.lifecycle.health" {
+			writeToolResponse(w, http.StatusOK, app.CallResponse{
+				Ok: true,
+				Result: map[string]any{
+					"service_id": strings.TrimSpace(manifest.ServiceID),
+					"version":    strings.TrimSpace(manifest.Version),
+					"ok":         true,
+				},
+				Meta: meta,
+			})
+			return
+		}
+		if req.ToolID == "service.lifecycle.shutdown" {
+			resp := app.CallResponse{
+				Ok:     true,
+				Result: map[string]any{"status": "shutting_down"},
+				Meta:   meta,
+			}
+			writeToolResponse(w, http.StatusOK, resp)
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				shutdownNow("shutdown requested via tool")
+			}()
+			return
 		}
 		if strings.TrimSpace(caller.UserID) == "" {
 			writeToolResponse(w, http.StatusUnauthorized, app.CallResponse{
@@ -509,8 +542,8 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if hbURL := buildHubHeartbeatURL(registerURL); hbURL != "" {
-		startHubHeartbeatGuard(hbURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
+	if hubToolCallURL != "" {
+		startHubToolHeartbeatGuard(hubToolCallURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
 	}
 	app.Infof("chat-server listening at http://%s", *addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -535,9 +568,17 @@ func toSupervisorTools(manifest app.ServiceManifest) []app.ServiceTool {
 			WSPath:               strings.TrimSpace(descriptor.WSPath),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
+			AllowedCallerTypes:   append([]string(nil), descriptor.AllowedCallerTypes...),
 		})
 	}
 	return tools
+}
+
+func structToMap(v any) map[string]any {
+	raw, _ := json.Marshal(v)
+	var m map[string]any
+	_ = json.Unmarshal(raw, &m)
+	return m
 }
 
 func firstNonEmpty(items ...string) string {
@@ -649,7 +690,7 @@ func isHubOnlyContext(ctx *app.CallContext) bool {
 	return false
 }
 
-func buildHubHeartbeatURL(registerURL string) string {
+func buildHubToolCallURL(registerURL string) string {
 	raw := strings.TrimSpace(registerURL)
 	if raw == "" {
 		return ""
@@ -658,38 +699,77 @@ func buildHubHeartbeatURL(registerURL string) string {
 	if err != nil {
 		return ""
 	}
-	parsed.Path = "/api/service/heartbeat"
+	parsed.Path = "/api/tool/call"
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
 }
 
-func startHubHeartbeatGuard(heartbeatURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {
-	if strings.TrimSpace(heartbeatURL) == "" || strings.TrimSpace(serviceID) == "" || strings.TrimSpace(instanceID) == "" || onFailure == nil {
+func postHubToolCall(hubToolCallURL string, serviceAuth hubsvc.BootstrapSecret, req toolproto.CallRequest) ([]byte, int, error) {
+	raw, err := json.Marshal(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	httpReq, err := http.NewRequest(http.MethodPost, strings.TrimSpace(hubToolCallURL), bytes.NewReader(raw))
+	if err != nil {
+		return nil, 0, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	hubsvc.ApplyServiceAuthHeaders(httpReq.Header, serviceAuth)
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	rawResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	return rawResp, resp.StatusCode, nil
+}
+
+func startHubToolHeartbeatGuard(hubToolCallURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {
+	if strings.TrimSpace(hubToolCallURL) == "" || strings.TrimSpace(serviceID) == "" || strings.TrimSpace(instanceID) == "" || onFailure == nil {
 		return
 	}
 	go func() {
 		send := func() error {
-			body := map[string]any{
-				"service_id":  strings.TrimSpace(serviceID),
-				"instance_id": strings.TrimSpace(instanceID),
-				"status":      "ready",
-				"healthy":     true,
-				"pid":         pid,
-				"endpoint":    strings.TrimSpace(endpoint),
+			callReq := toolproto.CallRequest{
+				ToolID: "hub.governance.service.heartbeat",
+				Args: map[string]any{
+					"service_id":  strings.TrimSpace(serviceID),
+					"instance_id": strings.TrimSpace(instanceID),
+					"status":      "ready",
+					"healthy":     true,
+					"pid":         pid,
+					"endpoint":    strings.TrimSpace(endpoint),
+				},
+				Context: &toolproto.Context{
+					RequestID: "hb-" + app.NewRequestID(),
+					TraceID:   "tr-" + app.NewRequestID(),
+					Caller: toolproto.Caller{
+						Type:      "service",
+						ServiceID: strings.TrimSpace(serviceID),
+					},
+				},
 			}
-			raw, _ := json.Marshal(body)
-			req, _ := http.NewRequest(http.MethodPost, strings.TrimSpace(heartbeatURL), bytes.NewReader(raw))
-			req.Header.Set("Content-Type", "application/json")
-			hubsvc.ApplyServiceAuthHeaders(req.Header, serviceAuth)
-			client := &http.Client{Timeout: 2200 * time.Millisecond}
-			resp, err := client.Do(req)
+			rawResp, statusCode, err := postHubToolCall(hubToolCallURL, serviceAuth, callReq)
 			if err != nil {
 				return err
 			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 300 {
-				return fmt.Errorf("heartbeat status=%d", resp.StatusCode)
+			if statusCode >= 300 {
+				return fmt.Errorf("heartbeat status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+			}
+			var resp toolproto.CallResponse
+			if err := json.Unmarshal(rawResp, &resp); err != nil {
+				return fmt.Errorf("decode heartbeat response: %w", err)
+			}
+			if !resp.Ok {
+				if resp.Error != nil && strings.TrimSpace(resp.Error.Message) != "" {
+					return fmt.Errorf("heartbeat rejected: %s", strings.TrimSpace(resp.Error.Message))
+				}
+				return fmt.Errorf("heartbeat rejected")
 			}
 			return nil
 		}

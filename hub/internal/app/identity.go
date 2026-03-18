@@ -26,6 +26,12 @@ type Identity struct {
 }
 
 type identityContextKey struct{}
+type remoteAddrContextKey struct{}
+
+var (
+	IdentityContextKey   = identityContextKey{}
+	RemoteAddrContextKey = remoteAddrContextKey{}
+)
 
 // ContextWithIdentity returns a copy of ctx carrying the given Identity.
 func ContextWithIdentity(ctx context.Context, id Identity) context.Context {
@@ -99,6 +105,14 @@ func IdentityMiddleware(authService *AuthService, hubPlatform *HubPlatform) func
 // This is the single source of truth — replaces duplicate definitions in main.go
 // and gateway/tool_handler.go.
 func ExtractJWTClaims(r *http.Request, authService *AuthService) (JWTClaims, error) {
+	if authService == nil {
+		return JWTClaims{}, http.ErrNoCookie
+	}
+	if cookie, err := r.Cookie(AccountTokenCookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
+		if claims, parseErr := authService.ParseAccountToken(cookie.Value); parseErr == nil {
+			return claims, nil
+		}
+	}
 	cookie, err := r.Cookie(JWTCookieName)
 	if err != nil {
 		return JWTClaims{}, err

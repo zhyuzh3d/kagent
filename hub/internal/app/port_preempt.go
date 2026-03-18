@@ -1,7 +1,9 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -25,11 +27,15 @@ func EnsurePortReady(addr string) error {
 
 	// 2. Port is occupied, try graceful shutdown if it's a Hub instance
 	// We use a short timeout and ignore errors (might not be a Hub)
-	adminURL := fmt.Sprintf("http://%s/admin/shutdown", addr)
+	adminURL := fmt.Sprintf("http://%s/api/tool/call", addr)
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
-	
-	req, _ := http.NewRequestWithContext(ctx, "POST", adminURL, nil)
+	payload, _ := json.Marshal(map[string]any{
+		"tool_id": "hub.system.shutdown",
+		"args":    map[string]any{},
+	})
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, adminURL, bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err == nil {
 		resp.Body.Close()

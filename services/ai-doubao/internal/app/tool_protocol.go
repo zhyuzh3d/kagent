@@ -78,6 +78,7 @@ type ServiceTool struct {
 	WSPath               string   `json:"ws_path,omitempty"`
 	TimeoutMS            int      `json:"timeout_ms,omitempty"`
 	CapabilitiesRequired []string `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string `json:"allowed_caller_types,omitempty"`
 }
 
 type SupervisorRegisterRequest struct {

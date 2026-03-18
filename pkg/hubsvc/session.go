@@ -1,5 +1,5 @@
 package hubsvc
-
+ 
 import (
 	"bufio"
 	"encoding/json"
@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+ 
 	"kagent/pkg/toolproto"
 )
-
+ 
 const (
 	HeaderServiceID         = "X-Service-Id"
 	HeaderServiceInstanceID = "X-Service-Instance-Id"
@@ -22,7 +22,7 @@ const (
 	HeaderHubInstanceID     = "X-Hub-Service-Instance-Id"
 	HeaderHubAuth           = "X-Hub-Auth"
 )
-
+ 
 type BootstrapSecret struct {
 	ServiceID      string `json:"service_id"`
 	InstanceID     string `json:"instance_id"`
@@ -32,7 +32,7 @@ type BootstrapSecret struct {
 	IssuedAtMS     int64  `json:"issued_at_ms"`
 	ExpiresAtMS    int64  `json:"expires_at_ms"`
 }
-
+ 
 func LoadBootstrapSecret(path string) (BootstrapSecret, error) {
 	raw, err := os.ReadFile(strings.TrimSpace(path))
 	if err != nil {
@@ -44,7 +44,7 @@ func LoadBootstrapSecret(path string) (BootstrapSecret, error) {
 	}
 	return secret, secret.Validate()
 }
-
+ 
 func DecodeSupervisorRegisterResult(responseBody []byte) (toolproto.SupervisorRegisterResult, error) {
 	var callResp toolproto.CallResponse
 	if err := json.Unmarshal(responseBody, &callResp); err != nil {
@@ -67,7 +67,7 @@ func DecodeSupervisorRegisterResult(responseBody []byte) (toolproto.SupervisorRe
 	}
 	return out, nil
 }
-
+ 
 func WriteBootstrapSecret(path string, secret BootstrapSecret) error {
 	clean := secret.normalize()
 	if err := clean.validateRequired(); err != nil {
@@ -92,7 +92,7 @@ func WriteBootstrapSecret(path string, secret BootstrapSecret) error {
 	}
 	return os.WriteFile(fullPath, []byte(content), 0o600)
 }
-
+ 
 func DeleteBootstrapSecret(path string) error {
 	fullPath := strings.TrimSpace(path)
 	if fullPath == "" {
@@ -103,7 +103,7 @@ func DeleteBootstrapSecret(path string) error {
 	}
 	return nil
 }
-
+ 
 func ApplyServiceAuthHeaders(headers http.Header, secret BootstrapSecret) {
 	if headers == nil {
 		return
@@ -113,7 +113,16 @@ func ApplyServiceAuthHeaders(headers http.Header, secret BootstrapSecret) {
 	headers.Set(HeaderServiceInstanceID, clean.InstanceID)
 	headers.Set(HeaderServiceAuth, clean.S2HToken)
 }
-
+ 
+func ApplyHubAuthHeaders(headers http.Header, serviceID string, instanceID string, hubToken string) {
+	if headers == nil {
+		return
+	}
+	headers.Set(HeaderHubServiceID, strings.TrimSpace(serviceID))
+	headers.Set(HeaderHubInstanceID, strings.TrimSpace(instanceID))
+	headers.Set(HeaderHubAuth, strings.TrimSpace(hubToken))
+}
+ 
 func VerifyHubAuthHeaders(headers http.Header, expectedServiceID string, expectedInstanceID string, expectedHubToken string) error {
 	if headers == nil {
 		return fmt.Errorf("missing headers")
@@ -132,7 +141,7 @@ func VerifyHubAuthHeaders(headers http.Header, expectedServiceID string, expecte
 	}
 	return nil
 }
-
+ 
 func ExtractServiceAuthHeaders(headers http.Header) (string, string, string) {
 	if headers == nil {
 		return "", "", ""
@@ -141,7 +150,7 @@ func ExtractServiceAuthHeaders(headers http.Header) (string, string, string) {
 		strings.TrimSpace(headers.Get(HeaderServiceInstanceID)),
 		strings.TrimSpace(headers.Get(HeaderServiceAuth))
 }
-
+ 
 func (s BootstrapSecret) normalize() BootstrapSecret {
 	return BootstrapSecret{
 		ServiceID:      strings.TrimSpace(s.ServiceID),
@@ -153,7 +162,7 @@ func (s BootstrapSecret) normalize() BootstrapSecret {
 		ExpiresAtMS:    s.ExpiresAtMS,
 	}
 }
-
+ 
 func (s BootstrapSecret) Validate() error {
 	clean := s.normalize()
 	if err := clean.validateRequired(); err != nil {
@@ -167,7 +176,7 @@ func (s BootstrapSecret) Validate() error {
 	}
 	return nil
 }
-
+ 
 func (s BootstrapSecret) validateRequired() error {
 	if strings.TrimSpace(s.ServiceID) == "" {
 		return fmt.Errorf("bootstrap secret missing SERVICE_ID")
@@ -192,7 +201,7 @@ func (s BootstrapSecret) validateRequired() error {
 	}
 	return nil
 }
-
+ 
 func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	values := map[string]string{}
 	scanner := bufio.NewScanner(strings.NewReader(string(raw)))
@@ -212,7 +221,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	if err := scanner.Err(); err != nil {
 		return BootstrapSecret{}, err
 	}
-
+ 
 	issuedAtMS, err := parseInt64Field(values["ISSUED_AT_MS"], "ISSUED_AT_MS")
 	if err != nil {
 		return BootstrapSecret{}, err
@@ -221,7 +230,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	if err != nil {
 		return BootstrapSecret{}, err
 	}
-
+ 
 	return BootstrapSecret{
 		ServiceID:      values["SERVICE_ID"],
 		InstanceID:     values["INSTANCE_ID"],
@@ -232,7 +241,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 		ExpiresAtMS:    expiresAtMS,
 	}.normalize(), nil
 }
-
+ 
 func parseInt64Field(raw string, field string) (int64, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
@@ -244,7 +253,7 @@ func parseInt64Field(raw string, field string) (int64, error) {
 	}
 	return parsed, nil
 }
-
+ 
 func nowMS() int64 {
 	return time.Now().UnixMilli()
 }

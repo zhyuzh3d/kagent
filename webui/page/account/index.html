@@ -192,16 +192,29 @@
     const urlParams = new URLSearchParams(window.location.search);
     const redirectUrl = urlParams.get('redirect') || '/page/chat/';
 
+    async function callAccountTool(toolID, args = {}) {
+      const resp = await fetch('/api/tool/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool_id: toolID, args }),
+      });
+      const raw = await resp.text();
+      let data = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch (_) {
+        data = null;
+      }
+      return { resp, data };
+    }
+
     // Check if already logged in
     (async function checkAuth() {
       try {
-        const resp = await fetch('/api/auth/me', { cache: 'no-store' });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data && data.ok) {
-            window.location.href = redirectUrl;
-            return;
-          }
+        const { resp, data } = await callAccountTool('account.auth.me', {});
+        if (resp.ok && data && data.ok === true) {
+          window.location.href = redirectUrl;
+          return;
         }
       } catch (_) { }
     })();
@@ -246,17 +259,15 @@
 
       submitBtn.disabled = true;
       try {
-        const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        });
-        const data = await resp.json();
-        if (data && data.ok) {
+        const toolID = isRegister ? 'account.auth.register' : 'account.auth.login';
+        const { resp, data } = await callAccountTool(toolID, { username, password });
+        if (resp.ok && data && data.ok === true) {
           window.location.href = redirectUrl;
         } else {
-          errorText.textContent = (data && data.error) || '操作失败，请重试';
+          const message = data && data.error && data.error.message
+            ? data.error.message
+            : '操作失败，请重试';
+          errorText.textContent = message;
         }
       } catch (err) {
         errorText.textContent = '网络错误，请重试';

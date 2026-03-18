@@ -59,10 +59,27 @@ type Meta struct {
 }
 
 type CallResponse struct {
-	Ok     bool   `json:"ok"`
-	Result any    `json:"result,omitempty"`
-	Error  *Error `json:"error,omitempty"`
-	Meta   Meta   `json:"meta,omitempty"`
+	Ok      bool     `json:"ok"`
+	Result  any      `json:"result,omitempty"`
+	Error   *Error   `json:"error,omitempty"`
+	Meta    Meta     `json:"meta,omitempty"`
+	Effects *Effects `json:"effects,omitempty"`
+}
+
+type Effects struct {
+	SetCookies []SetCookieEffect `json:"set_cookies,omitempty"`
+	SetHeaders []SetHeaderEffect `json:"set_headers,omitempty"`
+}
+
+type SetCookieEffect struct {
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+	MaxAgeSec int    `json:"max_age_sec,omitempty"`
+}
+
+type SetHeaderEffect struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type WSCallFrame struct {

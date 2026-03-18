@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	app "kagent/hub/internal/app"
+	"kagent/hub/internal/transport"
 	"kagent/pkg/hubsvc"
 )
 
@@ -124,6 +123,9 @@ type LifecycleManager struct {
 
 	hubPlatform *app.HubPlatform
 	registry    *Registry
+	transport   interface {
+		Call(ctx context.Context, endpoint transport.Endpoint, method string, path string, headers http.Header, body []byte, timeout time.Duration) (transport.Response, error)
+	}
 
 	services []managedService
 	procs    map[string]*managedProcess
@@ -142,7 +144,9 @@ func LoadLifecycleConfig(path string) (LifecycleConfig, error) {
 	return cfg, nil
 }
 
-func NewLifecycleManager(appRoot string, registerURL string, cfg LifecycleConfig, hubPlatform *app.HubPlatform, registry *Registry) (*LifecycleManager, error) {
+func NewLifecycleManager(appRoot string, registerURL string, cfg LifecycleConfig, hubPlatform *app.HubPlatform, registry *Registry, tp interface {
+	Call(ctx context.Context, endpoint transport.Endpoint, method string, path string, headers http.Header, body []byte, timeout time.Duration) (transport.Response, error)
+}) (*LifecycleManager, error) {
 	root := strings.TrimSpace(appRoot)
 	if root == "" {
 		return nil, fmt.Errorf("app root is empty")
@@ -182,6 +186,7 @@ func NewLifecycleManager(appRoot string, registerURL string, cfg LifecycleConfig
 		defaults:    defaults,
 		hubPlatform: hubPlatform,
 		registry:    registry,
+		transport:   tp,
 		services:    services,
 		procs:       map[string]*managedProcess{},
 	}, nil
@@ -447,7 +452,7 @@ func (m *LifecycleManager) stopProcess(proc *managedProcess, timeout time.Durati
 		timeout = 1500 * time.Millisecond
 	}
 	if reg, ok := m.hubPlatform.GetService(proc.serviceID); ok {
-		_ = postShutdown(reg.Endpoint)
+		_ = StopServiceRegistration(m.hubPlatform, reg, timeout)
 	}
 	select {
 	case <-proc.done:
@@ -487,43 +492,6 @@ func loadRuntimeManifest(path string, serviceID string) (RuntimeManifest, error)
 		return RuntimeManifest{}, fmt.Errorf("runtime manifest entry.args is required")
 	}
 	return out, nil
-}
-
-func postShutdown(endpoint string) error {
-	shutdownURL := buildServiceControlURL(endpoint, "/admin/shutdown")
-	if shutdownURL == "" {
-		return nil
-	}
-	req, err := http.NewRequest(http.MethodPost, shutdownURL, nil)
-	if err != nil {
-		return err
-	}
-	client := &http.Client{Timeout: 1400 * time.Millisecond}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, resp.Body)
-	return nil
-}
-
-func buildServiceControlURL(endpoint string, targetPath string) string {
-	base := strings.TrimSpace(endpoint)
-	if base == "" {
-		return ""
-	}
-	if !strings.Contains(base, "://") {
-		base = "http://" + base
-	}
-	parsed, err := url.Parse(base)
-	if err != nil {
-		return ""
-	}
-	parsed.Path = strings.TrimSpace(targetPath)
-	parsed.RawQuery = ""
-	parsed.Fragment = ""
-	return parsed.String()
 }
 
 func normalizeGlobal(in LifecycleGlobalConfig) LifecycleGlobalConfig {

@@ -30,6 +30,7 @@ type ServiceToolDescriptor struct {
 	OutputSchema         map[string]any `json:"output_schema,omitempty"`
 	SideEffect           string         `json:"side_effect,omitempty"`
 	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
 	ScopeSupport         []string       `json:"scope_support,omitempty"`
@@ -824,6 +825,10 @@ func normalizeToolDescriptor(in ServiceToolDescriptor) ServiceToolDescriptor {
 		}
 	}
 	t.CapabilitiesRequired = uniqueNonEmpty(t.CapabilitiesRequired)
+	if len(t.AllowedCallerTypes) == 0 && len(t.ScopeSupport) > 0 {
+		t.AllowedCallerTypes = append([]string(nil), t.ScopeSupport...)
+	}
+	t.AllowedCallerTypes = uniqueNonEmpty(t.AllowedCallerTypes)
 	t.ScopeSupport = uniqueNonEmpty(t.ScopeSupport)
 	return t
 }

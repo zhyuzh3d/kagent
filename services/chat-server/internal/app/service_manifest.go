@@ -10,6 +10,7 @@ type ServiceToolDescriptor struct {
 	OutputSchema         map[string]any `json:"output_schema,omitempty"`
 	SideEffect           string         `json:"side_effect,omitempty"`
 	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
 	WSPath               string         `json:"ws_path,omitempty"`
@@ -34,15 +35,17 @@ func ChatServerServiceManifest() ServiceManifest {
 		Reliability: "trusted",
 		Visibility:  "public",
 		Provides: []ServiceToolDescriptor{
-			{ToolID: "app.chat.project_list", Category: "app", Type: "chat", Tool: "project_list", Description: "list projects"},
-			{ToolID: "app.chat.project_create", Category: "app", Type: "chat", Tool: "project_create", Description: "create project"},
-			{ToolID: "app.chat.project_update", Category: "app", Type: "chat", Tool: "project_update", Description: "update project"},
-			{ToolID: "app.chat.project_delete", Category: "app", Type: "chat", Tool: "project_delete", Description: "delete project"},
-			{ToolID: "app.chat.thread_list", Category: "app", Type: "chat", Tool: "thread_list", Description: "list threads"},
-			{ToolID: "app.chat.thread_create", Category: "app", Type: "chat", Tool: "thread_create", Description: "create thread"},
-			{ToolID: "app.chat.thread_update", Category: "app", Type: "chat", Tool: "thread_update", Description: "update thread"},
-			{ToolID: "app.chat.thread_delete", Category: "app", Type: "chat", Tool: "thread_delete", Description: "delete thread"},
-			{ToolID: "app.chat.stream", Category: "app", Type: "chat", Tool: "stream", Description: "chat stream websocket", Streaming: "ws", WSPath: "/service/tool/ws"},
+			{ToolID: "app.chat.project_list", Category: "app", Type: "chat", Tool: "project_list", Description: "list projects", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.project_create", Category: "app", Type: "chat", Tool: "project_create", Description: "create project", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.project_update", Category: "app", Type: "chat", Tool: "project_update", Description: "update project", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.project_delete", Category: "app", Type: "chat", Tool: "project_delete", Description: "delete project", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.thread_list", Category: "app", Type: "chat", Tool: "thread_list", Description: "list threads", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.thread_create", Category: "app", Type: "chat", Tool: "thread_create", Description: "create thread", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.thread_update", Category: "app", Type: "chat", Tool: "thread_update", Description: "update thread", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.thread_delete", Category: "app", Type: "chat", Tool: "thread_delete", Description: "delete thread", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "app.chat.stream", Category: "app", Type: "chat", Tool: "stream", Description: "chat stream websocket", Streaming: "ws", WSPath: "/service/tool/ws", AllowedCallerTypes: []string{"user"}},
+			{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
+			{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
 		},
 		Requires: []string{"ai.llm.stream", "ai.speech.asr", "ai.speech.tts"},
 	}

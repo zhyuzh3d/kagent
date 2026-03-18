@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,49 @@ const (
 
 var currentLevel = LevelInfo
 var currentTag = "APP"
+ 
+type LogEntry struct {
+	Timestamp string `json:"ts"`
+	Level     string `json:"level"`
+	Tag       string `json:"tag"`
+	Name      string `json:"name"`
+	Message   string `json:"msg"`
+}
+ 
+var logSubscribers []chan LogEntry
+var logMu sync.Mutex
+ 
+// SubscribeLogs registers a channel to receive log entries.
+// Caller must call the returned unsubscribe function to clean up.
+func SubscribeLogs() (chan LogEntry, func()) {
+	logMu.Lock()
+	defer logMu.Unlock()
+	ch := make(chan LogEntry, 100)
+	logSubscribers = append(logSubscribers, ch)
+	return ch, func() {
+		logMu.Lock()
+		defer logMu.Unlock()
+		for i, s := range logSubscribers {
+			if s == ch {
+				logSubscribers = append(logSubscribers[:i], logSubscribers[i+1:]...)
+				close(ch)
+				break
+			}
+		}
+	}
+}
+ 
+func notifySubscribers(entry LogEntry) {
+	logMu.Lock()
+	defer logMu.Unlock()
+	for _, ch := range logSubscribers {
+		select {
+		case ch <- entry:
+		default:
+			// Drop if subscriber is slow
+		}
+	}
+}
 
 // InitLogger initializes the global structured logger.
 func InitLogger(level LogLevel, tag string) {
@@ -68,6 +112,16 @@ func formatLogIdentity(level LogLevel, levelStr string, tag string, identityName
 
 	ts := time.Now().Format("2006-01-02 15:04:05")
 	name := strings.TrimSpace(identityName)
+ 
+	entry := LogEntry{
+		Timestamp: ts,
+		Level:     levelStr,
+		Tag:       useTag,
+		Name:      name,
+		Message:   msg,
+	}
+	notifySubscribers(entry)
+ 
 	if name == "" {
 		// Fallback to non-identity format
 		fmt.Fprintf(os.Stdout, "[%s] [%s] [%s] %s\n", ts, levelStr, useTag, msg)
