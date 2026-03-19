@@ -13,11 +13,11 @@
     "services": [
       {
         "service_id": "ai-doubao",
-        "dir": "services/ai-doubao"
+        "dir": "services/ai_doubao"
       },
       {
         "service_id": "chat-server",
-        "dir": "services/chat-server"
+        "dir": "services/chat_server"
       },
       {
         "service_id": "account",
@@ -25,11 +25,11 @@
       },
       {
         "service_id": "file",
-        "dir": "services/file"
+        "dir": "services/file_storage"
       },
       {
         "service_id": "database",
-        "dir": "services/database"
+        "dir": "services/sql_db"
       },
       {
         "service_id": "surface-manager",

@@ -1,3 +1,10 @@
+## [2026-03-19 13:15 CST] 文档架构准则更新 (Doc & Arch Rules Update)
+- 主要变更：
+  - **强调独立项目准则**：在 `core.md` 和 `structure.md` 中明确了 `hub/` 与每个 `services/` 子目录均为逻辑上独立的 Golang 项目，禁止跨层文件依赖，仅通过 `pkg/` 共享协议。
+  - **完善数据库安全契约**：在说明文档中补充了 `database` 服务自动根据 Hub 注入的 Caller 身份执行“物理存储范围锁定 (Scope Locking)”的机制。
+  - **明确身份验证边界**：重申 Hub 是身份验证的唯一物理边界，Service 侧仅根据 Hub 注入的 `X-Caller-*` Header 执行业务隔离。
+- 关键文件：`doc/_instruction/core.md`, `doc/_instruction/structure.md`, `doc/_instruction.md`
+
 ## [2026-03-19 03:28 CST] 简化开发日志 (Devlog Rule simplification)
 - 核心变更：更新了 `AGENTS.md` Rule 6.3，将开发日志格式由长模板简化为一两句话的简明模式，提升维护效率。
 

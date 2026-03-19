@@ -16,7 +16,7 @@ import (
 
 	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
-	app "kagent/services/chat-server/internal/app"
+	app "kagent/services/chat_server/internal/app"
 
 	"github.com/gorilla/websocket"
 )

@@ -73,9 +73,20 @@ func main() {
 		os.Exit(1)
 	}
 	servicesRoot := filepath.Join(appRoot, "services")
-	for _, sid := range []string{"chat-server", "account", "ai-doubao", "file", "database", "surface-manager"} {
-		if err := app.EnsureServiceConfigFiles(filepath.Join(servicesRoot, sid)); err != nil {
-			app.Warnf("ServiceConfigFile-Ensure-Error:%s-%v", sid, err)
+	serviceDirs := []struct {
+		serviceID string
+		dir       string
+	}{
+		{serviceID: "chat-server", dir: "chat_server"},
+		{serviceID: "account", dir: "account"},
+		{serviceID: "ai-doubao", dir: "ai_doubao"},
+		{serviceID: "file", dir: "file_storage"},
+		{serviceID: "database", dir: "sql_db"},
+		{serviceID: "surface-manager", dir: "surface-manager"},
+	}
+	for _, item := range serviceDirs {
+		if err := app.EnsureServiceConfigFiles(filepath.Join(servicesRoot, item.dir)); err != nil {
+			app.Warnf("ServiceConfigFile-Ensure-Error:%s-%v", item.serviceID, err)
 		}
 	}
 	_, appCancel := context.WithCancel(context.Background())

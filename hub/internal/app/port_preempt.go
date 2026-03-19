@@ -18,6 +18,8 @@ import (
 // EnsurePortReady ensures the given address is ready for listening.
 // It follows a "Request-then-Kill" strategy to clear the port.
 func EnsurePortReady(addr string) error {
+	expectedExecPath, _ := os.Executable()
+	expectedExecPath = normalizeExecutablePath(expectedExecPath)
 	// 1. Check if already listening
 	ln, err := net.Listen("tcp", addr)
 	if err == nil {
@@ -55,11 +57,17 @@ func EnsurePortReady(addr string) error {
 	_, portStr, _ := net.SplitHostPort(addr)
 	pid := findPIDByPort(portStr)
 	if pid > 0 && pid != os.Getpid() {
-		if err := killProcess(pid); err == nil {
+		cleaned, cleanErr := CleanRecordedProcess(pid, expectedExecPath, 0)
+		if cleanErr != nil {
+			return fmt.Errorf("preempt port %s failed: %w", portStr, cleanErr)
+		}
+		if cleaned {
 			Infof("System:Internal:Startup:PortPreempted: %s", portStr)
 			// Small settle time
 			time.Sleep(200 * time.Millisecond)
+			return nil
 		}
+		return fmt.Errorf("port %s is occupied by a non-matching process pid=%d", portStr, pid)
 	}
 
 	return nil

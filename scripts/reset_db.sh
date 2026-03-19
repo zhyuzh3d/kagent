@@ -25,9 +25,6 @@ shutdown_hub
 
 sleep 1
 
-echo "=> removing runtime pid files"
-rm -f run/hub.pid run/chat-server.pid run/account.pid run/ai-doubao.pid run/file-service.pid run/database-service.pid run/surface-manager.pid run/deploy-tail.pid
-
 if [[ "${reset_mode}" == "all" ]]; then
   echo "=> delete targets:"
   echo "   - data/*"

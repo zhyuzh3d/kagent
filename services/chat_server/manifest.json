@@ -8,9 +8,9 @@
       "-addr",
       "127.0.0.1:18082",
       "-config",
-      "services/chat-server/config/configx.json",
+      "services/chat_server/config/configx.json",
       "-public-config",
-      "services/chat-server/config/config.json",
+      "services/chat_server/config/config.json",
       "-user-config",
       "data/users/default/user_custom_config.json",
       "-model",
@@ -22,6 +22,7 @@
     "register_timeout_ms": 1000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
-    "restart_times": 3
+    "restart_times": 3,
+    "kill_old": true
   }
 }

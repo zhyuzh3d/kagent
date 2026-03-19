@@ -72,6 +72,7 @@ type RuntimeManifestPolicy struct {
 	RestartPolicy     string `json:"restart_policy,omitempty"`
 	RestartBackoffMS  int    `json:"restart_backoff_ms,omitempty"`
 	RestartTimes      int    `json:"restart_times,omitempty"`
+	KillOld           bool   `json:"kill_old,omitempty"`
 }
 
 type StartupSnapshot struct {
@@ -108,9 +109,10 @@ type managedService struct {
 }
 
 type managedProcess struct {
-	serviceID string
-	cmd       *exec.Cmd
-	done      chan error
+	serviceID   string
+	cmd         *exec.Cmd
+	done        chan error
+	startedAtMS int64
 }
 
 type LifecycleManager struct {
@@ -122,6 +124,7 @@ type LifecycleManager struct {
 	defaults    LifecycleDefaultConfig
 
 	hubPlatform *app.HubPlatform
+	pidStore    *app.ServicePidStore
 	registry    *Registry
 	transport   interface {
 		Call(ctx context.Context, endpoint transport.Endpoint, method string, path string, headers http.Header, body []byte, timeout time.Duration) (transport.Response, error)
@@ -185,6 +188,7 @@ func NewLifecycleManager(appRoot string, registerURL string, cfg LifecycleConfig
 		global:      global,
 		defaults:    defaults,
 		hubPlatform: hubPlatform,
+		pidStore:    app.NewServicePidStore(filepath.Join(root, "hub", "run", ".service_pid")),
 		registry:    registry,
 		transport:   tp,
 		services:    services,
@@ -225,8 +229,9 @@ func (m *LifecycleManager) StopAll(timeout time.Duration) {
 }
 
 func (m *LifecycleManager) startService(ctx context.Context, svc *managedService) StartupServiceOutcome {
+	serviceID := strings.TrimSpace(svc.entry.ServiceID)
 	out := StartupServiceOutcome{
-		ServiceID:  strings.TrimSpace(svc.entry.ServiceID),
+		ServiceID:  serviceID,
 		Dir:        strings.TrimSpace(svc.entry.Dir),
 		ExecPath:   svc.execPath,
 		Manifest:   svc.manifest,
@@ -236,10 +241,16 @@ func (m *LifecycleManager) startService(ctx context.Context, svc *managedService
 		out.ErrorText = "missing service executable: " + err.Error()
 		return out
 	}
-	runtimeManifest, err := loadRuntimeManifest(svc.manifest, strings.TrimSpace(svc.entry.ServiceID))
+	runtimeManifest, err := loadRuntimeManifest(svc.manifest, serviceID)
 	if err != nil {
 		out.ErrorText = err.Error()
 		return out
+	}
+	if runtimeManifest.Lifecycle.KillOld {
+		if err := m.cleanupRecordedServiceProcess(svc); err != nil {
+			out.ErrorText = err.Error()
+			return out
+		}
 	}
 	svc.policy = normalizeRestartPolicy(firstNonEmptyValue(strings.TrimSpace(runtimeManifest.Lifecycle.RestartPolicy), m.defaults.RestartPolicy))
 	svc.timeout = clampDurationMS(firstPositive(runtimeManifest.Lifecycle.RegisterTimeoutMS, m.defaults.RegisterTimeoutMS), m.global.MaxTimeoutMS)
@@ -265,6 +276,7 @@ func (m *LifecycleManager) startService(ctx context.Context, svc *managedService
 			out.PID = proc.cmd.Process.Pid
 			out.Instance = strings.TrimSpace(reg.InstanceID)
 			out.Endpoint = strings.TrimSpace(reg.Endpoint)
+			m.recordServiceStart(serviceID, proc.cmd.Process.Pid, svc.execPath, proc.startedAtMS)
 			m.trackProcess(proc)
 			return out
 		}
@@ -301,10 +313,12 @@ func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, r
 	if err := cmd.Start(); err != nil {
 		return nil, app.HubServiceRegistration{}, fmt.Errorf("start process failed: %w", err)
 	}
+	startedAtMS := time.Now().UnixMilli()
 	proc := &managedProcess{
-		serviceID: serviceID,
-		cmd:       cmd,
-		done:      make(chan error, 1),
+		serviceID:   serviceID,
+		cmd:         cmd,
+		done:        make(chan error, 1),
+		startedAtMS: startedAtMS,
 	}
 	go func() {
 		proc.done <- cmd.Wait()
@@ -471,6 +485,51 @@ func (m *LifecycleManager) stopProcess(proc *managedProcess, timeout time.Durati
 	case <-time.After(800 * time.Millisecond):
 	}
 	return nil
+}
+
+func (m *LifecycleManager) cleanupRecordedServiceProcess(svc *managedService) error {
+	if m == nil || m.pidStore == nil {
+		return nil
+	}
+	serviceID := strings.TrimSpace(svc.entry.ServiceID)
+	if serviceID == "" {
+		return nil
+	}
+	record, ok := m.pidStore.Get(serviceID)
+	if !ok {
+		return nil
+	}
+	expectedExecPath := strings.TrimSpace(record.ExecPath)
+	if expectedExecPath == "" {
+		expectedExecPath = strings.TrimSpace(svc.execPath)
+	}
+	if expectedExecPath == "" {
+		return nil
+	}
+	cleaned, err := app.CleanRecordedProcess(record.PID, expectedExecPath, record.StartedAtMS)
+	if err != nil {
+		return fmt.Errorf("cleanup recorded service process failed: service=%s pid=%d path=%s err=%w", serviceID, record.PID, expectedExecPath, err)
+	}
+	if cleaned {
+		app.Infof("service old process cleaned: service=%s pid=%d path=%s started_at_ms=%d", serviceID, record.PID, expectedExecPath, record.StartedAtMS)
+		return nil
+	}
+	app.Infof("service old process not cleaned: service=%s pid=%d path=%s started_at_ms=%d", serviceID, record.PID, expectedExecPath, record.StartedAtMS)
+	return nil
+}
+
+func (m *LifecycleManager) recordServiceStart(serviceID string, pid int, execPath string, startedAtMS int64) {
+	if m == nil || m.pidStore == nil {
+		return
+	}
+	if err := m.pidStore.Upsert(app.ServicePidRecord{
+		ServiceID:   serviceID,
+		PID:         pid,
+		ExecPath:    execPath,
+		StartedAtMS: startedAtMS,
+	}); err != nil {
+		app.Warnf("service pid record update failed: service=%s pid=%d path=%s err=%v", serviceID, pid, execPath, err)
+	}
 }
 
 func loadRuntimeManifest(path string, serviceID string) (RuntimeManifest, error) {

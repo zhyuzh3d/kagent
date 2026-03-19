@@ -1,192 +1,170 @@
 # Core
 
-本文件合并项目核心理念与开发规范。它回答的是：这个项目的基本不变量是什么，agent 在修改前应遵守什么边界。
+本文件只保留项目核心理念、默认边界与开发规范。它回答的是：`kagent` 当前按什么原则运行，agent 修改前应先守住什么不变量。
 
-## 1. 项目概览
+## 1. 项目定位
 
-`kagent` 是一个基于 `Hub + 多独立 Service` 架构的本地多进程 AI 交互与工具平台。当前实现仍然遵循“交互在前端，治理在 Hub，执行在 Service”的分层，同时把 Hub 的治理面和系统面尽量统一到工具平面：
+`kagent` 是一个基于 `Hub + 多独立 Service` 的本地多进程 AI 交互与工具平台。当前实现遵循三层分工：
 
-- `Page` 负责用户交互、录音/打断等高频仲裁和工具调用编排。
-- `Hub` 负责统一入口、鉴权、路由治理、审计、生命周期与服务调度，其中治理/系统能力已主要以 `hub.*` 工具暴露。
-- `Service` 负责原子能力执行或业务协作执行，通过统一工具协议接受 Hub 调度，并以 `service.lifecycle.*` 作为生命周期正式契约。
+1. `Page` 负责交互节奏、页面状态和高频仲裁。
+2. `Hub` 负责统一入口、接纳治理、caller 识别、路由、可观测与生命周期编排。
+3. `Service` 负责能力执行，并通过标准 `tool` 协议向外提供能力。
 
-这个分层不是风格偏好，而是当前仓库的运行事实。新增能力、服务或 Surface 时，应尽量保持逻辑路径、治理边界和数据边界不被打穿。
+这个分层是当前仓库的运行事实，不是风格偏好。新增能力、页面或 service 时，应优先保持逻辑路径、治理边界和数据边界稳定。
 
-## 2. 核心理念
+## 2. 核心边界
 
-### 2.1 逻辑路径优先（Logic > Physics）
+### 2.1 Logic > Physics
 
-跨模块协作优先依赖 `tool_id` 等逻辑标识，而不是固定端口、进程名或私有 URL。端口和进程只是运行时载体，不应成为业务契约。
+跨模块协作应优先依赖 `tool_id`、`caller`、`capabilities_required` 等逻辑标识，而不是固定端口、进程名或私有 URL。端口和进程只是运行时载体，不应成为长期业务契约。
 
-- 实现落点：`hub/internal/gateway/tool_handler.go` 的 `POST /api/tool/call` 和 `GET /api/tool/ws?tool_id=...`，以及 `hub/internal/routing/*` 的实例选择与记录。
-- 相关协议：`pkg/toolproto/v1.go` 中的 `CallRequest.ToolID`、`Context`、`Caller`。
+### 2.2 Hub 是治理入口，不是业务替身
 
-### 2.2 Client-Driven 交互模型
+`Hub` 负责接纳、路由、前置筛选、展示、统计、审计和生命周期编排；`Hub` 不负责替 `service` 完成业务鉴权、对象级权限和内部限额，也不负责证明 `service` 内部一定正确消费了 caller / capability / 身份结果。
 
-录音开始/结束、打断/继续、何时触发调用等高频节奏，应由 `Page` 作为单一事实源仲裁，后端承担被动执行和可观测返回。这样可以避免把交互时序绑死在后端进程和网络抖动上。
+因此：
 
-- 实现落点：`webui/page/chat/` 与 `webui/page/surface/` 的页面逻辑，Hub 的静态资源托管与默认跳转。
+1. 被 `Hub` 接纳，表示进入统一治理平面。
+2. 被 `Hub` 接纳，不等于内部实现已被 `Hub` 背书。
+3. `Hub` 的 caller / capability 筛选不是完整业务授权系统。
 
-### 2.3 治理权收敛于 Hub
+### 2.3 Service 是自治能力模块
 
-服务发现、路由选择、审计、身份/权限、生命周期编排都应收敛在 Hub。Service 不应绕过 Hub 与其他 Service 直接互连，除非实现层明确允许且仍保留治理记录。
+`Service` 是独立进程、能力模块和工具提供者。只有兼容 `Hub` 的 `tool + lifecycle` 协议，并能通过 `manifest / register / heartbeat` 完成标准接入的程序，才会被 `Hub` 接纳。
 
-- 实现落点：`hub/internal/supervisor/*`、`hub/internal/routing/*`、`hub/internal/observability/*`、`hub/internal/gateway/*`。
-- 身份识别与 caller 归属也应以 Hub 的 `IdentityMiddleware` 为准，Service 只根据 Hub 注入的 caller headers 做本地分支，不应自行重建认证边界。
+因此：
+
+1. `service` 可以物理独立运行。
+2. `Hub` 对外统一提供其标准入口。
+3. `service` 内部是否信任 `Hub`、是否拒绝非 `Hub` 请求、是否消费注入的 caller / capability，仍属于自治范围。
 
 ### 2.4 工具平面统一
 
-平台对外能力收敛为统一工具平面：原子工具和流式工具都由 Hub 暴露，并由 Hub 统一做路由、caller 识别、头部清洗与副作用落地。Hub 的治理、管理和系统能力也已经以工具形式注册，但仍保留少量 HTTP/WS 承载面作为兼容或静态资源入口。
+平台对外能力收敛到统一工具平面：
 
-- 原子工具入口：`POST /api/tool/call`
-- 流式工具入口：`GET /api/tool/ws?tool_id=...`
-- Service 侧入口：`POST /service/tool/exec`、`GET /service/tool/ws`
-- tool 返回中的 `effects.set_cookies` / `effects.set_headers` 由 Hub 统一写回外部调用方；`account` 就是通过这条副作用通道把 cookie / JWT 结果交给前端。
+1. Hub 原子工具入口：`POST /api/tool/call`
+2. Hub 流式工具入口：`GET /api/tool/ws?tool_id=...`
+3. Service 原子工具入口：`POST /service/tool/exec`
+4. Service 流式工具入口：`GET /service/tool/ws`
 
-当前 `toolproto.ServiceTool` 已支持 `allowed_caller_types`、`streaming`、`ws_path`、`capabilities_required` 等声明，说明工具层已经成为真实的运行契约；Hub 侧的 `hub.governance.service.*`、`hub.admin.*`、`hub.system.*` 也都通过 tool 注册暴露。
+`hub.governance.service.*`、`hub.admin.*`、`hub.system.*` 与业务工具共享同一工具平面；少量 HTTP/WS 路由仍作为静态资源、兼容入口或 transport 承载面存在，但不应替代标准 tool 契约。
 
-### 2.5 零信任与头部卫生（Header Hygiene）
+### 2.5 平台安全与业务安全分离
 
-身份不能靠端口、`RemoteAddr` 或“看起来像”来推断，必须依赖互信 header + 严格校验。Hub 还需要在转发前清洗 protected headers，避免浏览器侧伪造内部身份字段影响后端。
+平台安全由 `Hub` 主导，业务安全由 `service` 主导。
 
-- 实现落点：`hub/internal/security/headers.go`
-- 互信通道：`pkg/hubsvc/session.go` 以及各 Service 的 `/.service_secret` 启动期秘密
-- 当前身份模型：`hub/internal/app/identity.go`
+1. `Hub` 负责 caller 识别、header 清洗、前置分发门槛、路由、运行统计和治理视图。
+2. `service` 负责用户身份鉴权、对象级权限、领域规则、内部限额和最终执行判断。
+3. 需要信任 `Hub` 来源的 tool，应通过 `.service_secret` 与互信 header 建立可信接入；本项目当前不要求每次调用都做请求级签名。
 
-### 2.6 生命周期与编排收敛
+### 2.6 生命周期与治理视图收敛于 Hub
 
-多进程系统的启动、停止、冲突清理、Ready 判定、可用性探测和冒烟验证，应该尽量由 Hub 收敛管理。脚本只负责构建和拉起最小入口，不应承担复杂治理逻辑。
+`Hub` 维护 service 接纳与运行态治理视图，并负责生命周期编排。对被接纳的 `service`，最低正式生命周期契约是：
 
-- 实现落点：`hub/internal/supervisor/lifecycle.go`、`hub/internal/supervisor/process_control.go`
-- Hub 入口：`hub/cmd/hub/main.go`
-- 启动脚本：`scripts/deploy.sh`
+1. `service.lifecycle.health`
+2. `service.lifecycle.shutdown`
+3. `service.lifecycle.state.get`
 
-Hub 侧当前的正式生命周期调用已经优先走 `service.lifecycle.health` 和 `service.lifecycle.shutdown`，而 `/healthz` 仅作为兼容 fallback 参与存活探测；`hub.governance.service.register` 与 `hub.governance.service.heartbeat` 则作为服务注册和心跳的正式工具入口。对 `account` 这类已经工具化完成的 service，Hub 会优先走生命周期 tool，不再依赖旧的健康检查 HTTP 入口。
+如存在排空语义，还应补充 `service.lifecycle.drain`。`Hub` 同时维护 `service session`、路由覆盖层和治理统计；`reliability`、`success_rate`、`call_count` 等字段属于 `Hub` 的治理产物，不是 `service` 的最终自声明事实。
 
-### 2.7 数据与文件边界
+### 2.7 副作用与身份卫生
 
-Service 的文件系统边界应尽量收敛到自身目录；对用户数据和共享存储的读写，应尽量通过 Hub 的工具平面完成，以便统一审计、能力隔离和授权闭环。
-
-- `chat-server` 通过 Hub 工具客户端访问数据库和存储能力。
-- `file`、`database`、`surface-manager` 承担各自的存储/文件/Surface 相关能力。
-
-### 2.8 可观测与审计
-
-跨边界调用都应携带 `request_id`、`trace_id` 和 caller identity，并在 Hub 侧形成可检索审计日志。业务事件通过统一上报工具记录，避免分散打印导致链路断裂。
-
-- 实现落点：`hub/internal/security/headers.go`、`hub/internal/observability/audit.go`
-- 统一上报工具：`hub.system.report_log`
+`service` 不应直接改写浏览器响应或外部上下文。cookie、header 等副作用应通过 `effects` 返回，再由 `Hub` 统一写回调用方。内部身份也不能靠端口或来源地址猜测，必须依赖互信 header 与显式校验；转发前应清洗 protected headers，避免外部伪造内部身份字段。
 
 ## 3. 开发规范
 
 ### 3.1 先核验再判断
 
-涉及项目状态、目录、职责、协议或运行行为时，优先用真实文件、Git 历史和可复现命令核验，不靠记忆补全。
+涉及项目状态、目录结构、接口契约、运行行为或最近改动时，优先用真实文件、Git 历史与可复现命令核验，不靠记忆补全。
 
-### 3.2 修改以最小可行变更为主
+### 3.2 最小可行变更
 
-修改时优先做最小可行变更，避免无关重构和风格化扩散。只有在确实需要修复结构性问题时，才扩大改动范围。
+默认先做最小可行变更，避免无关重构、风格化扩散和跨模块顺手修。只有在结构性问题已被证实时，才扩大修改范围。
 
-### 3.3 无法确认的信息标为待确认
+### 3.3 不把推测写成事实
 
-任何无法从代码或 Git 证据直接确认的内容，都应放入“待确认”而不是直接写成事实。不要把推测写成稳定事实。
+无法从代码、配置或 Git 证据直接确认的内容，应标为“待确认”，不要把推测写成稳定结论。
 
-### 3.4 开发记录与说明文档分离
+### 3.4 文档分工保持单一
 
-- `doc/_devlog.md` 只记录开发增量，按追加方式维护。
-- `doc/_instruction.md` 只做入口和路由，不再承载完整历史。
-- 本文件只描述当前理念、边界和规范，不重复记录最近改动。
+1. `doc/_instruction.md` 只做入口与阅读路由。
+2. 本文件只描述当前理念、边界和规范。
+3. `doc/_instruction/structure.md` 负责结构、职责和接口。
+4. `doc/_instruction/glossary.md` 负责术语。
+5. `doc/_devlog.md` 只追加开发增量，不在说明文档里重复维护。
 
-### 3.5 常用验证方式
+### 3.5 高风险动作先确认
 
-常见验证包括构建、部署、重置环境、系统烟测和日志检查。具体采用哪一种，取决于本次变更影响面。
+大规模删除、不可逆重写、可能导致数据丢失或服务中断的操作，先征求用户确认。
 
-### 3.6 高风险动作先确认
-
-遇到大规模删除、不可逆重写、明显可能导致数据丢失或服务中断的动作，先征求用户确认。
-
-## 4. 当前事实边界
+## 4. 当前实现事实
 
 ### 4.1 Hub 主链路
 
-Hub 的启动主链路可以概括为：
+Hub 当前通过 `hub/cmd/hub/main.go` 启动，统一装配：
 
-1. 初始化日志与端口清理，尽量避免旧进程占用启动端口。
-2. 解析 app root，并把公共配置、用户配置、sqlite、services 配置、数据目录、WebUI 根目录和版本文件都转成绝对路径。
-3. 初始化运行配置、auth service、Hub platform，并确保各 service 的运行清单文件存在。
-4. 构造 `ToolHandler`、`SupervisorHandler`、`AdminHandler`、`SystemHandler`，把内部治理能力和外部 service 调度能力统一挂到工具平面。
-5. 先注册内部工具，再装配路由和 middleware。
-6. 若存在 lifecycle 配置，则创建 `LifecycleManager`，并把它回填到 `SystemHandler`。
-7. 最后启动 HTTP server，Hub 以 `/api/tool/call` 作为主工具入口，以静态资源和少量兼容路由作为附属承载面。
+1. `IdentityMiddleware`
+2. `ToolHandler`
+3. `SupervisorHandler`
+4. `AdminHandler`
+5. `SystemHandler`
 
-### 4.2 身份与认证链路
+主工具入口是 `/api/tool/call` 与 `/api/tool/ws`；静态资源和少量兼容路由仍然存在，但不改变“工具平面是正式主契约”这一事实。
 
-`hub/internal/app/identity.go` 里的 `IdentityMiddleware` 按以下优先级识别 caller：
+### 4.2 身份与 caller 注入
 
-1. 先检查 Hub<->Service 的互信 header，并调用 `hubPlatform.VerifyServiceAuth` 校验 service 身份。
-2. 再看 `X-Surface-Token`，当前这条链路仍是过渡性占位。
-3. 最后再解析用户 JWT cookie，优先尝试 `svc.account.token`，再回退到 `jwt` cookie。
+`hub/internal/app/identity.go` 当前按以下顺序识别请求来源：
 
-因此，真正的身份验证边界在 Hub，不在 `account`。`account` 只负责通过 tool 返回副作用结果，由 Hub 将 cookie / JWT 结果落到调用方。
+1. Hub <-> Service 互信 header
+2. `X-Surface-Token`
+3. 用户 JWT cookie
 
-### 4.3 Tool 路由与转发链路
+Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这里的 caller 是路由与治理上下文，不等于 `service` 内部必须采纳的最终业务授权结论。
 
-`hub/internal/gateway/tool_handler.go` 负责把所有 tool 调用统一收口：
+### 4.3 当前已落地的治理工具
 
-- 先规范化 `CallRequest`，补齐 `RequestID`、`TraceID`、`Caller` 和 `hub_only` 标记。
-- `hub.*` 工具直接由 Hub 内部 registry 处理，不走 service 转发。
-- 其它 tool 先由路由引擎选择 service instance，再校验 `allowed_caller_types`。
-- 转发前会清洗外部 header，并注入 caller headers 与 Hub auth headers。
-- service 返回后，Hub 统一写回 `effects`，并记录审计、路由状态和调用结果。
-- 对 `account` 的返回结果，Hub 还会同步 active session，保证登录态与 Hub 内部 authService 的状态一致。
+以下治理工具已在 Hub 侧注册：
 
-### 4.4 生命周期链路
+1. `hub.governance.service.register`
+2. `hub.governance.service.heartbeat`
+3. `hub.governance.service.drain`
+4. `hub.admin.*`
+5. `hub.system.*`
 
-Hub 对 service 生命周期的处理顺序是：
+对应地，`account`、`ai-doubao`、`chat-server`、`file_storage` 等 service 已存在通过 `hub.governance.service.register` 完成启动注册的实现。
 
-- 注册：`hub.governance.service.register`
-- 心跳：`hub.governance.service.heartbeat`
-- 停机：`hub.governance.service.drain` / `service.lifecycle.shutdown`
-- 健康检查：优先 `service.lifecycle.health`，`/healthz` 只做兼容 fallback
+### 4.4 当前已落地的 service 生命周期事实
 
-`hub/internal/supervisor/process_control.go` 中，停机时会先尝试生命周期 tool，再等待进程自然退出，最后才用 `SIGTERM` / `SIGKILL` 兜底。`account` 已经被收敛到生命周期 tool 路径，不再依赖旧的 HTTP 健康检查入口。
+当前代码已可见的正式生命周期事实包括：
 
-### 4.5 Hub 与 account 的关系
+1. Hub 优先调用 `service.lifecycle.health`
+2. Hub 停机时优先调用 `service.lifecycle.shutdown`
+3. `/healthz` 与部分 `/admin/shutdown` 仍作为兼容 fallback 保留
+4. `ai-doubao` 仍保留 `ai-doubao.system.health`、`ai-doubao.system.shutdown` 兼容别名
 
-`account` 的职责是账号工具层和登录态副作用层，不是独立认证边界：
+### 4.5 当前已落地的工具字段事实
 
-- 对外提供 `account.auth.register/login/logout/me/password_change`。
-- 对 Hub 暴露 `account.system.keys.get` 和 `account.session.dump_active`，供 Hub 同步账号公钥与活跃 session。
-- 通过 `effects.set_cookies` 管理 `svc.account.token` 等 cookie 结果，由 Hub 把这些副作用写回调用方。
-- Hub 在 `account` ready 后会调用 `SyncAccountState`，并在 `account.auth.*` 成功返回后同步 active session。
+`pkg/toolproto` 与多处 service manifest/协议结构已体现以下字段：
 
-这意味着：`account` 负责产出登录态与会话相关结果，Hub 负责认证、授权、caller 归属和最终路由决策。
+1. `allowed_caller_types`
+2. `capabilities_required`
+3. `streaming`
+4. `ws_path`
 
-### 4.6 Surface 身份链路
+这说明 tool 元数据已经是运行态真实契约，不只是文档约定。
 
-`surface-manager` 已实现 `ui.surface.*` 的 session / capability 相关工具，但 `hub/internal/app/identity.go` 里对 `X-Surface-Token` 的识别仍带有过渡性占位逻辑，说明这条链路仍在收敛中。
+### 4.6 account 的当前边界
 
-### 4.7 运行配置事实
+`account` 当前负责账号、token、会话与登录态相关工具输出，并通过 `effects.set_cookies` 协同 Hub 完成外部副作用写回。Hub 会在适当时机同步 account 状态，但这不意味着业务授权被上收给 Hub；业务安全边界仍应由具体 `service` 自己负责。
 
-`config/services.json` 和 `hub/config/services.json` 当前内容一致，且都列出了 `ai-doubao`、`chat-server`、`account`、`file`、`database`、`surface-manager`。长期以哪个文件作为单一事实源，仍是待确认项。
+### 4.7 仍待确认的单一事实源
 
-### 4.8 Hub <-> Service tool 化现状
-
-以下是当前代码里已经落地的 Hub <-> Service(tool) 事实：
-
-- Hub 侧已把 `hub.governance.service.register`、`hub.governance.service.heartbeat`、`hub.governance.service.drain`、`hub.admin.*`、`hub.system.*` 注册为工具。
-- `ai-doubao`、`file`、`chat-server` 的启动注册都通过 `POST /api/tool/call` 调用 `hub.governance.service.register`，心跳守护也通过 `hub.governance.service.heartbeat` 调用。
-- `file` 和 `chat-server` 都把 `service.lifecycle.health`、`service.lifecycle.shutdown` 作为正式生命周期工具处理。
-- `ai-doubao` 也已实现 `service.lifecycle.health`、`service.lifecycle.shutdown`，但仍保留 `ai-doubao.system.health`、`ai-doubao.system.shutdown` 作为兼容别名。
-- `account` 也已进入同一条 tool-only 路径，Hub 不再把它当作独立 HTTP 认证端点来处理。
-- `chat-server` 仍保留 `/admin/shutdown` 兼容入口，说明“工具化已成为主路径”，但并未做到“所有控制面 HTTP 入口都已删除”。
-
-### 4.9 代码复用边界
-
-部分 Service 仍复用 `pkg/*` 下的共享包，这意味着“完全独立可拷走运行”的理念尚未完全收敛，需要后续按实际代码继续判断。
+`config/services.json` 与 `hub/config/services.json` 当前内容一致，但长期哪个文件应作为单一事实源，仍待确认。
 
 ---
 
-**文档更新时间**：2026-03-19 03:09 CST
+**文档更新时间**：2026-03-19 20:04:10 CST
 
-**信息来源**：`hub/cmd/hub/main.go`、`hub/internal/app/auth.go`、`hub/internal/app/identity.go`、`hub/internal/gateway/tool_handler.go`、`hub/internal/gateway/hub_manifest.go`、`hub/internal/gateway/system_handler.go`、`hub/internal/gateway/admin_handler.go`、`hub/internal/security/headers.go`、`hub/internal/supervisor/lifecycle.go`、`hub/internal/supervisor/process_control.go`、`scripts/deploy.sh`、`services/account/cmd/account/main.go`、`services/ai-doubao/cmd/ai-doubao/main.go`、`services/chat-server/cmd/chat-server/main.go`、`services/file/cmd/file/main.go`、`services/surface-manager/cmd/surface-manager/main.go`。
+**本轮修改范围**：按 `_service_standard.md` 对齐 `core.md` 的边界表述，压缩冗余实现细节，纠正对 `Hub`、`service`、caller、业务授权和生命周期职责的过强或失真描述，并补入治理视图、最低生命周期契约与副作用边界。
+
+**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_service_standard.md`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_instruction/structure.md`、`hub/cmd/hub/main.go`、`hub/internal/app/identity.go`、`hub/internal/gateway/tool_handler.go`、`hub/internal/supervisor/handler.go`、`hub/internal/supervisor/process_control.go`、`pkg/toolproto/supervisor.go`，以及 `services/account`、`services/ai_doubao`、`services/chat_server`、`services/file_storage` 中与注册、生命周期和工具字段相关的实现检索结果。

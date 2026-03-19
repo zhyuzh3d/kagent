@@ -19,7 +19,7 @@ import (
 
 	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
-	app "kagent/services/database/internal/app"
+	app "kagent/services/sql_db/internal/app"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
 	dataRoot := filepath.Join(appRoot, "data")
-	serviceSecretPath := filepath.Join(appRoot, "services", "database", "run", ".service_secret")
+	serviceSecretPath := filepath.Join(appRoot, "services", "sql_db", "run", ".service_secret")
 	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
 		app.Errorf("load bootstrap secret failed: %v", err)

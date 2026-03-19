@@ -1,12 +1,16 @@
 {
-  "service_id": "file",
-  "service_name": "File Service",
+  "service_id": "ai-doubao",
+  "service_name": "Doubao AI Service",
   "version": "1.0.0",
   "visibility": "public",
   "entry": {
     "args": [
       "-addr",
-      "127.0.0.1:18084"
+      "127.0.0.1:18081",
+      "-config",
+      "services/ai_doubao/config/configx.json",
+      "-model",
+      "doubao"
     ],
     "env": {}
   },
@@ -14,6 +18,7 @@
     "register_timeout_ms": 1000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
-    "restart_times": 3
+    "restart_times": 3,
+    "kill_old": true
   }
 }

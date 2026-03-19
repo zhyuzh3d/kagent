@@ -17,7 +17,7 @@ import (
 
 	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
-	app "kagent/services/ai-doubao/internal/app"
+	app "kagent/services/ai_doubao/internal/app"
 
 	"github.com/gorilla/websocket"
 )

@@ -30,12 +30,12 @@ func DetectAppRoot() (string, error) {
 		add(exeDir)
 		add(filepath.Dir(exeDir))
 		add(filepath.Dir(filepath.Dir(exeDir)))
-		add(filepath.Join(filepath.Dir(exeDir), "services", "chat-server"))
-		add(filepath.Join(filepath.Dir(filepath.Dir(exeDir)), "services", "chat-server"))
+		add(filepath.Join(filepath.Dir(exeDir), "services", "ai_doubao"))
+		add(filepath.Join(filepath.Dir(filepath.Dir(exeDir)), "services", "ai_doubao"))
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		add(cwd)
-		add(filepath.Join(cwd, "services", "chat-server"))
+		add(filepath.Join(cwd, "services", "ai_doubao"))
 	}
 	for _, c := range candidates {
 		if isLikelyAppRoot(c) {
