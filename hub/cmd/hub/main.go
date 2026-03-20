@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -121,17 +122,31 @@ func main() {
 		routingEngine,
 		auditStore,
 	)
+	syncAccountStateWithRetry := func() error {
+		var lastErr error
+		for attempt := 1; attempt <= 12; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			err := toolHandler.SyncAccountState(ctx)
+			cancel()
+			if err == nil {
+				return nil
+			}
+			lastErr = err
+			time.Sleep(300 * time.Millisecond)
+		}
+		return lastErr
+	}
 	supervisorHandler.SetOnServiceReady(func(serviceID string) {
 		if strings.TrimSpace(serviceID) != "account" {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-		defer cancel()
-		if err := toolHandler.SyncAccountState(ctx); err != nil {
-			app.Warnf("sync account state failed: %v", err)
-			return
-		}
-		app.Infof("account security state synced")
+		go func() {
+			if err := syncAccountStateWithRetry(); err != nil {
+				app.Warnf("sync account state failed: %v", err)
+				return
+			}
+			app.Infof("account security state synced")
+		}()
 	})
 
 	_ = hubgateway.NewAdminHandler(
@@ -194,8 +209,58 @@ func main() {
 	}
 	systemHandler.Server = server
 
+	listener, err := net.Listen("tcp", *addr)
+	if err != nil {
+		app.Errorf("System:Internal:Startup:ServerError: %v", err)
+		os.Exit(1)
+	}
 	app.Infof("System:Internal:Startup:Listen: %s", *addr)
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+	if lifecycleManager != nil {
+		go func() {
+			startCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			defer cancel()
+			app.Infof("System:Internal:Startup:Lifecycle:StartAll: begin")
+			snapshot := lifecycleManager.StartAll(startCtx)
+			readyCount := 0
+			for _, svc := range snapshot.Services {
+				if svc.Ready {
+					readyCount++
+					app.Infof("System:Internal:Startup:ServiceReady: service=%s pid=%d instance=%s endpoint=%s attempts=%d", svc.ServiceID, svc.PID, svc.Instance, svc.Endpoint, svc.Attempts)
+					continue
+				}
+				app.Warnf("System:Internal:Startup:ServiceFailed: service=%s dir=%s exec=%s attempts=%d err=%s", svc.ServiceID, svc.Dir, svc.ExecPath, svc.Attempts, svc.ErrorText)
+			}
+			app.Infof("System:Internal:Startup:Lifecycle:Done: ready=%d total=%d duration_ms=%d", readyCount, len(snapshot.Services), snapshot.CompletedAtMS-snapshot.StartedAtMS)
+			if startupSnapshotStore != nil {
+				if err := startupSnapshotStore.Save(ver.Backend, snapshot); err != nil {
+					app.Warnf("StartupSnapshotStore-Save-Error:%v", err)
+				}
+			}
+			go func() {
+				if err := syncAccountStateWithRetry(); err != nil {
+					app.Warnf("System:Internal:SmokeTest:PreSyncFailed: %v", err)
+				}
+				smokeCtx, smokeCancel := context.WithTimeout(context.Background(), 45*time.Second)
+				defer smokeCancel()
+				tester := app.NewSmokeTester(*addr)
+				result, err := tester.Run(smokeCtx)
+				if err != nil {
+					app.Warnf("System:Internal:SmokeTest:RunFailed: %v", err)
+					return
+				}
+				if result == nil {
+					app.Warnf("System:Internal:SmokeTest:EmptyResult")
+					return
+				}
+				if result.Ok {
+					app.Infof("System:Internal:SmokeTest:Passed: user=%s project=%s thread=%s stages=%d", result.Username, result.ProjectID, result.ThreadID, len(result.Stages))
+					return
+				}
+				app.Warnf("System:Internal:SmokeTest:Failed: %s", result.Message)
+			}()
+		}()
+	}
+	if err := server.Serve(listener); err != http.ErrServerClosed {
 		app.Errorf("System:Internal:Startup:ServerError: %v", err)
 		os.Exit(1)
 	}

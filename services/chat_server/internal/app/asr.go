@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kagent/pkg/hubsvc"
@@ -72,6 +73,8 @@ func (c *HubASRClient) Run(ctx context.Context, audio <-chan []byte, events chan
 	}
 	defer conn.Close()
 
+	var finishRequested atomic.Bool
+
 	start := AIServiceASRStart{
 		Type:      "start",
 		RequestID: "chat-" + newRequestID(),
@@ -90,6 +93,7 @@ func (c *HubASRClient) Run(ctx context.Context, audio <-chan []byte, events chan
 				writerErrCh <- nil
 				return
 			case <-c.finishCh:
+				finishRequested.Store(true)
 				_ = conn.WriteJSON(AIServiceASRControl{Type: "finish"})
 			case frame, ok := <-audio:
 				if !ok {
@@ -124,6 +128,9 @@ func (c *HubASRClient) Run(ctx context.Context, audio <-chan []byte, events chan
 			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
 				return nil
 			}
+			if finishRequested.Load() && isExpectedHubASRFinishClose(err) {
+				return nil
+			}
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
 				return nil
 			}
@@ -147,6 +154,18 @@ func (c *HubASRClient) Run(ctx context.Context, audio <-chan []byte, events chan
 			return fmt.Errorf("asr failed: %s", strings.TrimSpace(evt.Error))
 		}
 	}
+}
+
+func isExpectedHubASRFinishClose(err error) bool {
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unexpected eof") ||
+		strings.Contains(msg, "close 1006") ||
+		strings.Contains(msg, "finish last sequence") ||
+		strings.Contains(msg, "close 1000") ||
+		strings.Contains(msg, "close 1005")
 }
 
 func (c *HubASRClient) chatConfig() ChatPublicConfig {

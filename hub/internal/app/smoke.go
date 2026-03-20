@@ -35,9 +35,12 @@ func NewSmokeTester(hubAddr string) *SmokeTester {
 
 // SmokeTestResult represents the outcome of a smoke test run.
 type SmokeTestResult struct {
-	Ok      bool     `json:"ok"`
-	Message string   `json:"message"`
-	Stages  []string `json:"stages"`
+	Ok        bool     `json:"ok"`
+	Message   string   `json:"message"`
+	Stages    []string `json:"stages"`
+	Username  string   `json:"username,omitempty"`
+	ProjectID string   `json:"project_id,omitempty"`
+	ThreadID  string   `json:"thread_id,omitempty"`
 }
 
 // Run executes a full suite of smoke tests.
@@ -46,8 +49,13 @@ func (s *SmokeTester) Run(ctx context.Context) (*SmokeTestResult, error) {
 
 	testUser := fmt.Sprintf("smoke_%d", time.Now().UnixNano())
 	testPass := "SmokePass123!"
+	projectTitle := fmt.Sprintf("Smoke Project %d", time.Now().Unix())
+	threadTitle := fmt.Sprintf("Smoke Thread %d", time.Now().Unix())
 	var currentToken string
 	var previousToken string
+	var projectID string
+	var threadID string
+	res.Username = testUser
 
 	if err := s.runStage("account.auth.register", func() error {
 		resp, statusCode, cookies, err := s.callTool(ctx, "account.auth.register", map[string]any{
@@ -142,13 +150,62 @@ func (s *SmokeTester) Run(ctx context.Context) (*SmokeTestResult, error) {
 	}
 
 	if err := s.runStage("tool.app.chat.project_list", func() error {
-		return s.retryToolCall(ctx, "app.chat.project_list", currentToken, 20)
+		return s.retryToolCall(ctx, "app.chat.project_list", map[string]any{}, currentToken, 20)
+	}, res); err != nil {
+		return res, nil
+	}
+
+	if err := s.runStage("tool.app.chat.project_create", func() error {
+		resp, statusCode, _, err := s.callTool(ctx, "app.chat.project_create", map[string]any{
+			"title": projectTitle,
+		}, currentToken)
+		if err != nil {
+			return err
+		}
+		if statusCode != http.StatusOK || !resp.Ok {
+			return fmt.Errorf("project_create status=%d ok=%v err=%v", statusCode, resp.Ok, resp.Error)
+		}
+		projectID = strings.TrimSpace(resultStringField(resp.Result, "project_id"))
+		if projectID == "" {
+			return fmt.Errorf("project_create missing project_id")
+		}
+		res.ProjectID = projectID
+		return nil
+	}, res); err != nil {
+		return res, nil
+	}
+
+	if err := s.runStage("tool.app.chat.thread_create", func() error {
+		resp, statusCode, _, err := s.callTool(ctx, "app.chat.thread_create", map[string]any{
+			"project_id": projectID,
+			"title":      threadTitle,
+		}, currentToken)
+		if err != nil {
+			return err
+		}
+		if statusCode != http.StatusOK || !resp.Ok {
+			return fmt.Errorf("thread_create status=%d ok=%v err=%v", statusCode, resp.Ok, resp.Error)
+		}
+		threadID = strings.TrimSpace(resultStringField(resp.Result, "thread_id"))
+		if threadID == "" {
+			return fmt.Errorf("thread_create missing thread_id")
+		}
+		res.ThreadID = threadID
+		return nil
+	}, res); err != nil {
+		return res, nil
+	}
+
+	if err := s.runStage("tool.app.chat.thread_list", func() error {
+		return s.retryToolCall(ctx, "app.chat.thread_list", map[string]any{
+			"project_id": projectID,
+		}, currentToken, 20)
 	}, res); err != nil {
 		return res, nil
 	}
 
 	if err := s.runStage("tool.storage.database.schema", func() error {
-		return s.retryToolCall(ctx, "storage.database.schema", currentToken, 10)
+		return s.retryToolCall(ctx, "storage.database.schema", map[string]any{}, currentToken, 10)
 	}, res); err != nil {
 		return res, nil
 	}
@@ -170,10 +227,10 @@ func (s *SmokeTester) runStage(name string, fn func() error, res *SmokeTestResul
 	return nil
 }
 
-func (s *SmokeTester) retryToolCall(ctx context.Context, toolID string, token string, attempts int) error {
+func (s *SmokeTester) retryToolCall(ctx context.Context, toolID string, args map[string]any, token string, attempts int) error {
 	var lastErr error
 	for i := 0; i < attempts; i++ {
-		resp, statusCode, _, err := s.callTool(ctx, toolID, map[string]any{}, token)
+		resp, statusCode, _, err := s.callTool(ctx, toolID, args, token)
 		if err != nil {
 			lastErr = err
 			time.Sleep(200 * time.Millisecond)
@@ -235,4 +292,13 @@ func pickCookieValue(cookies []*http.Cookie, name string) string {
 		}
 	}
 	return ""
+}
+
+func resultStringField(result any, key string) string {
+	payload, ok := result.(map[string]any)
+	if !ok {
+		return ""
+	}
+	value, _ := payload[strings.TrimSpace(key)].(string)
+	return value
 }

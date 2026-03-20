@@ -218,6 +218,72 @@ func processExecutablePath(pid int) (string, error) {
 	return "", fmt.Errorf("executable path not found")
 }
 
+func processName(pid int) (string, error) {
+	if pid <= 1 {
+		return "", fmt.Errorf("invalid pid")
+	}
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("processid=%d", pid), "get", "Name", "/value")
+		out, err := cmd.Output()
+		if err != nil {
+			return "", err
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(strings.ToLower(line), "name=") {
+				return strings.TrimSpace(strings.TrimPrefix(line, "Name=")), nil
+			}
+		}
+		return "", fmt.Errorf("process name not found")
+	}
+	cmd := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "comm=")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(string(out))
+	if name == "" {
+		return "", fmt.Errorf("process name not found")
+	}
+	return filepath.Base(name), nil
+}
+
+func CleanHubProcessByPID(pid int, expectedExecPath string) (bool, error) {
+	if pid <= 1 || pid == os.Getpid() {
+		return false, nil
+	}
+	if !isProcessAlive(pid) {
+		return false, nil
+	}
+	expectedBase := filepath.Base(normalizeExecutablePath(expectedExecPath))
+	if expectedBase == "" {
+		expectedBase = "kagent"
+	}
+	if cleaned, err := CleanRecordedProcess(pid, expectedExecPath, 0); cleaned {
+		return true, nil
+	} else if err != nil {
+		// Fall through to looser matching and, if needed, last-resort termination.
+	}
+	actualExecPath, execErr := processExecutablePath(pid)
+	if execErr == nil && filepath.Base(normalizeExecutablePath(actualExecPath)) == expectedBase {
+		if err := terminateProcess(pid, 1500*time.Millisecond); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	name, nameErr := processName(pid)
+	if nameErr == nil && filepath.Base(strings.TrimSpace(name)) == expectedBase {
+		if err := terminateProcess(pid, 1500*time.Millisecond); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if err := terminateProcess(pid, 1500*time.Millisecond); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func processStartedAtMS(pid int) (int64, error) {
 	if pid <= 1 {
 		return 0, fmt.Errorf("invalid pid")

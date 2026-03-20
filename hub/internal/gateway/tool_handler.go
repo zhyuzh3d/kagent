@@ -747,9 +747,6 @@ func parseAccountSessions(result any) (map[string]string, error) {
 	if err := json.Unmarshal(raw, &wrapper); err != nil {
 		return nil, fmt.Errorf("decode sessions payload failed: %w", err)
 	}
-	if len(wrapper.Items) == 0 {
-		return nil, fmt.Errorf("invalid account sessions payload")
-	}
 	out := map[string]string{}
 	for _, item := range wrapper.Items {
 		userID := strings.TrimSpace(item.UserID)

@@ -1218,7 +1218,6 @@
   </script>
 
   <script type="module">
-    fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Script module start', source: 'PAGE', page: 'chat' }) }).catch(() => {});
     import { createAudioCapture } from './audio-capture.js';
     import { createAudioPlayback } from './audio-playback.js';
     import { createChatActionEngine } from './action-engine.js';
@@ -1229,6 +1228,7 @@
     import { createSessionController } from './session-controller.js';
     import { createSurfaceBridge } from './surface-bridge.js';
     import { createSidebarController } from './sidebar-controller.js';
+    import { callTool } from './tool-call.js';
 
     // ===================================================================
     // Architecture: Main Thread (UI + AudioContext + Playback)
@@ -1334,28 +1334,20 @@
 
       // Global error reporting to backend
       window.onerror = function(msg, url, line, col, error) {
-        fetch('/api/debug/log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            level: 'CRITICAL',
-            module: 'Browser',
-            content: `JS Error: ${msg} at ${url}:${line}:${col}. Error: ${error ? error.stack : ''}`,
-            source: 'PAGE'
-          })
-        }).catch(() => {});
+        reportClientLog({
+          level: 'CRITICAL',
+          module: 'Browser',
+          content: `JS Error: ${msg} at ${url}:${line}:${col}. Error: ${error ? error.stack : ''}`,
+          page: PAGE_NAME,
+        });
       };
       window.onunhandledrejection = function(event) {
-        fetch('/api/debug/log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            level: 'CRITICAL',
-            module: 'Browser',
-            content: `Unhandled Promise Rejection: ${event.reason}`,
-            source: 'PAGE'
-          })
-        }).catch(() => {});
+        reportClientLog({
+          level: 'CRITICAL',
+          module: 'Browser',
+          content: `Unhandled Promise Rejection: ${event.reason}`,
+          page: PAGE_NAME,
+        });
       };
 
       el.logoutBtn.addEventListener('click', async () => {
@@ -1430,6 +1422,17 @@
 
     const PAGE_NAME = 'chat';
 
+    function reportClientLog(payload) {
+      callTool('hub.system.report_log', payload).catch(() => {});
+    }
+
+    reportClientLog({
+      level: 'INFO',
+      module: 'System',
+      content: 'Script module start',
+      page: PAGE_NAME,
+    });
+
     // New format: 2026-03-08 10:45:12 [INFO] [AudioPipeline] [Turn:54] "你好，请..." -> TTS start sending...
     function appendDebug(level, module, turnId, text, action, source = 'PAGE') {
       let finalAction = action;
@@ -1458,17 +1461,12 @@
       }
 
       // Forward to backend for debugging
-      fetch('/api/debug/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          level: level,
-          module: module || 'Client',
-          content: finalAction || finalText || 'empty',
-          source: source,
-          page: PAGE_NAME
-        })
-      }).catch(() => {});
+      reportClientLog({
+        level: level,
+        module: module || 'Client',
+        content: finalAction || finalText || 'empty',
+        page: source === 'SURF' ? source : PAGE_NAME,
+      });
 
       if (!el.debugPanel) return;
 
@@ -1563,9 +1561,7 @@
 
     async function loadVersion() {
       try {
-        const resp = await fetch('/version', { cache: 'no-store' });
-        if (!resp.ok) throw new Error(`status ${resp.status}`);
-        const v = await resp.json();
+        const v = await callTool('hub.system.version.get', {});
         const backend = v.backend || 'unknown';
         const webui = v.webui || 'unknown';
         const s = `b${backend} ui${webui}`;

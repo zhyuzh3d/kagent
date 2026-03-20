@@ -12,6 +12,10 @@
     },
     "services": [
       {
+        "service_id": "sql_db",
+        "dir": "services/sql_db"
+      },
+      {
         "service_id": "ai_doubao",
         "dir": "services/ai_doubao"
       },
@@ -26,10 +30,6 @@
       {
         "service_id": "file_storage",
         "dir": "services/file_storage"
-      },
-      {
-        "service_id": "sql_db",
-        "dir": "services/sql_db"
       },
       {
         "service_id": "surface_manager",

@@ -10,30 +10,91 @@ export function createSidebarController(options) {
   } = options;
 
   let projects = [];
+  const threadCache = new Map();
   let currentProjectId = "";
   let currentThreadId = "";
+  let currentThreadTitle = "";
+  const contextStorageKey = "kagent:chat:sidebar:context";
+
+  function readStoredContext() {
+    try {
+      const raw = window.localStorage.getItem(contextStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function persistCurrentContext() {
+    try {
+      if (!currentProjectId || !currentThreadId) return;
+      window.localStorage.setItem(contextStorageKey, JSON.stringify({
+        project_id: currentProjectId,
+        thread_id: currentThreadId,
+      }));
+    } catch (_) {
+    }
+  }
+
+  function pickMostRecentProject(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    return list.reduce((best, item) => {
+      if (!best) return item;
+      const bestScore = Number(best.last_active_at_ms) || Number(best.created_at_ms) || 0;
+      const itemScore = Number(item.last_active_at_ms) || Number(item.created_at_ms) || 0;
+      if (itemScore > bestScore) return item;
+      return best;
+    }, null);
+  }
+
+  function pickMostRecentThread(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    return list.reduce((best, item) => {
+      if (!best) return item;
+      const bestScore = Number(best.last_active_at_ms) || Number(best.created_at_ms) || 0;
+      const itemScore = Number(item.last_active_at_ms) || Number(item.created_at_ms) || 0;
+      if (itemScore > bestScore) return item;
+      return best;
+    }, null);
+  }
+
+  async function resolveInitialContext() {
+    if (projects.length === 0) {
+      appendDebug('INFO', 'Sidebar', null, null, 'No projects found, creating default...');
+      await createDefaultProject();
+      currentThreadTitle = "Default Thread";
+      persistCurrentContext();
+      return;
+    }
+
+    const stored = readStoredContext();
+    const savedProjectId = stored && typeof stored.project_id === "string" ? stored.project_id : "";
+    const savedThreadId = stored && typeof stored.thread_id === "string" ? stored.thread_id : "";
+    let project = projects.find((item) => item.project_id === savedProjectId) || pickMostRecentProject(projects) || projects[0];
+    currentProjectId = project && project.project_id ? project.project_id : "";
+    appendDebug('INFO', 'Sidebar', null, null, `Selecting project: ${currentProjectId}${savedProjectId ? ` (saved=${savedProjectId})` : ''}`);
+
+    let threads = currentProjectId ? await fetchThreads(currentProjectId, { force: true }) : [];
+    let thread = threads.find((item) => item.thread_id === savedThreadId) || pickMostRecentThread(threads) || threads[0];
+    if (!thread && currentProjectId) {
+      const createdThreadId = await createDefaultThread(currentProjectId);
+      threads = await fetchThreads(currentProjectId, { force: true });
+      thread = threads.find((item) => item.thread_id === createdThreadId) || threads[0] || null;
+    }
+
+    currentThreadId = thread && thread.thread_id ? thread.thread_id : "";
+    currentThreadTitle = thread && thread.title ? thread.title : "Default Thread";
+    persistCurrentContext();
+  }
 
   async function init() {
     appendDebug('INFO', 'Sidebar', null, null, 'Initializing sidebar...');
     try {
       await fetchProjects();
       appendDebug('INFO', 'Sidebar', null, null, `Found ${projects.length} projects`);
-      // Auto-select or create if none
-      if (projects.length === 0) {
-        appendDebug('INFO', 'Sidebar', null, null, 'No projects found, creating default...');
-        await createDefaultProject();
-      } else {
-        // Find default or first
-        currentProjectId = projects[0].project_id;
-        appendDebug('INFO', 'Sidebar', null, null, `Selecting first project: ${currentProjectId}`);
-        const threads = await fetchThreads(currentProjectId);
-        appendDebug('INFO', 'Sidebar', null, null, `Found ${threads.length} threads for project`);
-        if (threads.length === 0) {
-          currentThreadId = await createDefaultThread(currentProjectId);
-        } else {
-          currentThreadId = threads[0].thread_id;
-        }
-      }
+      await resolveInitialContext();
       appendDebug('INFO', 'Sidebar', null, null, `Final context: proj=${currentProjectId} thd=${currentThreadId}`);
       await render();
       syncHeader();
@@ -49,9 +110,20 @@ export function createSidebarController(options) {
     projects = Array.isArray(result && result.items) ? result.items : [];
   }
 
-  async function fetchThreads(projectId) {
+  async function fetchThreads(projectId, options = {}) {
+    const force = !!(options && options.force);
+    if (!force && threadCache.has(projectId)) {
+      return threadCache.get(projectId) || [];
+    }
     const result = await callTool("app.chat.thread_list", { project_id: projectId });
-    return Array.isArray(result && result.items) ? result.items : [];
+    const items = Array.isArray(result && result.items) ? result.items : [];
+    threadCache.set(projectId, items);
+    return items;
+  }
+
+  function invalidateThreads(projectId) {
+    if (!projectId) return;
+    threadCache.delete(projectId);
   }
 
   async function createDefaultProject() {
@@ -59,6 +131,7 @@ export function createSidebarController(options) {
     currentProjectId = (result && result.project_id) || "";
     await fetchProjects();
     currentThreadId = await createDefaultThread(currentProjectId);
+    currentThreadTitle = "Default Thread";
   }
 
   async function createDefaultThread(projectId) {
@@ -72,13 +145,11 @@ export function createSidebarController(options) {
   function syncHeader() {
     const p = projects.find(x => x.project_id === currentProjectId);
     if (p) el.currentProjectName.textContent = p.title;
-    // We need to find the thread title. Ideally we cache thread lists per project.
-    // For now, let's just set it to "..." and update it later if needed.
-    // Or we keep a map of thread titles.
+    el.currentThreadName.textContent = currentThreadTitle || "Default Thread";
   }
 
   async function switchThread(projectId, threadId, threadTitle) {
-    if (currentThreadId === threadId) return;
+    if (currentProjectId === projectId && currentThreadId === threadId) return;
 
     const wasRunning = app.running;
     if (wasRunning) {
@@ -88,7 +159,8 @@ export function createSidebarController(options) {
 
     currentProjectId = projectId;
     currentThreadId = threadId;
-    el.currentThreadName.textContent = threadTitle || "Default Thread";
+    currentThreadTitle = threadTitle || "Default Thread";
+    persistCurrentContext();
     syncHeader();
     
     chatStore.clearForJump();
@@ -101,7 +173,7 @@ export function createSidebarController(options) {
     } else {
       await sessionController.reconnectWith(projectId, threadId);
     }
-    render();
+    await render();
   }
 
   async function render() {
@@ -237,7 +309,8 @@ export function createSidebarController(options) {
     try {
       await callTool("app.chat.project_create", { title });
       await fetchProjects();
-      render();
+      threadCache.clear();
+      await render();
     } catch (err) {
       alert("创建失败: " + err.message);
     }
@@ -251,8 +324,10 @@ export function createSidebarController(options) {
         project_id: projectId,
         title,
       });
+      invalidateThreads(projectId);
+      await fetchThreads(projectId, { force: true });
       await render(); // Refresh list
-      switchThread(projectId, (result && result.thread_id) || "", title);
+      await switchThread(projectId, (result && result.thread_id) || "", title);
     } catch (err) {
       alert("创建失败: " + err.message);
     }
@@ -270,7 +345,7 @@ export function createSidebarController(options) {
         order_index: p.order_index,
       });
       await fetchProjects();
-      render();
+      await render();
       if (currentProjectId === projectId) syncHeader();
     } catch (err) {
       alert("修改失败: " + err.message);
@@ -282,11 +357,12 @@ export function createSidebarController(options) {
     try {
       await callTool("app.chat.project_delete", { project_id: projectId });
       await fetchProjects();
+      invalidateThreads(projectId);
       if (currentProjectId === projectId) {
         // If we deleted current project, try to find another one
         if (projects.length > 0) {
-          const firstProj = projects[0];
-          const threads = await fetchThreads(firstProj.project_id);
+          const firstProj = pickMostRecentProject(projects) || projects[0];
+          const threads = await fetchThreads(firstProj.project_id, { force: true });
           if (threads.length > 0) {
             await switchThread(firstProj.project_id, threads[0].thread_id, threads[0].title);
           } else {
@@ -297,7 +373,7 @@ export function createSidebarController(options) {
           await createDefaultProject();
         }
       }
-      render();
+      await render();
     } catch (err) {
       alert("删除失败: " + err.message);
     }
@@ -312,10 +388,14 @@ export function createSidebarController(options) {
         title,
         project_id: currentProjectId,
       });
+      invalidateThreads(currentProjectId);
+      await fetchThreads(currentProjectId, { force: true });
       if (currentThreadId === threadId) {
-        el.currentThreadName.textContent = title;
+        currentThreadTitle = title;
+        persistCurrentContext();
+        syncHeader();
       }
-      render();
+      await render();
     } catch (err) {
       alert("修改失败: " + err.message);
     }
@@ -325,9 +405,10 @@ export function createSidebarController(options) {
     if (!confirm("确定删除该会话吗？")) return;
     try {
       await callTool("app.chat.thread_delete", { thread_id: threadId });
+      invalidateThreads(currentProjectId);
       if (currentThreadId === threadId) {
         // Find another thread in same project
-        const threads = await fetchThreads(currentProjectId);
+        const threads = await fetchThreads(currentProjectId, { force: true });
         if (threads.length > 0) {
           await switchThread(currentProjectId, threads[0].thread_id, threads[0].title);
         } else {
@@ -335,7 +416,7 @@ export function createSidebarController(options) {
           await switchThread(currentProjectId, tid, "Default Thread");
         }
       }
-      render();
+      await render();
     } catch (err) {
       alert("删除失败: " + err.message);
     }
@@ -418,8 +499,10 @@ export function createSidebarController(options) {
             project_id: destProjId,
             order_index: newOrderIndex,
           });
+          invalidateThreads(sourceProjId);
+          invalidateThreads(destProjId);
           if (currentThreadId === draggedId) currentProjectId = destProjId;
-          render();
+          await render();
         } catch (err) {
           appendDebug('ERROR', 'Sidebar', null, null, `drop thread failed: ${err.message}`);
         }
@@ -436,7 +519,7 @@ export function createSidebarController(options) {
             order_index: targetProj.order_index,
           });
           await fetchProjects();
-          render();
+          await render();
         } catch (err) {
           appendDebug('ERROR', 'Sidebar', null, null, `drop project failed: ${err.message}`);
         }

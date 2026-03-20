@@ -57,7 +57,7 @@ func EnsurePortReady(addr string) error {
 	_, portStr, _ := net.SplitHostPort(addr)
 	pid := findPIDByPort(portStr)
 	if pid > 0 && pid != os.Getpid() {
-		cleaned, cleanErr := CleanRecordedProcess(pid, expectedExecPath, 0)
+		cleaned, cleanErr := CleanHubProcessByPID(pid, expectedExecPath)
 		if cleanErr != nil {
 			return fmt.Errorf("preempt port %s failed: %w", portStr, cleanErr)
 		}

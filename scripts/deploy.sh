@@ -54,6 +54,6 @@ fi
 
 log_deploy "INFO" "Starting Hub (kagent)..."
 nohup ./kagent -addr "${hub_addr}" >> "${hub_log}" 2>&1 &
-log_deploy "SUCC" "Hub started. Orchestration and self-tests are running internally."
+log_deploy "SUCC" "Hub launch command submitted. Hub will handle port preemption, service orchestration, and startup result logging."
 log_deploy "INFO" "Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)..."
 tail -n 0 -F "${hub_log}"

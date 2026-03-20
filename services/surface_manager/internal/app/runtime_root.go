@@ -8,7 +8,7 @@ import (
 )
 
 func DetectAppRoot() (string, error) {
-	candidates := make([]string, 0, 4)
+	candidates := make([]string, 0, 6)
 	add := func(p string) {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -29,9 +29,13 @@ func DetectAppRoot() (string, error) {
 		exeDir := filepath.Dir(exePath)
 		add(exeDir)
 		add(filepath.Dir(exeDir))
+		add(filepath.Dir(filepath.Dir(exeDir)))
+		add(filepath.Join(filepath.Dir(exeDir), "services", "surface_manager"))
+		add(filepath.Join(filepath.Dir(filepath.Dir(exeDir)), "services", "surface_manager"))
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		add(cwd)
+		add(filepath.Join(cwd, "services", "surface_manager"))
 	}
 	for _, c := range candidates {
 		if isLikelyAppRoot(c) {
@@ -39,7 +43,7 @@ func DetectAppRoot() (string, error) {
 		}
 	}
 	if len(candidates) > 0 {
-		return candidates[0], fmt.Errorf("app root fallback in use, missing one of webui/config")
+		return candidates[0], fmt.Errorf("repo root fallback in use, missing one of webui/go.mod")
 	}
 	return ".", fmt.Errorf("unable to detect app root")
 }
@@ -61,11 +65,19 @@ func ResolvePathFromRoot(root string, rawPath string) string {
 
 func isLikelyAppRoot(path string) bool {
 	webuiPath := filepath.Join(path, "webui")
-	configPath := filepath.Join(path, "config")
-	if !isDir(webuiPath) || !isDir(configPath) {
+	goModPath := filepath.Join(path, "go.mod")
+	if !isDir(webuiPath) || !isFile(goModPath) {
 		return false
 	}
 	return true
+}
+
+func isFile(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !fi.IsDir()
 }
 
 func isDir(path string) bool {
