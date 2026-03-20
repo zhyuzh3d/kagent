@@ -3,12 +3,15 @@ package app
 func BuiltinServiceManifests() []ServiceManifest {
 	return []ServiceManifest{
 		{
-			ServiceID:   "file",
-			ServiceName: "File Service",
+			ServiceID:   "file_storage",
+			ServiceName: "file_storage",
 			Version:     "1.0.0",
 			Reliability: "trusted",
 			Visibility:  "public",
 			Provides: []ServiceToolDescriptor{
+				{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
+				{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
+				{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "storage.file.read", Category: "storage", Type: "file", Tool: "read", Description: "read file", ScopeSupport: []string{"user", "surface", "service"}, AllowedCallerTypes: []string{"user", "surface", "service"}},
 				{ToolID: "storage.file.write", Category: "storage", Type: "file", Tool: "write", Description: "write file", ScopeSupport: []string{"user", "surface", "service"}, AllowedCallerTypes: []string{"user", "surface", "service"}},
 				{ToolID: "storage.file.delete", Category: "storage", Type: "file", Tool: "delete", Description: "delete file", ScopeSupport: []string{"user", "surface", "service"}, AllowedCallerTypes: []string{"user", "surface", "service"}},

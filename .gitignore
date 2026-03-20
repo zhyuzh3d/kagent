@@ -9,6 +9,8 @@ data/
 *.sqlite
 *.sqlite3
 **/configx.json
+data/
+.cache/
 
 # Local build/runtime artifacts
 bin/

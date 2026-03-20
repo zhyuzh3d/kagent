@@ -1,6 +1,6 @@
 {
-  "service_id": "file",
-  "service_name": "File Service",
+  "service_id": "file_storage",
+  "service_name": "file_storage",
   "version": "1.0.0",
   "visibility": "public",
   "entry": {

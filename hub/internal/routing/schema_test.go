@@ -12,7 +12,7 @@ func TestBuildMetadataSchema(t *testing.T) {
 	engine := NewEngine()
 	services := []app.HubServiceRegistration{
 		{
-			ServiceID:   "database",
+			ServiceID:   "sql_db",
 			Status:      app.ServiceStatusActive,
 			Version:     "1.2.3",
 			Reliability: "verified",
@@ -32,8 +32,8 @@ func TestBuildMetadataSchema(t *testing.T) {
 	}
 	instances := []supervisor.Instance{
 		{
-			ServiceID:         "database",
-			InstanceID:        "database@local#1",
+			ServiceID:         "sql_db",
+			InstanceID:        "sql_db@local#1",
 			Status:            supervisor.InstanceStatusReady,
 			Healthy:           true,
 			Transport:         "uds",
@@ -58,7 +58,7 @@ func TestBuildMetadataSchema(t *testing.T) {
 	if schema.ToolRegistry[0].ToolID != "storage.database.query" {
 		t.Fatalf("unexpected tool id: %s", schema.ToolRegistry[0].ToolID)
 	}
-	if schema.ToolRegistry[0].OwnerServiceID != "database" {
+	if schema.ToolRegistry[0].OwnerServiceID != "sql_db" {
 		t.Fatalf("unexpected owner service: %s", schema.ToolRegistry[0].OwnerServiceID)
 	}
 	if schema.ToolRegistry[0].InputSchemaRef == "" || schema.ToolRegistry[0].OutputSchemaRef == "" {
@@ -68,7 +68,7 @@ func TestBuildMetadataSchema(t *testing.T) {
 	if len(schema.ServiceRegistry) != 1 {
 		t.Fatalf("expected one service_registry item, got %d", len(schema.ServiceRegistry))
 	}
-	if schema.ServiceRegistry[0].ServiceID != "database" {
+	if schema.ServiceRegistry[0].ServiceID != "sql_db" {
 		t.Fatalf("unexpected service id: %s", schema.ServiceRegistry[0].ServiceID)
 	}
 	if schema.ServiceRegistry[0].TransportPreference != "uds" {
@@ -81,7 +81,7 @@ func TestBuildMetadataSchema(t *testing.T) {
 	if len(schema.InstanceRegistry) != 1 {
 		t.Fatalf("expected one instance_registry item, got %d", len(schema.InstanceRegistry))
 	}
-	if schema.InstanceRegistry[0].InstanceID != "database@local#1" {
+	if schema.InstanceRegistry[0].InstanceID != "sql_db@local#1" {
 		t.Fatalf("unexpected instance id: %s", schema.InstanceRegistry[0].InstanceID)
 	}
 	if schema.InstanceRegistry[0].Transport != "uds" {

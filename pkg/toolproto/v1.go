@@ -18,6 +18,15 @@ const (
 	ErrorCodeRateLimited        = "RATE_LIMITED"
 	ErrorCodeConflict           = "CONFLICT"
 	ErrorCodeInternalError      = "INTERNAL_ERROR"
+
+	CallerTypeAnonymous = "anonymous"
+	CallerTypeUser      = "user"
+	CallerTypeAdmin     = "admin"
+	CallerTypeSurface   = "surface"
+	CallerTypePage      = "page"
+	CallerTypeService   = "service"
+	CallerTypeHub       = "hub"
+	CallerTypeAll       = "all"
 )
 
 type Caller struct {
@@ -33,6 +42,8 @@ type Context struct {
 	IdempotencyKey string         `json:"idempotency_key,omitempty"`
 	TimeoutMS      int            `json:"timeout_ms,omitempty"`
 	Caller         Caller         `json:"caller,omitempty"`
+	OriginCaller   Caller         `json:"origin_caller,omitempty"`
+	OriginToken    string         `json:"origin_caller_token,omitempty"`
 	Capabilities   []string       `json:"capabilities,omitempty"`
 	Meta           map[string]any `json:"meta,omitempty"`
 }
@@ -117,6 +128,11 @@ func NormalizeRequest(req CallRequest) (CallRequest, error) {
 	req.Context.Caller.UserID = strings.TrimSpace(req.Context.Caller.UserID)
 	req.Context.Caller.ServiceID = strings.TrimSpace(req.Context.Caller.ServiceID)
 	req.Context.Caller.SurfaceID = strings.TrimSpace(req.Context.Caller.SurfaceID)
+	req.Context.OriginCaller.Type = strings.TrimSpace(strings.ToLower(req.Context.OriginCaller.Type))
+	req.Context.OriginCaller.UserID = strings.TrimSpace(req.Context.OriginCaller.UserID)
+	req.Context.OriginCaller.ServiceID = strings.TrimSpace(req.Context.OriginCaller.ServiceID)
+	req.Context.OriginCaller.SurfaceID = strings.TrimSpace(req.Context.OriginCaller.SurfaceID)
+	req.Context.OriginToken = strings.TrimSpace(req.Context.OriginToken)
 	req.Context.RequestID = strings.TrimSpace(req.Context.RequestID)
 	req.Context.TraceID = strings.TrimSpace(req.Context.TraceID)
 	req.Context.IdempotencyKey = strings.TrimSpace(req.Context.IdempotencyKey)
@@ -134,6 +150,59 @@ func ValidToolID(toolID string) bool {
 		}
 	}
 	return true
+}
+
+func SplitToolID(toolID string) (string, string, string) {
+	parts := strings.Split(strings.TrimSpace(toolID), ".")
+	if len(parts) < 3 {
+		return "", "", ""
+	}
+	return parts[0], parts[1], strings.Join(parts[2:], ".")
+}
+
+func UniqueNonEmptyStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		clean := strings.TrimSpace(value)
+		if clean == "" {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func NormalizeAllowedCallerTypes(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	hasAll := false
+	for _, value := range values {
+		clean := strings.ToLower(strings.TrimSpace(value))
+		if clean == "" {
+			continue
+		}
+		if clean == CallerTypeAll {
+			hasAll = true
+		}
+		out = append(out, clean)
+	}
+	if hasAll {
+		return []string{CallerTypeAll}
+	}
+	return UniqueNonEmptyStrings(out)
 }
 
 func HTTPStatusFromCode(code string) int {

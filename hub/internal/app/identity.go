@@ -21,7 +21,7 @@ const (
 // Identity represents the resolved caller of an HTTP request.
 type Identity struct {
 	Type IdentityType // USER, SERVICE, SURFACE, ANONYMOUS
-	ID   string       // unique id (e.g. user_8f2a, ai-doubao)
+	ID   string       // unique id (e.g. user_8f2a, ai_doubao)
 	Name string       // display name for logging (e.g. zhyuzh)
 }
 

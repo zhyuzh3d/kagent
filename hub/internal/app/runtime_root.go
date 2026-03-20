@@ -61,8 +61,8 @@ func ResolvePathFromRoot(root string, rawPath string) string {
 
 func isLikelyAppRoot(path string) bool {
 	webuiPath := filepath.Join(path, "webui")
-	configPath := filepath.Join(path, "config")
-	if !isDir(webuiPath) || !isDir(configPath) {
+	hubConfigPath := filepath.Join(path, "hub", "config")
+	if !isDir(webuiPath) || !isDir(hubConfigPath) {
 		return false
 	}
 	return true

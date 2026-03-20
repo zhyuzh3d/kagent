@@ -1,51 +1,36 @@
 package app
 
-import "strings"
+import (
+	"strings"
 
-type ServiceToolDescriptor struct {
-	ToolID               string         `json:"tool_id"`
-	Category             string         `json:"category"`
-	Type                 string         `json:"type"`
-	Tool                 string         `json:"tool"`
-	Description          string         `json:"description"`
-	InputSchema          map[string]any `json:"input_schema,omitempty"`
-	OutputSchema         map[string]any `json:"output_schema,omitempty"`
-	SideEffect           string         `json:"side_effect,omitempty"`
-	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
-	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
-	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
-	Streaming            string         `json:"streaming,omitempty"`
-	WSPath               string         `json:"ws_path,omitempty"`
-	ScopeSupport         []string       `json:"scope_support,omitempty"`
-}
+	"kagent/pkg/toolproto"
+)
 
-type ServiceManifest struct {
-	ServiceID   string                  `json:"service_id"`
-	ServiceName string                  `json:"service_name"`
-	Version     string                  `json:"version,omitempty"`
-	Reliability string                  `json:"reliability,omitempty"`
-	Visibility  string                  `json:"visibility,omitempty"`
-	Provides    []ServiceToolDescriptor `json:"provides,omitempty"`
-	Requires    []string                `json:"requires,omitempty"`
-}
+type ServiceToolDescriptor = toolproto.ServiceTool
+type ServiceManifest = toolproto.ServiceManifest
 
 func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor, healthy bool) ServiceManifest {
-	serviceID := "ai-doubao"
-	serviceName := "AI Doubao"
+	serviceID := "ai_doubao"
+	serviceName := "ai_doubao"
 	version := "1.0.0"
 	if info != nil {
 		serviceID = firstNonEmpty(strings.TrimSpace(info.ServiceID), serviceID)
 		serviceName = firstNonEmpty(strings.TrimSpace(info.ServiceName), serviceName)
 		version = firstNonEmpty(strings.TrimSpace(info.Version), version)
 	}
-	provides := make([]ServiceToolDescriptor, 0, len(tools))
+	provides := make([]ServiceToolDescriptor, 0, len(tools)+3)
 	for _, t := range tools {
 		toolID := strings.TrimSpace(t.Name)
 		if toolID == "" {
 			continue
 		}
-		td := ServiceToolDescriptor{
+		category, typ, tool := toolproto.SplitToolID(toolID)
+		streamingMode := strings.TrimSpace(t.Streaming)
+		provides = append(provides, ServiceToolDescriptor{
 			ToolID:               toolID,
+			Category:             category,
+			Type:                 typ,
+			Tool:                 tool,
 			Description:          strings.TrimSpace(t.Description),
 			InputSchema:          cloneAnyMap(t.InputSchema),
 			OutputSchema:         cloneAnyMap(t.OutputSchema),
@@ -53,27 +38,26 @@ func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor
 			CapabilitiesRequired: uniqueNonEmpty(t.CapabilitiesRequired),
 			AllowedCallerTypes:   uniqueNonEmpty(t.AllowedCallerTypes),
 			TimeoutMSDefault:     t.TimeoutMSDefault,
-			Streaming:            strings.TrimSpace(t.Streaming),
+			Streaming:            streamingMode != "" && !strings.EqualFold(streamingMode, "none"),
+			StreamingMode:        streamingMode,
 			WSPath:               strings.TrimSpace(t.WSPath),
-		}
-		parts := strings.Split(toolID, ".")
-		if len(parts) >= 3 {
-			td.Category = parts[0]
-			td.Type = parts[1]
-			td.Tool = strings.Join(parts[2:], ".")
-		}
-		provides = append(provides, td)
+		})
 	}
+	provides = append(provides,
+		ServiceToolDescriptor{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
+		ServiceToolDescriptor{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
+		ServiceToolDescriptor{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
+	)
 	reliability := "verified"
 	if !healthy {
 		reliability = "unverified"
 	}
-	return ServiceManifest{
+	return toolproto.NormalizeServiceManifest(ServiceManifest{
 		ServiceID:   serviceID,
 		ServiceName: serviceName,
 		Version:     version,
 		Reliability: reliability,
 		Visibility:  "public",
 		Provides:    provides,
-	}
+	})
 }

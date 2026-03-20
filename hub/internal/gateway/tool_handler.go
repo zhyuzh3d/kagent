@@ -17,6 +17,7 @@ import (
 	"kagent/hub/internal/security"
 	"kagent/hub/internal/supervisor"
 	"kagent/hub/internal/transport"
+	"kagent/pkg/hubsvc"
 	"kagent/pkg/toolproto"
 
 	"github.com/gorilla/websocket"
@@ -122,6 +123,13 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 		caller.ServiceID = ""
 	}
 	req.Context.Caller = caller
+	originCaller, originToken, err := h.resolveOriginDelegation(caller, req.Context, "")
+	if err != nil {
+		writeToolError(w, http.StatusForbidden, toolproto.ErrorCodeForbidden, err.Error(), req.Context.RequestID, req.Context.TraceID, "", "")
+		return
+	}
+	req.Context.OriginCaller = originCaller
+	req.Context.OriginToken = originToken
 
 	// 1. Intercept Internal Tools (hub.*)
 	if strings.HasPrefix(req.ToolID, "hub.") {
@@ -168,6 +176,11 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	hubAuthToken, hubAuthInstanceID, err := h.resolveHubAuth(selection.Service.ServiceID, selection.Instance.InstanceID)
 	if err != nil {
 		writeToolError(w, http.StatusInternalServerError, toolproto.ErrorCodeInternalError, "resolve hub auth failed", req.Context.RequestID, req.Context.TraceID, selection.Service.ServiceID, selection.Instance.InstanceID)
+		return
+	}
+	req.Context.OriginToken, err = h.hubPlatform.IssueOriginCallerToken(req.Context.OriginCaller, selection.Service.ServiceID, req.Context.RequestID, req.Context.TraceID)
+	if err != nil {
+		writeToolError(w, http.StatusInternalServerError, toolproto.ErrorCodeInternalError, "issue origin caller token failed", req.Context.RequestID, req.Context.TraceID, selection.Service.ServiceID, selection.Instance.InstanceID)
 		return
 	}
 
@@ -301,6 +314,10 @@ func (h *ToolHandler) ProbeServiceTool(ctx context.Context, serviceID string, to
 				Type:      "service",
 				ServiceID: "hub",
 			},
+			OriginCaller: toolproto.Caller{
+				Type:      "service",
+				ServiceID: "hub",
+			},
 			Meta: map[string]any{
 				"hub_only": true,
 			},
@@ -313,6 +330,10 @@ func (h *ToolHandler) ProbeServiceTool(ctx context.Context, serviceID string, to
 	hubAuthToken, hubAuthInstanceID, err := h.resolveHubAuth(reg.ServiceID, instance.InstanceID)
 	if err != nil {
 		return toolproto.CallResponse{}, 0, fmt.Errorf("resolve hub auth failed: %w", err)
+	}
+	req.Context.OriginToken, err = h.hubPlatform.IssueOriginCallerToken(req.Context.OriginCaller, reg.ServiceID, req.Context.RequestID, req.Context.TraceID)
+	if err != nil {
+		return toolproto.CallResponse{}, 0, fmt.Errorf("issue origin caller token failed: %w", err)
 	}
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
@@ -361,6 +382,11 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	if identity.Type != app.IdentityService {
 		caller.ServiceID = ""
 	}
+	originCaller, originToken, err := h.resolveOriginDelegation(caller, nil, hubsvc.OriginCallerTokenFromHeaders(r.Header))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	callerReliability := "untrusted"
 	if identity.Type != app.IdentityAnonymous {
@@ -401,9 +427,11 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 			req := toolproto.CallRequest{
 				ToolID: toolID,
 				Context: &toolproto.Context{
-					RequestID: "req_" + app.NewRequestID(),
-					TraceID:   "tr_" + app.NewRequestID(),
-					Caller:    caller,
+					RequestID:    "req_" + app.NewRequestID(),
+					TraceID:      "tr_" + app.NewRequestID(),
+					Caller:       caller,
+					OriginCaller: originCaller,
+					OriginToken:  originToken,
 				},
 			}
 			if err := fn(r.Context(), conn, req); err != nil {
@@ -433,7 +461,12 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	startedAt := time.Now()
-	if err := h.proxyWS(w, r, selection.Service.ServiceID, selection.Instance.InstanceID, selection.Instance.Endpoint, wsPath, caller, callerReliability); err != nil {
+	serviceOriginToken, err := h.hubPlatform.IssueOriginCallerToken(originCaller, selection.Service.ServiceID, "req_"+app.NewRequestID(), "tr_"+app.NewRequestID())
+	if err != nil {
+		http.Error(w, "issue origin caller token failed", http.StatusInternalServerError)
+		return
+	}
+	if err := h.proxyWS(w, r, selection.Service.ServiceID, selection.Instance.InstanceID, selection.Instance.Endpoint, wsPath, caller, originCaller, serviceOriginToken, callerReliability); err != nil {
 		h.audit.Add("gateway", "tool_ws_close", "error", map[string]any{
 			"tool_id":     toolID,
 			"service_id":  selection.Service.ServiceID,
@@ -457,21 +490,31 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 func (h *ToolHandler) handleLegacyWS(w http.ResponseWriter, r *http.Request, caller toolproto.Caller, callerReliability string) (string, string, error) {
 	targetService := strings.TrimSpace(r.URL.Query().Get("service_id"))
 	if targetService == "" {
-		targetService = "chat-server"
+		targetService = "chat_server"
 	}
 	reg, ok := h.hubPlatform.GetService(targetService)
 	if !ok {
 		http.Error(w, targetService+" is not registered", http.StatusServiceUnavailable)
 		return targetService, "", fmt.Errorf("%s is not registered", targetService)
 	}
-	if err := h.proxyWS(w, r, reg.ServiceID, reg.InstanceID, reg.Endpoint, "/service/tool/ws", caller, callerReliability); err != nil {
+	originCaller, _, err := h.resolveOriginDelegation(caller, nil, hubsvc.OriginCallerTokenFromHeaders(r.Header))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return reg.ServiceID, reg.InstanceID, err
+	}
+	serviceOriginToken, err := h.hubPlatform.IssueOriginCallerToken(originCaller, reg.ServiceID, "req_"+app.NewRequestID(), "tr_"+app.NewRequestID())
+	if err != nil {
+		http.Error(w, "issue origin caller token failed", http.StatusInternalServerError)
+		return reg.ServiceID, reg.InstanceID, err
+	}
+	if err := h.proxyWS(w, r, reg.ServiceID, reg.InstanceID, reg.Endpoint, "/service/tool/ws", caller, originCaller, serviceOriginToken, callerReliability); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return reg.ServiceID, reg.InstanceID, err
 	}
 	return reg.ServiceID, reg.InstanceID, nil
 }
 
-func (h *ToolHandler) proxyWS(w http.ResponseWriter, r *http.Request, serviceID string, instanceID string, endpoint string, wsPath string, caller toolproto.Caller, callerReliability string) error {
+func (h *ToolHandler) proxyWS(w http.ResponseWriter, r *http.Request, serviceID string, instanceID string, endpoint string, wsPath string, caller toolproto.Caller, originCaller toolproto.Caller, originToken string, callerReliability string) error {
 	hubAuthToken, hubAuthInstanceID, err := h.resolveHubAuth(serviceID, instanceID)
 	if err != nil {
 		return fmt.Errorf("resolve hub auth failed")
@@ -488,9 +531,11 @@ func (h *ToolHandler) proxyWS(w http.ResponseWriter, r *http.Request, serviceID 
 		req.Host = targetURL.Host
 		headers := security.SanitizeForwardHeaders(req.Header)
 		security.InjectCallerHeaders(headers, &toolproto.Context{
-			RequestID: "req_" + app.NewRequestID(),
-			TraceID:   "tr_" + app.NewRequestID(),
-			Caller:    caller,
+			RequestID:    "req_" + app.NewRequestID(),
+			TraceID:      "tr_" + app.NewRequestID(),
+			Caller:       caller,
+			OriginCaller: originCaller,
+			OriginToken:  originToken,
 		}, callerReliability)
 		security.InjectHubAuthHeaders(headers, serviceID, hubAuthInstanceID, hubAuthToken)
 		req.Header = headers
@@ -522,6 +567,26 @@ func (h *ToolHandler) resolveHubAuth(serviceID string, instanceID string) (strin
 		actualInstanceID = expectedInstanceID
 	}
 	return token, actualInstanceID, nil
+}
+
+func (h *ToolHandler) resolveOriginDelegation(caller toolproto.Caller, reqCtx *toolproto.Context, headerToken string) (toolproto.Caller, string, error) {
+	origin := caller
+	token := strings.TrimSpace(headerToken)
+	if reqCtx != nil && strings.TrimSpace(reqCtx.OriginToken) != "" {
+		token = strings.TrimSpace(reqCtx.OriginToken)
+	}
+	if strings.EqualFold(strings.TrimSpace(caller.Type), toolproto.CallerTypeService) && token != "" {
+		claims, err := h.hubPlatform.VerifyOriginCallerToken(token, caller.ServiceID)
+		if err != nil {
+			return toolproto.Caller{}, "", fmt.Errorf("invalid origin caller token: %w", err)
+		}
+		origin = claims.OriginCaller
+		token = strings.TrimSpace(token)
+	}
+	if strings.TrimSpace(origin.Type) == "" {
+		origin = caller
+	}
+	return origin, token, nil
 }
 
 func (h *ToolHandler) selectTool(toolID string) (routing.Selection, bool) {

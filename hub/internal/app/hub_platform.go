@@ -14,12 +14,15 @@ import (
 	"time"
 
 	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 )
 
 const (
-	ServiceStatusActive   = "active"
-	ServiceStatusConflict = "conflict"
-	ServiceStatusDown     = "down"
+	ServiceStatusActive    = "active"
+	ServiceStatusConflict  = "conflict"
+	ServiceStatusDown      = "down"
+	originCallerTokenTTL   = 10 * time.Minute
+	originCallerSecretFile = ".origin_caller_secret"
 )
 
 type ServiceToolDescriptor struct {
@@ -150,6 +153,7 @@ type HubPlatform struct {
 
 	dataRoot       string
 	routeStatePath string
+	originSecret   []byte
 
 	services      map[string]HubServiceRegistration
 	serviceAuths  map[string]HubServiceAuth
@@ -197,6 +201,12 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 		stats:          map[string]map[string]*HubToolProviderStat{},
 		builtinTools:   hubBuiltinTools,
 	}
+	secretPath := filepath.Join(root, originCallerSecretFile)
+	secret, err := loadOrCreateSecret(secretPath)
+	if err != nil {
+		return nil, fmt.Errorf("origin caller secret init: %w", err)
+	}
+	hub.originSecret = secret
 	hub.loadPersistedStateLocked()
 	return hub, nil
 }
@@ -1153,4 +1163,34 @@ func EnsureServiceConfigFiles(serviceRoot string) error {
 		}
 	}
 	return nil
+}
+
+func (h *HubPlatform) IssueOriginCallerToken(origin toolproto.Caller, serviceID string, requestID string, traceID string) (string, error) {
+	if h == nil {
+		return "", fmt.Errorf("hub platform is nil")
+	}
+	claims := hubsvc.OriginCallerTokenClaims{
+		OriginCaller:       origin,
+		IssuedAtMS:         time.Now().UnixMilli(),
+		ExpiresAtMS:        time.Now().Add(originCallerTokenTTL).UnixMilli(),
+		IssuedForServiceID: strings.TrimSpace(serviceID),
+		RequestID:          strings.TrimSpace(requestID),
+		TraceID:            strings.TrimSpace(traceID),
+	}
+	return hubsvc.SignOriginCallerToken(h.originSecret, claims)
+}
+
+func (h *HubPlatform) VerifyOriginCallerToken(token string, expectedServiceID string) (hubsvc.OriginCallerTokenClaims, error) {
+	if h == nil {
+		return hubsvc.OriginCallerTokenClaims{}, fmt.Errorf("hub platform is nil")
+	}
+	claims, err := hubsvc.VerifyOriginCallerToken(h.originSecret, token)
+	if err != nil {
+		return hubsvc.OriginCallerTokenClaims{}, err
+	}
+	expected := strings.TrimSpace(expectedServiceID)
+	if expected != "" && strings.TrimSpace(claims.IssuedForServiceID) != "" && strings.TrimSpace(claims.IssuedForServiceID) != expected {
+		return hubsvc.OriginCallerTokenClaims{}, fmt.Errorf("origin caller token target mismatch")
+	}
+	return claims, nil
 }

@@ -1,6 +1,6 @@
 {
-  "service_id": "chat-server",
-  "service_name": "Chat Server",
+  "service_id": "chat_server",
+  "service_name": "chat_server",
   "version": "1.0.0",
   "visibility": "public",
   "entry": {
@@ -12,7 +12,7 @@
       "-public-config",
       "services/chat_server/config/config.json",
       "-user-config",
-      "data/users/default/user_custom_config.json",
+      "services/chat_server/run/user_custom_config.json",
       "-model",
       "doubao"
     ],

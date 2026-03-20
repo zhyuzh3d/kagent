@@ -18,16 +18,14 @@ import (
 )
 
 func main() {
-	publicConfigPath := flag.String("public-config", "config/config.json", "path to public config json")
-	userConfigPath := flag.String("user-config", "data/users/default/user_custom_config.json", "path to user custom config json")
 	sqlitePath := flag.String("sqlite-path", "data/hub/users.db", "path to sqlite auth user store")
-	servicesConfigPath := flag.String("services-config", "config/services.json", "path to hub managed services lifecycle config")
+	servicesConfigPath := flag.String("services-config", "hub/config/services.json", "path to hub managed services lifecycle config")
 	addr := flag.String("addr", "127.0.0.1:18080", "listen addr")
-	chatServiceURL := flag.String("chat-service-url", "http://127.0.0.1:18082", "chat service base url")
+	chatServiceURL := flag.String("chat-server-url", "http://127.0.0.1:18082", "chat_server service base url")
 	accountServiceURL := flag.String("account-service-url", "http://127.0.0.1:18083", "account service base url")
-	fileServiceURL := flag.String("file-service-url", "http://127.0.0.1:18084", "file service base url")
-	databaseServiceURL := flag.String("database-service-url", "http://127.0.0.1:18085", "database service base url")
-	surfaceManagerURL := flag.String("surface-manager-url", "http://127.0.0.1:18086", "surface-manager service base url")
+	fileStorageURL := flag.String("file-storage-url", "http://127.0.0.1:18084", "file_storage service base url")
+	sqlDBURL := flag.String("sql-db-url", "http://127.0.0.1:18085", "sql_db service base url")
+	surfaceManagerURL := flag.String("surface-manager-url", "http://127.0.0.1:18086", "surface_manager service base url")
 	flag.Parse()
 
 	app.InitLogger(app.LevelDebug, "HUB")
@@ -41,19 +39,12 @@ func main() {
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
-	publicConfigPathResolved := app.ResolvePathFromRoot(appRoot, *publicConfigPath)
-	userConfigPathResolved := app.ResolvePathFromRoot(appRoot, *userConfigPath)
 	sqlitePathResolved := app.ResolvePathFromRoot(appRoot, *sqlitePath)
 	servicesConfigPathResolved := app.ResolvePathFromRoot(appRoot, *servicesConfigPath)
 	dataRoot := filepath.Join(appRoot, "data")
 	webuiRoot := filepath.Join(appRoot, "webui")
 	versionPath := filepath.Join(appRoot, "version.json")
 
-	runtimeCfg, err := app.NewRuntimeConfigManager(publicConfigPathResolved, userConfigPathResolved)
-	if err != nil {
-		app.Errorf("RuntimeConfig-Init-Error:%v", err)
-		os.Exit(1)
-	}
 	startupSnapshotStore, snapshotErr := app.NewStartupSnapshotStore(sqlitePathResolved)
 	if snapshotErr != nil {
 		app.Warnf("StartupSnapshotStore-Init-Error:%v", snapshotErr)
@@ -77,12 +68,12 @@ func main() {
 		serviceID string
 		dir       string
 	}{
-		{serviceID: "chat-server", dir: "chat_server"},
+		{serviceID: "chat_server", dir: "chat_server"},
 		{serviceID: "account", dir: "account"},
-		{serviceID: "ai-doubao", dir: "ai_doubao"},
-		{serviceID: "file", dir: "file_storage"},
-		{serviceID: "database", dir: "sql_db"},
-		{serviceID: "surface-manager", dir: "surface-manager"},
+		{serviceID: "ai_doubao", dir: "ai_doubao"},
+		{serviceID: "file_storage", dir: "file_storage"},
+		{serviceID: "sql_db", dir: "sql_db"},
+		{serviceID: "surface_manager", dir: "surface_manager"},
 	}
 	for _, item := range serviceDirs {
 		if err := app.EnsureServiceConfigFiles(filepath.Join(servicesRoot, item.dir)); err != nil {
@@ -116,11 +107,11 @@ func main() {
 		transportClient,
 		auditStore,
 		map[string]transport.Endpoint{
-			"chat-server":     {Transport: "tcp", TCPURL: strings.TrimSpace(*chatServiceURL)},
+			"chat_server":     {Transport: "tcp", TCPURL: strings.TrimSpace(*chatServiceURL)},
 			"account":         {Transport: "tcp", TCPURL: strings.TrimSpace(*accountServiceURL)},
-			"file":            {Transport: "tcp", TCPURL: strings.TrimSpace(*fileServiceURL)},
-			"database":        {Transport: "tcp", TCPURL: strings.TrimSpace(*databaseServiceURL)},
-			"surface-manager": {Transport: "tcp", TCPURL: strings.TrimSpace(*surfaceManagerURL)},
+			"file_storage":    {Transport: "tcp", TCPURL: strings.TrimSpace(*fileStorageURL)},
+			"sql_db":          {Transport: "tcp", TCPURL: strings.TrimSpace(*sqlDBURL)},
+			"surface_manager": {Transport: "tcp", TCPURL: strings.TrimSpace(*surfaceManagerURL)},
 		},
 	)
 
@@ -154,7 +145,6 @@ func main() {
 
 	systemHandler := hubgateway.NewSystemHandler(
 		hubPlatform,
-		runtimeCfg,
 		ver,
 		lifecycleManager,
 		webuiRoot,
@@ -170,7 +160,6 @@ func main() {
 	// 1. Tool API
 	mux.HandleFunc("/api/tool/call", toolHandler.HandleCall)
 	mux.HandleFunc("/api/tool/ws", toolHandler.HandleWS)
-
 
 	// 4. System API (Legacy REST - Transitioning to hub.system.*)
 	// All system interfaces moved to hub.system.* tools

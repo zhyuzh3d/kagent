@@ -1,3 +1,12 @@
+## [2026-03-20 10:22 CST] Service 名称统一为下划线版本 (Service Name Unification)
+- 核心变更：将 Hub 生命周期配置、5 个 service 的目录/`cmd` 入口/`manifest.service_id`/注册心跳与自报信息统一切到 underscore 版本，当前目标名固定为 `account`、`ai_doubao`、`chat_server`、`file_storage`、`sql_db`、`surface_manager`；同时同步了 `scripts/deploy.sh`、Hub 默认 endpoint key、相关测试断言和现存 `run/*-latest` 产物名。
+- 关键文件：`hub/config/services.json`、`hub/cmd/hub/main.go`、`scripts/deploy.sh`、`services/ai_doubao/cmd/ai_doubao/main.go`、`services/chat_server/cmd/chat_server/main.go`、`services/file_storage/cmd/file_storage/main.go`、`services/sql_db/cmd/sql_db/main.go`、`services/surface_manager/cmd/surface_manager/main.go`、`services/*/manifest.json`
+- 验证结果：`GOCACHE=$PWD/.cache/go-build go test -run '^$' ./pkg/... ./hub/... ./services/account/... ./services/ai_doubao/... ./services/chat_server/... ./services/file_storage/... ./services/sql_db/... ./services/surface_manager/...` 编译级通过。依据：上述文件改动与本次编译结果。
+
+## [2026-03-20 10:14:56 CST] 配置归属收敛与 chat 配置工具下沉
+- 删除仓库根 `config/`，将 Hub 生命周期配置收敛到 `hub/config/services.json`，并同步清理 Hub 侧历史 `config.json/configx.json*` 副本；`scripts/deploy.sh` 与 Hub 启动默认入口已改为只读该文件。
+- `webui/page/chat` 的配置读取/保存不再走 Hub 自身逻辑，改为经 Hub 转发调用 `chat_server` 的 `app.chat.config.get` 与 `app.chat.config.update`；`chat_server` 自身配置与用户覆盖分别固定在 `services/chat_server/config/` 与 `services/chat_server/run/`，`ai_doubao` 私有配置固定在 `services/ai_doubao/config/configx.json`。依据：`hub/cmd/hub/main.go`、`hub/config/services.json`、`scripts/deploy.sh`、`services/chat_server/cmd/chat-server/main.go`、`services/chat_server/internal/app/service_manifest.go`、`webui/page/chat/config-store.js`、`services/ai_doubao/cmd/ai-doubao/main.go`、`go test ./...`。
+
 ## [2026-03-19 13:15 CST] 文档架构准则更新 (Doc & Arch Rules Update)
 - 主要变更：
   - **强调独立项目准则**：在 `core.md` 和 `structure.md` 中明确了 `hub/` 与每个 `services/` 子目录均为逻辑上独立的 Golang 项目，禁止跨层文件依赖，仅通过 `pkg/` 共享协议。
@@ -242,6 +251,42 @@
 - 下一步：
   - 确认在生产环境中的 3s 强制杀进程行为是否符合实际运维预期。
 
+## [2026-03-20 09:41:58 CST] Service Standard 大重构进展同步 (DevUpdate)
+- 时间范围：2026-03-19 21:04 -> 2026-03-20 09:41
+- 主要变更：
+  - 共享协议收敛：扩展 `pkg/toolproto` 的 tool/service 元数据、lifecycle state 与 caller helper；扩展 `pkg/hubsvc` 的 Hub tool call、caller 提取与 lifecycle meta 辅助逻辑，开始把多服务的重复 register/tool-call/auth 样板收回共享层。
+  - 生命周期补齐：`account`、`ai_doubao`、`chat_server`、`file_storage`、`sql_db`、`surface-manager` 全部补入 `service.lifecycle.state.get`；Hub 补入 `hub.system.state.get` 并补强了内置工具元数据。
+  - 冗余代码回收：`chat_server` 与 `ai_doubao` 不再保留完整私有 `CallRequest / ServiceTool / SupervisorRegisterRequest` 定义，改为共享协议别名；多处手写 Hub tool call URL/POST 样板开始统一复用 `pkg/hubsvc`。
+  - surface 文件能力改造：`surface-manager` 的 `ui.surface.fs_read/fs_write/fs_list/fs_delete/fs_sign_static` 主链路改为“先校验 capability，再通过 Hub 调 `storage.file.*`”，并清除了 `surfacefs.go` 中已不再参与主链路的本地文件 IO 实现。
+- 关键文件/模块：
+  - `pkg/toolproto/v1.go`
+  - `pkg/toolproto/supervisor.go`
+  - `pkg/hubsvc/session.go`
+  - `hub/internal/gateway/system_handler.go`
+  - `hub/internal/gateway/hub_manifest.go`
+  - `services/account/internal/business/handler.go`
+  - `services/account/internal/bootstrap/app.go`
+  - `services/ai_doubao/cmd/ai-doubao/main.go`
+  - `services/ai_doubao/internal/app/service_manifest.go`
+  - `services/ai_doubao/internal/app/tool_protocol.go`
+  - `services/chat_server/cmd/chat-server/main.go`
+  - `services/chat_server/internal/app/service_manifest.go`
+  - `services/chat_server/internal/app/tool_protocol.go`
+  - `services/file_storage/cmd/file/main.go`
+  - `services/sql_db/cmd/database/main.go`
+  - `services/surface-manager/cmd/surface-manager/main.go`
+  - `services/surface-manager/internal/app/surfacefs.go`
+  - `plan/2603192104-service-standard-full-refactor-devplan.md`
+- 开发结果：
+  - 成功：`go test -run '^$'` 编译级回归已覆盖 `pkg/...`、`hub/internal/...`、`hub/cmd/hub`、以及 `services/account|ai_doubao|chat_server|file_storage|sql_db|surface-manager` 的 internal/cmd 包，当前通过。
+  - 未完成：`surface-manager` 仍保留 `sqlite_store.go` 与 `surface_catalog.go` 的本地 sqlite catalog/logs 路径，尚未彻底切换为通过 Hub 调 `sql_db`；对应冗余文件也还不能安全删除。
+- 经验与结论：
+  - 有效实践：先把协议类型和 Hub tool call 样板抽回共享层，再分服务收敛生命周期与调用路径，能显著降低多服务同时重构时的重复修改和回归面。
+  - 关键判断：`surface-manager` 的文件能力可以先改成“认证留本地、IO 下沉标准 service”，但 catalog/logs 的 sqlite 迁移需要再做一层面向 `sql_db` 的工具化抽象，不能直接粗暴删除本地 store。
+- 下一步：
+  - 继续把 `surface-manager` 的 sqlite catalog/logs 改成通过 Hub 调 `sql_db`。
+  - 在该迁移完成后，再扫描 `hub/` 与 `services/` 中剩余的冗余文件和旧实现，做最终清理。
+
 ## [2026-03-18 13:50 CST] Hub 托管式编排与极简部署计划 (DevPlan)
 - 时间范围：2026-03-18 13:33 -> 2026-03-18 13:50
 - 主要变更：
@@ -315,4 +360,3 @@
   - 有效实践：将业务性的冒烟测试从 Bash 脚本迁移至 Go 实现的 Hub 内部，可以显著提升环境适应性与治理颗粒度。
 - 下一步：
   - 根据评估结论，分阶段实施 `deploy.sh` 的配置化重构与 Hub 侧冒烟测试逻辑开发。
-

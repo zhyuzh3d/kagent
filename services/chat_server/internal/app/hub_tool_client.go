@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 
 	"github.com/gorilla/websocket"
 )
@@ -43,6 +44,7 @@ func (c *HubToolClient) Call(ctx context.Context, toolID string, args map[string
 			TimeoutMS: timeoutMS,
 		},
 	}
+	hubsvc.AttachDelegationFromContext((*toolproto.Context)(reqBody.Context), ctx)
 	raw, _ := json.Marshal(reqBody)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/tool/call", bytes.NewReader(raw))
 	if err != nil {
@@ -92,6 +94,7 @@ func (c *HubToolClient) DialToolWS(ctx context.Context, toolID string, query map
 		}
 	}
 	hubsvc.ApplyServiceAuthHeaders(h, c.serviceAuth)
+	hubsvc.ApplyDelegationHeaders(h, ctx)
 	dialer := websocket.Dialer{HandshakeTimeout: 8 * time.Second}
 	conn, resp, err := dialer.DialContext(ctx, wsURL, h)
 	if err != nil {

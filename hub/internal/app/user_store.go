@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 type UserStore struct {
@@ -26,7 +24,7 @@ func NewUserStore(path string) (*UserStore, error) {
 	if err := os.MkdirAll(filepath.Dir(cleanPath), 0o755); err != nil {
 		return nil, fmt.Errorf("create sqlite dir: %w", err)
 	}
-	db, err := sql.Open("sqlite", cleanPath)
+	db, err := OpenSQLite(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}

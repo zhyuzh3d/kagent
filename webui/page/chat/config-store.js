@@ -1,3 +1,5 @@
+import { callTool } from "./tool-call.js";
+
 const DEFAULT_PUBLIC_CONFIG = {
   app: {
     debug: { logLevel: "info" },
@@ -30,26 +32,14 @@ function readNumber(value, fallback) {
 
 export async function loadRuntimeConfig() {
   try {
-    const resp = await fetch("/api/config", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`status ${resp.status}`);
-    return await resp.json();
+    return await callTool("app.chat.config.get");
   } catch (_) {
     return cloneConfig(DEFAULT_PUBLIC_CONFIG);
   }
 }
 
 export async function saveRuntimeConfig(config) {
-  const resp = await fetch("/api/config", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(config)
-  });
-  if (!resp.ok) {
-    throw new Error(`status ${resp.status}`);
-  }
-  return await resp.json();
+  return await callTool("app.chat.config.update", { config });
 }
 
 export async function loadConfigInfo() {

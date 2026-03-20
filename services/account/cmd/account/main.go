@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"kagent/services/account/internal/bootstrap"
+	app "kagent/services/account/internal/app"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 	instanceID := flag.String("instance-id", "", "optional service instance id")
 	flag.Parse()
 
-	app, err := bootstrap.New(bootstrap.Config{
+	accountApp, err := app.New(app.Config{
 		Addr:           *addr,
 		HubRegisterURL: *hubRegisterURL,
 		InstanceID:     *instanceID,
@@ -23,7 +23,7 @@ func main() {
 		log.Printf("error: %v", err)
 		os.Exit(1)
 	}
-	if err := app.Run(); err != nil {
+	if err := accountApp.Run(); err != nil {
 		log.Printf("error: %v", err)
 		os.Exit(1)
 	}

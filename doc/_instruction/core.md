@@ -38,7 +38,32 @@
 2. `Hub` 对外统一提供其标准入口。
 3. `service` 内部是否信任 `Hub`、是否拒绝非 `Hub` 请求、是否消费注入的 caller / capability，仍属于自治范围。
 
-### 2.4 工具平面统一
+补充：
+
+1. `hub` 与每个 `service` 的内部配置文件应完全隔离在各自项目目录内。
+2. 内部配置应优先收敛到各自项目内的 `config/`；密钥、密码等敏感字段统一存放在 `configx.json`，并配套 `configx.json.example` 作为样例。
+3. Hub 可读写的 service 运行态文件统一落在各自 `run/`，不再共享仓库根 `config/`。
+4. 配置读取必须局部封装：`hub` 只读 `hub/` 自己的配置，各 `service` 只读各自项目目录内的配置，不向上层目录或其他 `service` 目录跨边界读取配置。
+
+### 2.4 数据库存储边界
+
+数据库访问按基础设施边界收敛：
+
+1. 除 `sql_db` 以及经明确批准的 Hub 核心基础设施外，所有 `service` 不得直接使用 sqlite 驱动。
+2. 业务 `service` 的数据库读写必须统一通过 `services/sql_db` 暴露的工具能力完成，不在各自进程内直接 `sql.Open(...)`、私自持有 sqlite 文件或新增私有驱动封装。
+3. `sql_db` 作为数据库服务实现，本身可以直接持有 sqlite 驱动与底层数据库打开逻辑。
+4. `hub` 允许保留少量核心本地数据库直连能力，但仅限启动、认证、治理快照等经明确批准且不能对 `sql_db` 形成启动依赖环的基础设施路径。
+5. 数据库驱动封装属于子项目内部工具，不属于默认共享公共包；原则上仅 `hub` 与 `sql_db` 可以在各自目录内维护这类内部封装。
+
+### 2.5 共享包边界
+
+跨项目可稳定复用的共享包当前只保留少数协议基础设施：
+
+1. `pkg/hubsvc` 与 `pkg/toolproto` 是面向 Hub <-> Service 通信的统一基础，属于允许被各 `service` 调用的共享外部包。
+2. 除这类通信协议与互信基础设施外，其他实现性工具不应默认放入 `pkg/` 供所有 `service` 依赖。
+3. sqlite 驱动注册、数据库打开、底层存储适配等实现性能力不属于共享协议面，应收敛在 `hub` 或 `sql_db` 自身项目目录内。
+
+### 2.6 工具平面统一
 
 平台对外能力收敛到统一工具平面：
 
@@ -49,7 +74,13 @@
 
 `hub.governance.service.*`、`hub.admin.*`、`hub.system.*` 与业务工具共享同一工具平面；少量 HTTP/WS 路由仍作为静态资源、兼容入口或 transport 承载面存在，但不应替代标准 tool 契约。
 
-### 2.5 平台安全与业务安全分离
+补充：
+
+1. 首选推荐路径是 `web -> hub -> service -> web`，也就是由 Web/Page 直接调用业务 service tool，再经 Hub 统一转发与治理。
+2. `service -> hub -> service` 的二次调用链路当前已被正式支持，但它应视为补充路径，而不是默认主路径。
+3. 当业务可以直接走 `web -> hub -> service` 时，不应优先设计成某个 service 再间接调用另一个 service。
+
+### 2.7 平台安全与业务安全分离
 
 平台安全由 `Hub` 主导，业务安全由 `service` 主导。
 
@@ -57,7 +88,7 @@
 2. `service` 负责用户身份鉴权、对象级权限、领域规则、内部限额和最终执行判断。
 3. 需要信任 `Hub` 来源的 tool，应通过 `.service_secret` 与互信 header 建立可信接入；本项目当前不要求每次调用都做请求级签名。
 
-### 2.6 生命周期与治理视图收敛于 Hub
+### 2.8 生命周期与治理视图收敛于 Hub
 
 `Hub` 维护 service 接纳与运行态治理视图，并负责生命周期编排。对被接纳的 `service`，最低正式生命周期契约是：
 
@@ -67,7 +98,7 @@
 
 如存在排空语义，还应补充 `service.lifecycle.drain`。`Hub` 同时维护 `service session`、路由覆盖层和治理统计；`reliability`、`success_rate`、`call_count` 等字段属于 `Hub` 的治理产物，不是 `service` 的最终自声明事实。
 
-### 2.7 副作用与身份卫生
+### 2.9 副作用与身份卫生
 
 `service` 不应直接改写浏览器响应或外部上下文。cookie、header 等副作用应通过 `effects` 返回，再由 `Hub` 统一写回调用方。内部身份也不能靠端口或来源地址猜测，必须依赖互信 header 与显式校验；转发前应清洗 protected headers，避免外部伪造内部身份字段。
 
@@ -97,6 +128,10 @@
 
 大规模删除、不可逆重写、可能导致数据丢失或服务中断的操作，先征求用户确认。
 
+### 3.6 新边界直接落地，不为旧模式保留兼容层
+
+当结构性边界已经明确时，重构应优先直接把旧实现迁到新边界，而不是继续为旧模式增加兼容层、双写逻辑或长期过渡接口。涉及旧前端、旧工具入口或旧 service 内部模式时，应同步把调用方与使用方一起改到新方案，而不是围绕旧路径做保守兼容。
+
 ## 4. 当前实现事实
 
 ### 4.1 Hub 主链路
@@ -121,6 +156,13 @@ Hub 当前通过 `hub/cmd/hub/main.go` 启动，统一装配：
 
 Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这里的 caller 是路由与治理上下文，不等于 `service` 内部必须采纳的最终业务授权结论。
 
+当前还已落地：
+
+1. `toolproto.Context` 已扩展 `origin_caller` 与 `origin_caller_token`。
+2. Hub 当前会保持现有 `caller` 语义不变，并在合法 delegation 场景下恢复 `origin_caller`。
+3. `origin_caller` 表示链路起点的原始客户端身份；`caller` 仍表示当前这一次直连 Hub 的请求主体。
+4. `origin_caller_token` 由 Hub 自签发和校验，不等于浏览器 JWT，也不允许 service 自行伪造。
+
 ### 4.3 当前已落地的治理工具
 
 以下治理工具已在 Hub 侧注册：
@@ -131,7 +173,7 @@ Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这
 4. `hub.admin.*`
 5. `hub.system.*`
 
-对应地，`account`、`ai-doubao`、`chat-server`、`file_storage` 等 service 已存在通过 `hub.governance.service.register` 完成启动注册的实现。
+对应地，`account`、`ai_doubao`、`chat_server`、`file_storage` 等 service 已存在通过 `hub.governance.service.register` 完成启动注册的实现。
 
 ### 4.4 当前已落地的 service 生命周期事实
 
@@ -140,7 +182,7 @@ Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这
 1. Hub 优先调用 `service.lifecycle.health`
 2. Hub 停机时优先调用 `service.lifecycle.shutdown`
 3. `/healthz` 与部分 `/admin/shutdown` 仍作为兼容 fallback 保留
-4. `ai-doubao` 仍保留 `ai-doubao.system.health`、`ai-doubao.system.shutdown` 兼容别名
+4. `ai_doubao` 仍保留 `ai_doubao.system.health`、`ai_doubao.system.shutdown` 兼容别名
 
 ### 4.5 当前已落地的工具字段事实
 
@@ -150,21 +192,37 @@ Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这
 2. `capabilities_required`
 3. `streaming`
 4. `ws_path`
+5. `protocol`
+6. `timeout_ms_default`
+7. `scope_support`
 
 这说明 tool 元数据已经是运行态真实契约，不只是文档约定。
 
-### 4.6 account 的当前边界
+### 4.6 当前已落地的协议与生命周期收敛事实
+
+本轮重构后，以下事实已可由代码直接确认：
+
+1. `pkg/toolproto` 已扩展为共享的 tool/service 元数据与 lifecycle 基础结构来源，`chat_server` 与 `ai_doubao` 不再各自维护完整私有 `CallRequest / ServiceTool / SupervisorRegisterRequest` 定义。
+2. `account`、`ai_doubao`、`chat_server`、`file_storage`、`sql_db`、`surface_manager` 当前都已补齐 `service.lifecycle.state.get`。
+3. `hub` 当前已注册 `hub.system.state.get`，可直接返回 Hub 运行治理视图快照。
+4. 多个 service 的 Hub 工具调用样板已开始收敛到 `pkg/hubsvc`，减少重复的 register/tool-call/auth header 拼装逻辑。
+5. Chat 页面运行配置已从 Hub 自身逻辑下沉到 `chat_server`，当前通过 `app.chat.config.get` 与 `app.chat.config.update` 经 Hub 工具网关访问。
+
+### 4.7 account 的当前边界
 
 `account` 当前负责账号、token、会话与登录态相关工具输出，并通过 `effects.set_cookies` 协同 Hub 完成外部副作用写回。Hub 会在适当时机同步 account 状态，但这不意味着业务授权被上收给 Hub；业务安全边界仍应由具体 `service` 自己负责。
 
-### 4.7 仍待确认的单一事实源
+### 4.8 当前仍未完全收敛的边界
 
-`config/services.json` 与 `hub/config/services.json` 当前内容一致，但长期哪个文件应作为单一事实源，仍待确认。
+以下问题在本轮后仍未完全解决：
+
+1. Hub 当前仍保留 `user_store` 与 `startup_snapshot_store` 本地 sqlite 基础设施路径；后续重点不是继续下沉到 `sql_db`，而是防止其边界继续扩张到业务持久化。
+2. `service -> hub -> service` 已可保留 `origin_caller`，但各业务 service 仍需继续清理“明明可由 Web 直接调用，却绕行 service 二次调 service”的旧路径。
 
 ---
 
-**文档更新时间**：2026-03-19 20:04:10 CST
+**文档更新时间**：2026-03-20 16:42:00 CST
 
-**本轮修改范围**：按 `_service_standard.md` 对齐 `core.md` 的边界表述，压缩冗余实现细节，纠正对 `Hub`、`service`、caller、业务授权和生命周期职责的过强或失真描述，并补入治理视图、最低生命周期契约与副作用边界。
+**本轮修改范围**：补充 `sql_db` 已成为正式数据库工具面、`surface_manager` 已迁离本地 sqlite、Hub 已支持 `origin_caller` / `origin_caller_token` 委托恢复，以及“首选 Web 直达 service，二次 service 调用仅支持不推荐”的当前边界。
 
-**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_service_standard.md`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_instruction/structure.md`、`hub/cmd/hub/main.go`、`hub/internal/app/identity.go`、`hub/internal/gateway/tool_handler.go`、`hub/internal/supervisor/handler.go`、`hub/internal/supervisor/process_control.go`、`pkg/toolproto/supervisor.go`，以及 `services/account`、`services/ai_doubao`、`services/chat_server`、`services/file_storage` 中与注册、生命周期和工具字段相关的实现检索结果。
+**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_instruction/structure.md`、`pkg/toolproto/v1.go`、`pkg/hubsvc/session.go`、`hub/internal/app/hub_platform.go`、`hub/internal/gateway/tool_handler.go`、`hub/internal/security/headers.go`、`services/sql_db/cmd/sql_db/main.go`、`services/chat_server/internal/app/hub_database_store.go`、`services/chat_server/internal/app/hub_tool_client.go`、`services/surface_manager/internal/app/hub_store.go`、`services/surface_manager/cmd/surface_manager/main.go`。

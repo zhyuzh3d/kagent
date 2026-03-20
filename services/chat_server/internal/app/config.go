@@ -115,7 +115,7 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 func validateModelConfig(cfg *ModelConfig) error {
 	svc := cfg.EffectiveAIService()
 	if svc.Mode != "service" {
-		return errors.New("chat-server ai_service.mode must be service")
+		return errors.New("chat_server ai_service.mode must be service")
 	}
 	if strings.TrimSpace(svc.BaseURL) == "" {
 		return errors.New("ai_service.baseUrl is required")

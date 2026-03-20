@@ -605,7 +605,7 @@ caller 不是：
 2. 用户身份鉴权属于其内部职责。
 3. `Hub` 只负责其 tool 的接入和治理。
 
-### 19.2 `chat-server`
+### 19.2 `chat_server`
 
 类型：编排与流式交互型 `service`
 
@@ -641,7 +641,7 @@ caller 不是：
 1. 应显式声明流式工具的协议形态、风险等级和副作用情况。
 2. 更适合作为 AI 可调用能力的一类标准模板。
 
-### 19.6 `surface-manager`
+### 19.6 `surface_manager`
 
 类型：Surface 扫描、session 与 capability 型 `service`
 

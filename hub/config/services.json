@@ -12,11 +12,11 @@
     },
     "services": [
       {
-        "service_id": "ai-doubao",
+        "service_id": "ai_doubao",
         "dir": "services/ai_doubao"
       },
       {
-        "service_id": "chat-server",
+        "service_id": "chat_server",
         "dir": "services/chat_server"
       },
       {
@@ -24,16 +24,16 @@
         "dir": "services/account"
       },
       {
-        "service_id": "file",
+        "service_id": "file_storage",
         "dir": "services/file_storage"
       },
       {
-        "service_id": "database",
+        "service_id": "sql_db",
         "dir": "services/sql_db"
       },
       {
-        "service_id": "surface-manager",
-        "dir": "services/surface-manager"
+        "service_id": "surface_manager",
+        "dir": "services/surface_manager"
       }
     ]
   }

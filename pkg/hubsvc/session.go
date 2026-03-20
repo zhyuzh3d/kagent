@@ -1,28 +1,61 @@
 package hubsvc
- 
+
 import (
 	"bufio"
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
- 
+
 	"kagent/pkg/toolproto"
 )
- 
+
 const (
-	HeaderServiceID         = "X-Service-Id"
-	HeaderServiceInstanceID = "X-Service-Instance-Id"
-	HeaderServiceAuth       = "X-Service-Auth"
-	HeaderHubServiceID      = "X-Hub-Service-Id"
-	HeaderHubInstanceID     = "X-Hub-Service-Instance-Id"
-	HeaderHubAuth           = "X-Hub-Auth"
+	HeaderServiceID             = "X-Service-Id"
+	HeaderServiceInstanceID     = "X-Service-Instance-Id"
+	HeaderServiceAuth           = "X-Service-Auth"
+	HeaderHubServiceID          = "X-Hub-Service-Id"
+	HeaderHubInstanceID         = "X-Hub-Service-Instance-Id"
+	HeaderHubAuth               = "X-Hub-Auth"
+	HeaderCallerType            = "X-Caller-Type"
+	HeaderCallerUserID          = "X-Caller-User-Id"
+	HeaderCallerServiceID       = "X-Caller-Service-Id"
+	HeaderCallerSurfaceID       = "X-Caller-Surface-Id"
+	HeaderOriginCallerType      = "X-Origin-Caller-Type"
+	HeaderOriginCallerUserID    = "X-Origin-Caller-User-Id"
+	HeaderOriginCallerServiceID = "X-Origin-Caller-Service-Id"
+	HeaderOriginCallerSurfaceID = "X-Origin-Caller-Surface-Id"
+	HeaderOriginCallerToken     = "X-Origin-Caller-Token"
 )
- 
+
+type originCallerContextKey struct{}
+type originCallerTokenContextKey struct{}
+
+type OriginCallerTokenClaims struct {
+	OriginCaller       toolproto.Caller `json:"origin_caller"`
+	IssuedAtMS         int64            `json:"issued_at_ms"`
+	ExpiresAtMS        int64            `json:"expires_at_ms"`
+	IssuedForServiceID string           `json:"issued_for_service_id,omitempty"`
+	RequestID          string           `json:"request_id,omitempty"`
+	TraceID            string           `json:"trace_id,omitempty"`
+}
+
+type ServiceIdentity struct {
+	ServiceID  string
+	InstanceID string
+}
+
 type BootstrapSecret struct {
 	ServiceID      string `json:"service_id"`
 	InstanceID     string `json:"instance_id"`
@@ -32,7 +65,7 @@ type BootstrapSecret struct {
 	IssuedAtMS     int64  `json:"issued_at_ms"`
 	ExpiresAtMS    int64  `json:"expires_at_ms"`
 }
- 
+
 func LoadBootstrapSecret(path string) (BootstrapSecret, error) {
 	raw, err := os.ReadFile(strings.TrimSpace(path))
 	if err != nil {
@@ -44,7 +77,7 @@ func LoadBootstrapSecret(path string) (BootstrapSecret, error) {
 	}
 	return secret, secret.Validate()
 }
- 
+
 func DecodeSupervisorRegisterResult(responseBody []byte) (toolproto.SupervisorRegisterResult, error) {
 	var callResp toolproto.CallResponse
 	if err := json.Unmarshal(responseBody, &callResp); err != nil {
@@ -67,7 +100,22 @@ func DecodeSupervisorRegisterResult(responseBody []byte) (toolproto.SupervisorRe
 	}
 	return out, nil
 }
- 
+
+func BuildHubToolCallURL(raw string) string {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return ""
+	}
+	parsed, err := url.Parse(clean)
+	if err != nil {
+		return clean
+	}
+	parsed.Path = "/api/tool/call"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
 func WriteBootstrapSecret(path string, secret BootstrapSecret) error {
 	clean := secret.normalize()
 	if err := clean.validateRequired(); err != nil {
@@ -92,7 +140,7 @@ func WriteBootstrapSecret(path string, secret BootstrapSecret) error {
 	}
 	return os.WriteFile(fullPath, []byte(content), 0o600)
 }
- 
+
 func DeleteBootstrapSecret(path string) error {
 	fullPath := strings.TrimSpace(path)
 	if fullPath == "" {
@@ -103,7 +151,7 @@ func DeleteBootstrapSecret(path string) error {
 	}
 	return nil
 }
- 
+
 func ApplyServiceAuthHeaders(headers http.Header, secret BootstrapSecret) {
 	if headers == nil {
 		return
@@ -113,7 +161,7 @@ func ApplyServiceAuthHeaders(headers http.Header, secret BootstrapSecret) {
 	headers.Set(HeaderServiceInstanceID, clean.InstanceID)
 	headers.Set(HeaderServiceAuth, clean.S2HToken)
 }
- 
+
 func ApplyHubAuthHeaders(headers http.Header, serviceID string, instanceID string, hubToken string) {
 	if headers == nil {
 		return
@@ -122,7 +170,7 @@ func ApplyHubAuthHeaders(headers http.Header, serviceID string, instanceID strin
 	headers.Set(HeaderHubInstanceID, strings.TrimSpace(instanceID))
 	headers.Set(HeaderHubAuth, strings.TrimSpace(hubToken))
 }
- 
+
 func VerifyHubAuthHeaders(headers http.Header, expectedServiceID string, expectedInstanceID string, expectedHubToken string) error {
 	if headers == nil {
 		return fmt.Errorf("missing headers")
@@ -141,7 +189,237 @@ func VerifyHubAuthHeaders(headers http.Header, expectedServiceID string, expecte
 	}
 	return nil
 }
- 
+
+func RequireHubAuth(headers http.Header, ident ServiceIdentity, expectedHubToken string) error {
+	return VerifyHubAuthHeaders(headers, ident.ServiceID, ident.InstanceID, expectedHubToken)
+}
+
+func CallerFromHeaders(headers http.Header) toolproto.Caller {
+	if headers == nil {
+		return toolproto.Caller{}
+	}
+	return toolproto.Caller{
+		Type:      strings.ToLower(strings.TrimSpace(headers.Get(HeaderCallerType))),
+		UserID:    strings.TrimSpace(headers.Get(HeaderCallerUserID)),
+		ServiceID: strings.TrimSpace(headers.Get(HeaderCallerServiceID)),
+		SurfaceID: strings.TrimSpace(headers.Get(HeaderCallerSurfaceID)),
+	}
+}
+
+func OriginCallerFromHeaders(headers http.Header) toolproto.Caller {
+	if headers == nil {
+		return toolproto.Caller{}
+	}
+	return toolproto.Caller{
+		Type:      strings.ToLower(strings.TrimSpace(headers.Get(HeaderOriginCallerType))),
+		UserID:    strings.TrimSpace(headers.Get(HeaderOriginCallerUserID)),
+		ServiceID: strings.TrimSpace(headers.Get(HeaderOriginCallerServiceID)),
+		SurfaceID: strings.TrimSpace(headers.Get(HeaderOriginCallerSurfaceID)),
+	}
+}
+
+func OriginCallerTokenFromHeaders(headers http.Header) string {
+	if headers == nil {
+		return ""
+	}
+	return strings.TrimSpace(headers.Get(HeaderOriginCallerToken))
+}
+
+func MergeCaller(req *toolproto.CallRequest, headers http.Header) toolproto.Caller {
+	if req == nil {
+		return CallerFromHeaders(headers)
+	}
+	if req.Context == nil {
+		req.Context = &toolproto.Context{}
+	}
+	caller := CallerFromHeaders(headers)
+	if caller.Type == "" {
+		caller = req.Context.Caller
+	}
+	req.Context.Caller = caller
+	return caller
+}
+
+func MergeOriginCaller(req *toolproto.CallRequest, headers http.Header) (toolproto.Caller, string) {
+	if req == nil {
+		return OriginCallerFromHeaders(headers), OriginCallerTokenFromHeaders(headers)
+	}
+	if req.Context == nil {
+		req.Context = &toolproto.Context{}
+	}
+	origin := OriginCallerFromHeaders(headers)
+	if origin.Type == "" {
+		origin = req.Context.OriginCaller
+	}
+	token := OriginCallerTokenFromHeaders(headers)
+	if token == "" {
+		token = req.Context.OriginToken
+	}
+	req.Context.OriginCaller = origin
+	req.Context.OriginToken = token
+	return origin, token
+}
+
+func ContextWithDelegation(ctx context.Context, origin toolproto.Caller, token string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = context.WithValue(ctx, originCallerContextKey{}, normalizeCaller(origin))
+	ctx = context.WithValue(ctx, originCallerTokenContextKey{}, strings.TrimSpace(token))
+	return ctx
+}
+
+func OriginCallerFromContext(ctx context.Context) toolproto.Caller {
+	if ctx == nil {
+		return toolproto.Caller{}
+	}
+	if value, ok := ctx.Value(originCallerContextKey{}).(toolproto.Caller); ok {
+		return normalizeCaller(value)
+	}
+	return toolproto.Caller{}
+}
+
+func OriginTokenFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if value, ok := ctx.Value(originCallerTokenContextKey{}).(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
+}
+
+func AttachDelegationFromContext(req *toolproto.Context, ctx context.Context) {
+	if req == nil {
+		return
+	}
+	if origin := OriginCallerFromContext(ctx); origin.Type != "" && req.OriginCaller.Type == "" {
+		req.OriginCaller = origin
+	}
+	if token := OriginTokenFromContext(ctx); token != "" && req.OriginToken == "" {
+		req.OriginToken = token
+	}
+}
+
+func ApplyDelegationHeaders(headers http.Header, ctx context.Context) {
+	if headers == nil {
+		return
+	}
+	origin := OriginCallerFromContext(ctx)
+	headers.Set(HeaderOriginCallerType, origin.Type)
+	headers.Set(HeaderOriginCallerUserID, origin.UserID)
+	headers.Set(HeaderOriginCallerServiceID, origin.ServiceID)
+	headers.Set(HeaderOriginCallerSurfaceID, origin.SurfaceID)
+	headers.Set(HeaderOriginCallerToken, OriginTokenFromContext(ctx))
+}
+
+func SignOriginCallerToken(secret []byte, claims OriginCallerTokenClaims) (string, error) {
+	if len(secret) == 0 {
+		return "", fmt.Errorf("origin caller secret is empty")
+	}
+	claims.OriginCaller = normalizeCaller(claims.OriginCaller)
+	if strings.TrimSpace(claims.OriginCaller.Type) == "" {
+		return "", fmt.Errorf("origin caller is empty")
+	}
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("marshal origin caller claims: %w", err)
+	}
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(encodedPayload))
+	encodedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return encodedPayload + "." + encodedSig, nil
+}
+
+func VerifyOriginCallerToken(secret []byte, token string) (OriginCallerTokenClaims, error) {
+	clean := strings.TrimSpace(token)
+	if len(secret) == 0 {
+		return OriginCallerTokenClaims{}, fmt.Errorf("origin caller secret is empty")
+	}
+	if clean == "" {
+		return OriginCallerTokenClaims{}, fmt.Errorf("origin caller token is empty")
+	}
+	parts := strings.Split(clean, ".")
+	if len(parts) != 2 {
+		return OriginCallerTokenClaims{}, fmt.Errorf("invalid origin caller token format")
+	}
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(parts[0]))
+	expectedSig := mac.Sum(nil)
+	rawSig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return OriginCallerTokenClaims{}, fmt.Errorf("invalid origin caller token signature")
+	}
+	if !hmac.Equal(rawSig, expectedSig) {
+		return OriginCallerTokenClaims{}, fmt.Errorf("origin caller token signature mismatch")
+	}
+	rawPayload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return OriginCallerTokenClaims{}, fmt.Errorf("invalid origin caller token payload")
+	}
+	var claims OriginCallerTokenClaims
+	if err := json.Unmarshal(rawPayload, &claims); err != nil {
+		return OriginCallerTokenClaims{}, fmt.Errorf("invalid origin caller token claims")
+	}
+	claims.OriginCaller = normalizeCaller(claims.OriginCaller)
+	if claims.OriginCaller.Type == "" {
+		return OriginCallerTokenClaims{}, fmt.Errorf("origin caller token missing caller")
+	}
+	if claims.ExpiresAtMS > 0 && claims.ExpiresAtMS < time.Now().UnixMilli() {
+		return OriginCallerTokenClaims{}, fmt.Errorf("origin caller token expired")
+	}
+	return claims, nil
+}
+
+func normalizeCaller(caller toolproto.Caller) toolproto.Caller {
+	caller.Type = strings.ToLower(strings.TrimSpace(caller.Type))
+	caller.UserID = strings.TrimSpace(caller.UserID)
+	caller.ServiceID = strings.TrimSpace(caller.ServiceID)
+	caller.SurfaceID = strings.TrimSpace(caller.SurfaceID)
+	return caller
+}
+
+func LifecycleMeta(req toolproto.CallRequest, ident ServiceIdentity) toolproto.Meta {
+	ctx := req.Context
+	if ctx == nil {
+		ctx = &toolproto.Context{}
+	}
+	return toolproto.Meta{
+		RequestID:  strings.TrimSpace(ctx.RequestID),
+		TraceID:    strings.TrimSpace(ctx.TraceID),
+		ServiceID:  strings.TrimSpace(ident.ServiceID),
+		InstanceID: strings.TrimSpace(ident.InstanceID),
+	}
+}
+
+func PostHubToolCall(client *http.Client, toolCallURL string, secret BootstrapSecret, req toolproto.CallRequest) ([]byte, int, error) {
+	rawReq, err := json.Marshal(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("marshal hub tool call: %w", err)
+	}
+	httpReq, err := http.NewRequest(http.MethodPost, strings.TrimSpace(toolCallURL), bytes.NewReader(rawReq))
+	if err != nil {
+		return nil, 0, fmt.Errorf("build hub tool call request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	ApplyServiceAuthHeaders(httpReq.Header, secret)
+	cli := client
+	if cli == nil {
+		cli = http.DefaultClient
+	}
+	httpResp, err := cli.Do(httpReq)
+	if err != nil {
+		return nil, 0, fmt.Errorf("execute hub tool call: %w", err)
+	}
+	defer httpResp.Body.Close()
+	body, readErr := io.ReadAll(httpResp.Body)
+	if readErr != nil {
+		return nil, httpResp.StatusCode, fmt.Errorf("read hub tool call body: %w", readErr)
+	}
+	return body, httpResp.StatusCode, nil
+}
+
 func ExtractServiceAuthHeaders(headers http.Header) (string, string, string) {
 	if headers == nil {
 		return "", "", ""
@@ -150,7 +428,7 @@ func ExtractServiceAuthHeaders(headers http.Header) (string, string, string) {
 		strings.TrimSpace(headers.Get(HeaderServiceInstanceID)),
 		strings.TrimSpace(headers.Get(HeaderServiceAuth))
 }
- 
+
 func (s BootstrapSecret) normalize() BootstrapSecret {
 	return BootstrapSecret{
 		ServiceID:      strings.TrimSpace(s.ServiceID),
@@ -162,7 +440,7 @@ func (s BootstrapSecret) normalize() BootstrapSecret {
 		ExpiresAtMS:    s.ExpiresAtMS,
 	}
 }
- 
+
 func (s BootstrapSecret) Validate() error {
 	clean := s.normalize()
 	if err := clean.validateRequired(); err != nil {
@@ -176,7 +454,7 @@ func (s BootstrapSecret) Validate() error {
 	}
 	return nil
 }
- 
+
 func (s BootstrapSecret) validateRequired() error {
 	if strings.TrimSpace(s.ServiceID) == "" {
 		return fmt.Errorf("bootstrap secret missing SERVICE_ID")
@@ -201,7 +479,7 @@ func (s BootstrapSecret) validateRequired() error {
 	}
 	return nil
 }
- 
+
 func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	values := map[string]string{}
 	scanner := bufio.NewScanner(strings.NewReader(string(raw)))
@@ -221,7 +499,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	if err := scanner.Err(); err != nil {
 		return BootstrapSecret{}, err
 	}
- 
+
 	issuedAtMS, err := parseInt64Field(values["ISSUED_AT_MS"], "ISSUED_AT_MS")
 	if err != nil {
 		return BootstrapSecret{}, err
@@ -230,7 +508,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 	if err != nil {
 		return BootstrapSecret{}, err
 	}
- 
+
 	return BootstrapSecret{
 		ServiceID:      values["SERVICE_ID"],
 		InstanceID:     values["INSTANCE_ID"],
@@ -241,7 +519,7 @@ func parseBootstrapSecret(raw []byte) (BootstrapSecret, error) {
 		ExpiresAtMS:    expiresAtMS,
 	}.normalize(), nil
 }
- 
+
 func parseInt64Field(raw string, field string) (int64, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
@@ -253,7 +531,7 @@ func parseInt64Field(raw string, field string) (int64, error) {
 	}
 	return parsed, nil
 }
- 
+
 func nowMS() int64 {
 	return time.Now().UnixMilli()
 }

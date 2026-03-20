@@ -9,21 +9,26 @@ import (
 )
 
 var protectedHeaders = map[string]struct{}{
-	"X-Hub-Request-Id":             {},
-	"X-Hub-Trace-Id":               {},
-	"X-Caller-Type":                {},
-	"X-Caller-User-Id":             {},
-	"X-Caller-Service-Id":          {},
-	"X-Caller-Surface-Id":          {},
-	"X-Caller-Reliability":         {},
-	hubsvc.HeaderServiceID:         {},
-	hubsvc.HeaderServiceInstanceID: {},
-	hubsvc.HeaderServiceAuth:       {},
-	hubsvc.HeaderHubServiceID:      {},
-	hubsvc.HeaderHubInstanceID:     {},
-	hubsvc.HeaderHubAuth:           {},
-	"X-Hub-Service-Token":          {},
-	"X-Hub-Platform-Token":         {},
+	"X-Hub-Request-Id":                 {},
+	"X-Hub-Trace-Id":                   {},
+	"X-Caller-Type":                    {},
+	"X-Caller-User-Id":                 {},
+	"X-Caller-Service-Id":              {},
+	"X-Caller-Surface-Id":              {},
+	"X-Caller-Reliability":             {},
+	hubsvc.HeaderOriginCallerType:      {},
+	hubsvc.HeaderOriginCallerUserID:    {},
+	hubsvc.HeaderOriginCallerServiceID: {},
+	hubsvc.HeaderOriginCallerSurfaceID: {},
+	hubsvc.HeaderOriginCallerToken:     {},
+	hubsvc.HeaderServiceID:             {},
+	hubsvc.HeaderServiceInstanceID:     {},
+	hubsvc.HeaderServiceAuth:           {},
+	hubsvc.HeaderHubServiceID:          {},
+	hubsvc.HeaderHubInstanceID:         {},
+	hubsvc.HeaderHubAuth:               {},
+	"X-Hub-Service-Token":              {},
+	"X-Hub-Platform-Token":             {},
 }
 
 func SanitizeForwardHeaders(src http.Header) http.Header {
@@ -65,6 +70,23 @@ func InjectCallerHeaders(headers http.Header, context *toolproto.Context, caller
 	headers.Set("X-Caller-Service-Id", callerServiceID)
 	headers.Set("X-Caller-Surface-Id", callerSurfaceID)
 	headers.Set("X-Caller-Reliability", strings.TrimSpace(callerReliability))
+	originType := ""
+	originUserID := ""
+	originServiceID := ""
+	originSurfaceID := ""
+	originToken := ""
+	if context != nil {
+		originType = strings.TrimSpace(context.OriginCaller.Type)
+		originUserID = strings.TrimSpace(context.OriginCaller.UserID)
+		originServiceID = strings.TrimSpace(context.OriginCaller.ServiceID)
+		originSurfaceID = strings.TrimSpace(context.OriginCaller.SurfaceID)
+		originToken = strings.TrimSpace(context.OriginToken)
+	}
+	headers.Set(hubsvc.HeaderOriginCallerType, originType)
+	headers.Set(hubsvc.HeaderOriginCallerUserID, originUserID)
+	headers.Set(hubsvc.HeaderOriginCallerServiceID, originServiceID)
+	headers.Set(hubsvc.HeaderOriginCallerSurfaceID, originSurfaceID)
+	headers.Set(hubsvc.HeaderOriginCallerToken, originToken)
 }
 
 func InjectHubAuthHeaders(headers http.Header, serviceID string, instanceID string, hubAuth string) {

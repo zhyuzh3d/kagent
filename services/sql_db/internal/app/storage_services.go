@@ -347,7 +347,7 @@ func (s *ScopedDatabaseService) openDB(target StorageScopeTarget) (*sql.DB, erro
 		return nil, fmt.Errorf("invalid db_name")
 	}
 	dbPath := filepath.Join(root, cleanName)
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := OpenSQLite(dbPath)
 	if err != nil {
 		return nil, err
 	}

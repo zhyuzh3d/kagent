@@ -56,16 +56,21 @@ type HubDatabaseStore struct {
 	userID    string
 	projectID string
 	threadID  string
+	baseCtx   context.Context
 }
 
-func NewHubDatabaseStore(client *HubToolClient, userID string, projectID string, threadID string) (*HubDatabaseStore, error) {
+func NewHubDatabaseStore(ctx context.Context, client *HubToolClient, userID string, projectID string, threadID string) (*HubDatabaseStore, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	s := &HubDatabaseStore{
 		client:    client,
 		userID:    strings.TrimSpace(userID),
 		projectID: strings.TrimSpace(projectID),
 		threadID:  strings.TrimSpace(threadID),
+		baseCtx:   ctx,
 	}
-	if err := s.init(context.Background()); err != nil {
+	if err := s.init(ctx); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -258,7 +263,7 @@ func (s *HubDatabaseStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if err := s.ensureProjectLocked(ctx, s.projectID, "Default Project", 0); err != nil {
 		return ChatMessage{}, err
 	}
@@ -327,7 +332,7 @@ func (s *HubDatabaseStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 func (s *HubDatabaseStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([]ChatMessage, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if anchorLimit <= 0 {
 		anchorLimit = 20
 	}
@@ -374,7 +379,7 @@ func (s *HubDatabaseStore) LoadSessionWindow(anchorLimit int, totalLimit int) ([
 func (s *HubDatabaseStore) LoadContextBeforeWithMode(beforeID int64, limit int, includeAllRoles bool) ([]ChatMessage, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if limit <= 0 {
 		limit = 10
 	}
@@ -412,7 +417,7 @@ func (s *HubDatabaseStore) LoadContextBeforeWithMode(beforeID int64, limit int, 
 
 func (s *HubDatabaseStore) ListProjectsForUser(userID string) ([]Project, error) {
 	cleanUserID := strings.TrimSpace(firstNonEmpty(userID, s.RuntimeUserID()))
-	rows, err := s.query(context.Background(), `
+	rows, err := s.query(s.baseCtx, `
 		SELECT project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
 		FROM projects
 		WHERE user_id=?
@@ -443,17 +448,17 @@ func (s *HubDatabaseStore) CreateProject(userID string, title string) (string, e
 		return "", fmt.Errorf("user_id is required")
 	}
 	now := nowMS()
-	if err := s.execute(context.Background(), `INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, cleanUserID, now); err != nil {
+	if err := s.execute(s.baseCtx, `INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, cleanUserID, now); err != nil {
 		return "", err
 	}
-	rows, err := s.query(context.Background(), `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM projects WHERE user_id=?`, cleanUserID)
+	rows, err := s.query(s.baseCtx, `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM projects WHERE user_id=?`, cleanUserID)
 	if err != nil {
 		return "", err
 	}
 	orderIndex := asIntValue(firstRow(rows), "next_order")
 	projectID := "prj-" + newRequestID()
 	timeFields := buildSemanticTimeFields(now)
-	if err := s.execute(context.Background(), `
+	if err := s.execute(s.baseCtx, `
 		INSERT INTO projects (
 			project_id, user_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -468,7 +473,7 @@ func (s *HubDatabaseStore) UpdateProject(projectID string, title string, orderIn
 	if cleanProjectID == "" {
 		return fmt.Errorf("project_id is required")
 	}
-	return s.execute(context.Background(), `
+	return s.execute(s.baseCtx, `
 		UPDATE projects SET title=?, order_index=?, last_active_at_ms=? WHERE project_id=?
 	`, firstNonEmpty(strings.TrimSpace(title), "未命名项目"), orderIndex, nowMS(), cleanProjectID)
 }
@@ -478,7 +483,7 @@ func (s *HubDatabaseStore) DeleteProject(projectID string) error {
 	if cleanProjectID == "" {
 		return fmt.Errorf("project_id is required")
 	}
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if err := s.execute(ctx, `DELETE FROM messages WHERE project_id=?`, cleanProjectID); err != nil {
 		return err
 	}
@@ -494,7 +499,7 @@ func (s *HubDatabaseStore) ListThreadsForProject(userID string, projectID string
 	if cleanProjectID == "" {
 		return nil, fmt.Errorf("project_id is required")
 	}
-	rows, err := s.query(context.Background(), `
+	rows, err := s.query(s.baseCtx, `
 		SELECT thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
 		FROM threads
 		WHERE user_id=? AND project_id=?
@@ -527,14 +532,14 @@ func (s *HubDatabaseStore) CreateThread(userID string, projectID string, title s
 		return "", fmt.Errorf("user_id and project_id are required")
 	}
 	now := nowMS()
-	rows, err := s.query(context.Background(), `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM threads WHERE user_id=? AND project_id=?`, cleanUserID, cleanProjectID)
+	rows, err := s.query(s.baseCtx, `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM threads WHERE user_id=? AND project_id=?`, cleanUserID, cleanProjectID)
 	if err != nil {
 		return "", err
 	}
 	orderIndex := asIntValue(firstRow(rows), "next_order")
 	threadID := "thd-" + newRequestID()
 	timeFields := buildSemanticTimeFields(now)
-	if err := s.execute(context.Background(), `
+	if err := s.execute(s.baseCtx, `
 		INSERT INTO threads (
 			thread_id, user_id, project_id, title, created_at_ms, last_active_at_ms, created_at_local_weekday, created_at_local_lunar, order_index
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -550,7 +555,7 @@ func (s *HubDatabaseStore) UpdateThread(threadID string, title string, orderInde
 		return fmt.Errorf("thread_id is required")
 	}
 	cleanProjectID := strings.TrimSpace(projectID)
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if cleanProjectID != "" {
 		return s.execute(ctx, `
 			UPDATE threads SET title=?, order_index=?, project_id=?, last_active_at_ms=? WHERE thread_id=?
@@ -566,7 +571,7 @@ func (s *HubDatabaseStore) DeleteThread(threadID string) error {
 	if cleanThreadID == "" {
 		return fmt.Errorf("thread_id is required")
 	}
-	ctx := context.Background()
+	ctx := s.baseCtx
 	if err := s.execute(ctx, `DELETE FROM messages WHERE thread_id=?`, cleanThreadID); err != nil {
 		return err
 	}
@@ -683,9 +688,13 @@ func asIntValue(row map[string]any, key string) int {
 }
 
 func (s *HubDatabaseStore) query(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
+	if ctx == nil {
+		ctx = s.baseCtx
+	}
 	result, err := s.client.Call(ctx, "storage.database.query", map[string]any{
-		"query": strings.TrimSpace(query),
-		"args":  args,
+		"query":        strings.TrimSpace(query),
+		"args":         args,
+		"scope_source": "origin",
 	}, 60000)
 	if err != nil {
 		return nil, err
@@ -710,9 +719,13 @@ func (s *HubDatabaseStore) query(ctx context.Context, query string, args ...any)
 }
 
 func (s *HubDatabaseStore) execute(ctx context.Context, query string, args ...any) error {
+	if ctx == nil {
+		ctx = s.baseCtx
+	}
 	_, err := s.client.Call(ctx, "storage.database.execute", map[string]any{
-		"query": strings.TrimSpace(query),
-		"args":  args,
+		"query":        strings.TrimSpace(query),
+		"args":         args,
+		"scope_source": "origin",
 	}, 60000)
 	return err
 }

@@ -31,8 +31,8 @@ log_deploy "INFO" "Building Hub binary..."
 go build -buildvcs=false -o "./kagent" ./hub/cmd/hub
 chmod +x ./kagent
 
-# Build all managed services defined in config.json
-service_entries=$(jq -r '.service.services[] | "\(.service_id):\(.dir)"' hub/config/config.json)
+# Build all managed services defined in hub lifecycle config
+service_entries=$(jq -r '.service.services[] | "\(.service_id):\(.dir)"' hub/config/services.json)
 for entry in ${service_entries}; do
   sid="${entry%%:*}"
   sdir="${entry#*:}"

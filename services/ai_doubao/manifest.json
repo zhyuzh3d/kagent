@@ -1,6 +1,6 @@
 {
-  "service_id": "ai-doubao",
-  "service_name": "Doubao AI Service",
+  "service_id": "ai_doubao",
+  "service_name": "ai_doubao",
   "version": "1.0.0",
   "visibility": "public",
   "entry": {

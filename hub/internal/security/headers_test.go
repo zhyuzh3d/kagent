@@ -13,6 +13,7 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	src.Set("X-Hub-Request-Id", "bad-req")
 	src.Set("X-Hub-Trace-Id", "bad-trace")
 	src.Set("X-Caller-User-Id", "bad-user")
+	src.Set(hubsvc.HeaderOriginCallerToken, "bad-origin")
 	src.Set(hubsvc.HeaderHubAuth, "bad-auth")
 	src.Set("X-Custom-Header", "ok")
 
@@ -25,6 +26,9 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	}
 	if got := out.Get("X-Caller-User-Id"); got != "" {
 		t.Fatalf("expected X-Caller-User-Id removed, got %q", got)
+	}
+	if got := out.Get(hubsvc.HeaderOriginCallerToken); got != "" {
+		t.Fatalf("expected %s removed, got %q", hubsvc.HeaderOriginCallerToken, got)
 	}
 	if got := out.Get(hubsvc.HeaderHubAuth); got != "" {
 		t.Fatalf("expected %s removed, got %q", hubsvc.HeaderHubAuth, got)
@@ -48,6 +52,13 @@ func TestInjectCallerHeadersOverwritesTrustedFields(t *testing.T) {
 			ServiceID: "svc-1",
 			SurfaceID: "surface-1",
 		},
+		OriginCaller: toolproto.Caller{
+			Type:      "user",
+			UserID:    "u-origin",
+			ServiceID: "svc-origin",
+			SurfaceID: "surface-origin",
+		},
+		OriginToken: "origin-token",
 	}, "untrusted")
 
 	if got := headers.Get("X-Hub-Request-Id"); got != "req-1" {
@@ -71,12 +82,18 @@ func TestInjectCallerHeadersOverwritesTrustedFields(t *testing.T) {
 	if got := headers.Get("X-Caller-Reliability"); got != "untrusted" {
 		t.Fatalf("expected caller reliability injected, got %q", got)
 	}
+	if got := headers.Get(hubsvc.HeaderOriginCallerUserID); got != "u-origin" {
+		t.Fatalf("expected origin caller user id injected, got %q", got)
+	}
+	if got := headers.Get(hubsvc.HeaderOriginCallerToken); got != "origin-token" {
+		t.Fatalf("expected origin caller token injected, got %q", got)
+	}
 }
 
 func TestInjectHubAuthHeaders(t *testing.T) {
 	headers := http.Header{}
-	InjectHubAuthHeaders(headers, "chat-server", "ins-1", "token-1")
-	if got := headers.Get(hubsvc.HeaderHubServiceID); got != "chat-server" {
+	InjectHubAuthHeaders(headers, "chat_server", "ins-1", "token-1")
+	if got := headers.Get(hubsvc.HeaderHubServiceID); got != "chat_server" {
 		t.Fatalf("expected service id injected, got %q", got)
 	}
 	if got := headers.Get(hubsvc.HeaderHubInstanceID); got != "ins-1" {

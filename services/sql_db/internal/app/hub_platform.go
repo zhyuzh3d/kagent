@@ -32,8 +32,10 @@ type ServiceToolDescriptor struct {
 	OutputSchema         map[string]any `json:"output_schema,omitempty"`
 	SideEffect           string         `json:"side_effect,omitempty"`
 	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
+	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
 	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
 	Streaming            string         `json:"streaming,omitempty"`
+	WSPath               string         `json:"ws_path,omitempty"`
 	ScopeSupport         []string       `json:"scope_support,omitempty"`
 }
 

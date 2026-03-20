@@ -1,6 +1,6 @@
 {
-  "service_id": "database",
-  "service_name": "Database Service",
+  "service_id": "sql_db",
+  "service_name": "sql_db",
   "version": "1.0.0",
   "visibility": "public",
   "entry": {

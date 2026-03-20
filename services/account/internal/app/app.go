@@ -1,0 +1,259 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
+)
+
+const (
+	serviceID      = "account"
+	serviceVersion = "1.0.0"
+)
+
+type Config struct {
+	Addr           string
+	HubRegisterURL string
+	InstanceID     string
+}
+
+type App struct {
+	Addr           string
+	ServiceID      string
+	ServiceVersion string
+	InstanceID     string
+	Bootstrap      hubsvc.BootstrapSecret
+	RegisterURL    string
+	HeartbeatEvery time.Duration
+	Shutdown       func(reason string)
+
+	server   *http.Server
+	executor *Handler
+	adapter  *HTTPHandler
+}
+
+func New(cfg Config) (*App, error) {
+	addr := strings.TrimSpace(cfg.Addr)
+	if addr == "" {
+		addr = "127.0.0.1:18083"
+	}
+	appRoot, err := detectRepoRoot()
+	if err != nil {
+		log.Printf("warn: detect app root fallback: %v", err)
+	}
+	serviceSecretPath := filepath.Join(appRoot, "services", serviceID, "run", ".service_secret")
+	bootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
+	if err != nil {
+		return nil, fmt.Errorf("load bootstrap secret failed: %w", err)
+	}
+	if strings.TrimSpace(bootstrap.ServiceID) != serviceID {
+		return nil, fmt.Errorf("bootstrap service_id mismatch: expect=%s got=%s", serviceID, strings.TrimSpace(bootstrap.ServiceID))
+	}
+	registerURL := strings.TrimSpace(bootstrap.HubRegisterURL)
+	if registerURL == "" {
+		registerURL = strings.TrimSpace(cfg.HubRegisterURL)
+	}
+	instance := strings.TrimSpace(bootstrap.InstanceID)
+	if instance == "" {
+		instance = strings.TrimSpace(cfg.InstanceID)
+	}
+	if instance == "" {
+		instance = serviceID + "-" + newID()
+	}
+	client := NewClient(registerURL, bootstrap, 8*time.Second)
+	if err := client.EnsureSchema(context.Background()); err != nil {
+		return nil, fmt.Errorf("ensure account schema failed: %w", err)
+	}
+	signingKey, err := client.GetOrCreateSigningKey(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("init signing key failed: %w", err)
+	}
+	executor := NewHandler(client, signingKey, instance, "http://"+addr)
+	app := &App{
+		Addr:           addr,
+		ServiceID:      serviceID,
+		ServiceVersion: serviceVersion,
+		InstanceID:     instance,
+		Bootstrap:      bootstrap,
+		RegisterURL:    registerURL,
+		HeartbeatEvery: 3 * time.Second,
+		executor:       executor,
+	}
+	app.adapter = NewHTTPHandler(serviceID, instance, bootstrap, executor)
+	app.Shutdown = app.shutdownNow
+	executor.SetShutdown(app.shutdownNow)
+	if registerURL != "" {
+		result, err := app.registerToHub()
+		if err != nil {
+			return nil, err
+		}
+		if result.HeartbeatIntervalSec > 0 {
+			app.HeartbeatEvery = time.Duration(result.HeartbeatIntervalSec) * time.Second
+		}
+	}
+	return app, nil
+}
+
+func (a *App) Run() error {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/service/tool/exec", a.adapter.HandleToolExec)
+	server := &http.Server{
+		Addr:              a.Addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	a.server = server
+	if a.RegisterURL != "" {
+		a.startHubHeartbeatGuard()
+	}
+	log.Printf("info: account service listening=http://%s", a.Addr)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
+}
+
+func (a *App) shutdownNow(reason string) {
+	log.Printf("warn: account service shutdown: %s", strings.TrimSpace(reason))
+	if a.server != nil {
+		_ = a.server.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+		_ = a.server.Shutdown(ctx)
+		cancel()
+	}
+	time.Sleep(80 * time.Millisecond)
+	os.Exit(0)
+}
+
+func (a *App) registerToHub() (toolproto.SupervisorRegisterResult, error) {
+	healthy := true
+	callReq := toolproto.CallRequest{
+		ToolID: "hub.governance.service.register",
+		Args: map[string]any{
+			"service_id":  a.ServiceID,
+			"instance_id": strings.TrimSpace(a.InstanceID),
+			"version":     a.ServiceVersion,
+			"transport":   "tcp",
+			"endpoint": map[string]any{
+				"tcp_url": "http://" + strings.TrimSpace(a.Addr),
+			},
+			"tools":   supervisorTools(a.ServiceVersion),
+			"healthy": &healthy,
+		},
+		Context: &toolproto.Context{
+			RequestID: "reg-" + newID(),
+			TraceID:   "tr-" + newID(),
+			Caller: toolproto.Caller{
+				Type:      "service",
+				ServiceID: a.ServiceID,
+			},
+		},
+	}
+	rawResp, statusCode, err := postHubToolCall(a.RegisterURL, a.Bootstrap, callReq, 5*time.Second)
+	if err != nil {
+		return toolproto.SupervisorRegisterResult{}, err
+	}
+	if statusCode >= 300 {
+		return toolproto.SupervisorRegisterResult{}, fmt.Errorf("status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+	}
+	registerResp, err := hubsvc.DecodeSupervisorRegisterResult(rawResp)
+	if err != nil {
+		return toolproto.SupervisorRegisterResult{}, err
+	}
+	return registerResp, nil
+}
+
+func (a *App) startHubHeartbeatGuard() {
+	if strings.TrimSpace(a.RegisterURL) == "" || a.Shutdown == nil {
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(a.HeartbeatEvery)
+		defer ticker.Stop()
+		send := func() error {
+			healthy := true
+			callReq := toolproto.CallRequest{
+				ToolID: "hub.governance.service.heartbeat",
+				Args: map[string]any{
+					"service_id":  a.ServiceID,
+					"instance_id": a.InstanceID,
+					"status":      "ready",
+					"healthy":     &healthy,
+					"pid":         os.Getpid(),
+					"endpoint":    "http://" + strings.TrimSpace(a.Addr),
+				},
+				Context: &toolproto.Context{
+					RequestID: "hb-" + newID(),
+					TraceID:   "tr-" + newID(),
+					Caller: toolproto.Caller{
+						Type:      "service",
+						ServiceID: a.ServiceID,
+					},
+				},
+			}
+			rawResp, statusCode, err := postHubToolCall(a.RegisterURL, a.Bootstrap, callReq, 2200*time.Millisecond)
+			if err != nil {
+				return err
+			}
+			if statusCode >= 300 {
+				return fmt.Errorf("heartbeat status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+			}
+			return nil
+		}
+		if err := send(); err != nil {
+			a.Shutdown("hub heartbeat failed: " + err.Error())
+			return
+		}
+		for range ticker.C {
+			if err := send(); err != nil {
+				a.Shutdown("hub heartbeat failed: " + err.Error())
+				return
+			}
+		}
+	}()
+}
+
+func postHubToolCall(hubToolCallURL string, serviceAuth hubsvc.BootstrapSecret, req toolproto.CallRequest, timeout time.Duration) ([]byte, int, error) {
+	return hubsvc.PostHubToolCall(&http.Client{Timeout: timeout}, hubToolCallURL, serviceAuth, req)
+}
+
+func supervisorTools(version string) []toolproto.ServiceTool {
+	return []toolproto.ServiceTool{
+		{ToolID: "service.lifecycle.health", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+		{ToolID: "service.lifecycle.state.get", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+		{ToolID: "service.lifecycle.shutdown", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+		{ToolID: "account.auth.register", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"anonymous", "user"}},
+		{ToolID: "account.auth.login", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"anonymous", "user"}},
+		{ToolID: "account.auth.logout", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"user"}},
+		{ToolID: "account.auth.me", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"user"}},
+		{ToolID: "account.auth.password_change", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"user"}},
+		{ToolID: "account.system.keys.get", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+		{ToolID: "account.session.dump_active", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+	}
+}
+
+func detectRepoRoot() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	dir := cwd
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return cwd, fmt.Errorf("go.mod not found")
+		}
+		dir = parent
+	}
+}

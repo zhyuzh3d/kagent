@@ -5,8 +5,8 @@ import "strings"
 func BuiltinServiceManifests() []ServiceManifest {
 	return []ServiceManifest{
 		{
-			ServiceID:   "file",
-			ServiceName: "File Service",
+			ServiceID:   "file_storage",
+			ServiceName: "file_storage",
 			Version:     "1.0.0",
 			Reliability: "trusted",
 			Visibility:  "public",
@@ -27,12 +27,15 @@ func BuiltinServiceManifests() []ServiceManifest {
 			},
 		},
 		{
-			ServiceID:   "database",
-			ServiceName: "Database Service",
+			ServiceID:   "sql_db",
+			ServiceName: "sql_db",
 			Version:     "1.0.0",
 			Reliability: "verified",
 			Visibility:  "public",
 			Provides: []ServiceToolDescriptor{
+				{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
+				{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
+				{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "storage.database.query", Category: "storage", Type: "database", Tool: "query", Description: "query rows", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.database.execute", Category: "storage", Type: "database", Tool: "execute", Description: "execute SQL", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.database.schema", Category: "storage", Type: "database", Tool: "schema", Description: "show schema", ScopeSupport: []string{"user", "surface", "service"}},
@@ -63,8 +66,8 @@ func BuiltinServiceManifests() []ServiceManifest {
 			},
 		},
 		{
-			ServiceID:   "surface-manager",
-			ServiceName: "Surface Manager",
+			ServiceID:   "surface_manager",
+			ServiceName: "surface_manager",
 			Version:     "1.0.0",
 			Reliability: "verified",
 			Visibility:  "public",
@@ -84,8 +87,8 @@ func BuiltinServiceManifests() []ServiceManifest {
 
 func ChatServerServiceManifest() ServiceManifest {
 	return ServiceManifest{
-		ServiceID:   "chat-server",
-		ServiceName: "Chat Server",
+		ServiceID:   "chat_server",
+		ServiceName: "chat_server",
 		Version:     "1.0.0",
 		Reliability: "trusted",
 		Visibility:  "public",
@@ -114,7 +117,7 @@ func ChatServerServiceManifest() ServiceManifest {
 }
 
 func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor, healthy bool) ServiceManifest {
-	serviceID := "ai-doubao"
+	serviceID := "ai_doubao"
 	serviceName := "AI Doubao"
 	version := "unknown"
 	if info != nil {

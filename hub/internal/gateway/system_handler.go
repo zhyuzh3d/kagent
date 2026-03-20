@@ -18,7 +18,6 @@ import (
 // SystemHandler handles Auth, Debug, Version, Config, Healthz, Smoke-test, and Shutdown endpoints.
 type SystemHandler struct {
 	hubPlatform      *app.HubPlatform
-	runtimeCfg       *app.RuntimeConfigManager
 	version          *app.VersionInfo
 	lifecycleManager *supervisor.LifecycleManager
 	webuiRoot        string
@@ -32,7 +31,6 @@ type SystemHandler struct {
 // NewSystemHandler creates a new SystemHandler with required dependencies.
 func NewSystemHandler(
 	hubPlatform *app.HubPlatform,
-	runtimeCfg *app.RuntimeConfigManager,
 	version *app.VersionInfo,
 	lifecycleManager *supervisor.LifecycleManager,
 	webuiRoot string,
@@ -40,7 +38,6 @@ func NewSystemHandler(
 ) *SystemHandler {
 	return &SystemHandler{
 		hubPlatform:      hubPlatform,
-		runtimeCfg:       runtimeCfg,
 		version:          version,
 		lifecycleManager: lifecycleManager,
 		webuiRoot:        webuiRoot,
@@ -56,7 +53,7 @@ func (h *SystemHandler) RegisterTools(th interface {
 		return
 	}
 	th.RegisterTool("hub.system.version.get", h.handleVersionTool)
-	th.RegisterTool("hub.system.config.get", h.handleConfigGetTool)
+	th.RegisterTool("hub.system.state.get", h.handleStateGetTool)
 	th.RegisterTool("hub.system.smoke.test", h.handleSmokeTestTool)
 	th.RegisterTool("hub.system.report_log", h.handleReportLogTool)
 	th.RegisterTool("hub.system.health", h.handleHealthTool)
@@ -95,14 +92,24 @@ func (h *SystemHandler) handleVersionTool(ctx context.Context, req toolproto.Cal
 	}, nil
 }
 
-func (h *SystemHandler) handleConfigGetTool(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error) {
-	identity := app.IdentityFromContext(ctx)
-	if identity.Type != app.IdentityUser {
-		return toolproto.CallResponse{}, fmt.Errorf("config access restricted to users")
-	}
+func (h *SystemHandler) handleStateGetTool(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error) {
+	services := h.hubPlatform.ListServices()
+	tools := h.hubPlatform.ListTools()
+	bindings := h.hubPlatform.ListBindings()
 	return toolproto.CallResponse{
-		Ok:     true,
-		Result: h.runtimeCfg.EffectiveMap(),
+		Ok: true,
+		Result: map[string]any{
+			"status":        "ready",
+			"healthy":       true,
+			"timestamp_ms":  time.Now().UnixMilli(),
+			"version":       h.version,
+			"service_count": len(services),
+			"tool_count":    len(tools),
+			"binding_count": len(bindings),
+			"services":      services,
+			"tools":         tools,
+			"bindings":      bindings,
+		},
 	}, nil
 }
 
