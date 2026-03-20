@@ -10,11 +10,14 @@ import (
 )
 
 const (
-	InstanceStatusStarting  = "starting"
-	InstanceStatusReady     = "ready"
-	InstanceStatusDraining  = "draining"
-	InstanceStatusUnhealthy = "unhealthy"
-	InstanceStatusDead      = "dead"
+	InstanceStatusStarting     = "starting"
+	InstanceStatusRegistered   = "registered"
+	InstanceStatusInitializing = "initializing"
+	InstanceStatusReady        = "ready"
+	InstanceStatusFailed       = "failed"
+	InstanceStatusDraining     = "draining"
+	InstanceStatusUnhealthy    = "unhealthy"
+	InstanceStatusDead         = "dead"
 )
 
 type Instance struct {
@@ -78,7 +81,7 @@ func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration,
 	if nextStatus != "" {
 		existing.Status = nextStatus
 	} else if reg.Healthy {
-		existing.Status = InstanceStatusReady
+		existing.Status = InstanceStatusRegistered
 	} else {
 		existing.Status = InstanceStatusUnhealthy
 	}
@@ -86,6 +89,22 @@ func (r *Registry) UpsertFromServiceRegistration(reg app.HubServiceRegistration,
 	existing.LastHeartbeatAtMS = now
 	r.instances[key] = existing
 	return existing
+}
+
+func (r *Registry) MarkRegistered(serviceID string, instanceID string) {
+	r.markStatus(serviceID, instanceID, InstanceStatusRegistered)
+}
+
+func (r *Registry) MarkInitializing(serviceID string, instanceID string) {
+	r.markStatus(serviceID, instanceID, InstanceStatusInitializing)
+}
+
+func (r *Registry) MarkReady(serviceID string, instanceID string) {
+	r.markStatus(serviceID, instanceID, InstanceStatusReady)
+}
+
+func (r *Registry) MarkFailed(serviceID string, instanceID string) {
+	r.markStatus(serviceID, instanceID, InstanceStatusFailed)
 }
 
 func (r *Registry) Heartbeat(serviceID string, instanceID string, status string, healthy *bool) (Instance, bool) {
@@ -113,7 +132,9 @@ func (r *Registry) Heartbeat(serviceID string, instanceID string, status string,
 		existing.Healthy = *healthy
 	}
 	if !existing.Healthy {
-		existing.Status = InstanceStatusUnhealthy
+		if nextStatus == "" || nextStatus == InstanceStatusRegistered || nextStatus == InstanceStatusInitializing || nextStatus == InstanceStatusReady {
+			existing.Status = InstanceStatusUnhealthy
+		}
 	} else if nextStatus == "" && existing.Status == "" {
 		existing.Status = InstanceStatusReady
 	}
@@ -191,6 +212,31 @@ func (r *Registry) MarkDead(serviceID string, instanceID string) {
 		return
 	}
 	instance.Status = InstanceStatusDead
+	r.instances[key] = instance
+}
+
+func (r *Registry) markStatus(serviceID string, instanceID string, status string) {
+	if r == nil {
+		return
+	}
+	key := makeKey(serviceID, instanceID)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	instance, ok := r.instances[key]
+	if !ok {
+		return
+	}
+	if normalized := normalizeStatus(status); normalized != "" {
+		instance.Status = normalized
+	}
+	if instance.Status == InstanceStatusReady {
+		instance.Healthy = true
+		instance.LastSuccessAtMS = time.Now().UnixMilli()
+	}
+	if instance.Status == InstanceStatusFailed {
+		instance.Healthy = false
+		instance.LastFailureAtMS = time.Now().UnixMilli()
+	}
 	r.instances[key] = instance
 }
 
@@ -280,8 +326,14 @@ func normalizeStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case InstanceStatusStarting:
 		return InstanceStatusStarting
+	case InstanceStatusRegistered:
+		return InstanceStatusRegistered
+	case InstanceStatusInitializing:
+		return InstanceStatusInitializing
 	case InstanceStatusReady, "active":
 		return InstanceStatusReady
+	case InstanceStatusFailed:
+		return InstanceStatusFailed
 	case InstanceStatusDraining:
 		return InstanceStatusDraining
 	case InstanceStatusUnhealthy:
@@ -297,16 +349,22 @@ func statusRank(status string) int {
 	switch normalizeStatus(status) {
 	case InstanceStatusReady:
 		return 0
-	case InstanceStatusStarting:
+	case InstanceStatusInitializing:
 		return 1
-	case InstanceStatusDraining:
+	case InstanceStatusRegistered:
 		return 2
-	case InstanceStatusUnhealthy:
+	case InstanceStatusStarting:
 		return 3
-	case InstanceStatusDead:
+	case InstanceStatusDraining:
 		return 4
-	default:
+	case InstanceStatusFailed:
 		return 5
+	case InstanceStatusUnhealthy:
+		return 6
+	case InstanceStatusDead:
+		return 7
+	default:
+		return 8
 	}
 }
 

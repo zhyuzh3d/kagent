@@ -6,7 +6,7 @@
       "grace_period_ms": 1000
     },
     "lifecycle_default": {
-      "register_timeout_ms": 1000,
+      "register_timeout_ms": 5000,
       "restart_policy": "never",
       "restart_backoff_ms": 300
     },
@@ -25,7 +25,8 @@
       },
       {
         "service_id": "account",
-        "dir": "services/account"
+        "dir": "services/account",
+        "depends_on": ["sql_db"]
       },
       {
         "service_id": "file_storage",
@@ -33,7 +34,12 @@
       },
       {
         "service_id": "surface_manager",
-        "dir": "services/surface_manager"
+        "dir": "services/surface_manager",
+        "depends_on": ["sql_db"]
+      },
+      {
+        "service_id": "autogui",
+        "dir": "services/autogui"
       }
     ]
   }

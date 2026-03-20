@@ -36,9 +36,45 @@ func BuiltinServiceManifests() []ServiceManifest {
 				{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
-				{ToolID: "storage.database.query", Category: "storage", Type: "database", Tool: "query", Description: "query rows", ScopeSupport: []string{"user", "surface", "service"}},
-				{ToolID: "storage.database.execute", Category: "storage", Type: "database", Tool: "execute", Description: "execute SQL", ScopeSupport: []string{"user", "surface", "service"}},
-				{ToolID: "storage.database.schema", Category: "storage", Type: "database", Tool: "schema", Description: "show schema", ScopeSupport: []string{"user", "surface", "service"}},
+				{
+					ToolID: "storage.database.query", Category: "storage", Type: "database", Tool: "query", Description: "执行 SQL 查询并返回行数据 (SELECT)", ScopeSupport: []string{"user", "surface", "service"},
+					InputSchema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"db_name": map[string]any{"type": "string", "description": "数据库名称 (如: data.db)"},
+							"query":   map[string]any{"type": "string", "description": "SELECT 语句"},
+							"args":    map[string]any{"type": "array", "description": "参数化查询变量"},
+						},
+						"required": []string{"db_name", "query"},
+					},
+					OutputSchema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"rows":  map[string]any{"type": "array", "description": "结果集行列表"},
+							"count": map[string]any{"type": "integer", "description": "条数"},
+						},
+					},
+				},
+				{
+					ToolID: "storage.database.execute", Category: "storage", Type: "database", Tool: "execute", Description: "执行 SQL 变更语句 (INSERT/UPDATE/DELETE)", ScopeSupport: []string{"user", "surface", "service"},
+					InputSchema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"db_name": map[string]any{"type": "string"},
+							"query":   map[string]any{"type": "string"},
+							"args":    map[string]any{"type": "array"},
+						},
+						"required": []string{"db_name", "query"},
+					},
+					OutputSchema: map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"rows_affected":  map[string]any{"type": "integer"},
+							"last_insert_id": map[string]any{"type": "integer"},
+						},
+					},
+				},
+				{ToolID: "storage.database.schema", Category: "storage", Type: "database", Tool: "schema", Description: "获取数据库表结构定义", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.share.read", Category: "storage", Type: "share", Tool: "read", Description: "read shared records", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.share.write", Category: "storage", Type: "share", Tool: "write", Description: "write shared records", ScopeSupport: []string{"service"}},
 			},

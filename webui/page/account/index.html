@@ -45,6 +45,10 @@
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
     }
 
+    .auth-card.logged-in {
+      width: min(92vw, 460px);
+    }
+
     .auth-card h1 {
       font-size: 22px;
       font-weight: 700;
@@ -143,11 +147,70 @@
     .confirm-group.visible {
       display: block;
     }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .account-view {
+      display: none;
+    }
+
+    .account-view.visible {
+      display: block;
+    }
+
+    .account-info {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .info-item {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+    }
+
+    .info-label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      display: block;
+      font-size: 15px;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-row .submit-btn {
+      width: auto;
+      flex: 1;
+    }
+
+    .secondary-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
   </style>
 </head>
 
 <body>
-  <div class="auth-card">
+  <div id="authCard" class="auth-card">
     <h1 id="title">登录</h1>
     <div class="subtitle">kagent 实时对话系统</div>
 
@@ -172,25 +235,51 @@
       <span id="switchHint">还没有账号？</span>
       <a id="switchLink" href="javascript:void(0)">注册</a>
     </div>
+
+    <div id="accountView" class="account-view">
+      <div class="account-info">
+        <div class="info-item">
+          <span class="info-label">用户名</span>
+          <span id="profileUsername" class="info-value">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">用户 ID</span>
+          <span id="profileUserId" class="info-value">-</span>
+        </div>
+      </div>
+      <div id="profileError" class="error-text"></div>
+      <div class="action-row">
+        <button id="goChatBtn" type="button" class="submit-btn secondary-btn">进入聊天</button>
+        <button id="logoutBtn" type="button" class="submit-btn">退出登录</button>
+      </div>
+    </div>
   </div>
 
   <script>
     let isRegister = false;
 
+    const authCard = document.getElementById('authCard');
     const titleEl = document.getElementById('title');
     const confirmGroup = document.getElementById('confirmGroup');
     const confirmInput = document.getElementById('confirmPassword');
     const submitBtn = document.getElementById('submitBtn');
     const switchHint = document.getElementById('switchHint');
     const switchLink = document.getElementById('switchLink');
+    const switchMode = document.querySelector('.switch-mode');
     const errorText = document.getElementById('errorText');
     const authForm = document.getElementById('authForm');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
+    const accountView = document.getElementById('accountView');
+    const profileUsername = document.getElementById('profileUsername');
+    const profileUserId = document.getElementById('profileUserId');
+    const profileError = document.getElementById('profileError');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const goChatBtn = document.getElementById('goChatBtn');
 
-    // Get redirect target from URL params
+    // Only redirect when caller explicitly passes a redirect target.
     const urlParams = new URLSearchParams(window.location.search);
-    const redirectUrl = urlParams.get('redirect') || '/page/chat/';
+    const redirectUrl = urlParams.get('redirect');
 
     async function callAccountTool(toolID, args = {}) {
       const resp = await fetch('/api/tool/call', {
@@ -208,16 +297,27 @@
       return { resp, data };
     }
 
-    // Check if already logged in
-    (async function checkAuth() {
-      try {
-        const { resp, data } = await callAccountTool('account.auth.me', {});
-        if (resp.ok && data && data.ok === true) {
-          window.location.href = redirectUrl;
-          return;
-        }
-      } catch (_) { }
-    })();
+    function setLoggedInView(user) {
+      authCard.classList.add('logged-in');
+      authForm.classList.add('hidden');
+      switchMode.classList.add('hidden');
+      accountView.classList.add('visible');
+      titleEl.textContent = '账户信息';
+      profileUsername.textContent = user && user.username ? user.username : '-';
+      profileUserId.textContent = user && user.user_id ? user.user_id : '-';
+      profileError.textContent = '';
+    }
+
+    function setLoggedOutView() {
+      authCard.classList.remove('logged-in');
+      authForm.classList.remove('hidden');
+      switchMode.classList.remove('hidden');
+      accountView.classList.remove('visible');
+      profileUsername.textContent = '-';
+      profileUserId.textContent = '-';
+      profileError.textContent = '';
+      setMode(false);
+    }
 
     function setMode(register) {
       isRegister = register;
@@ -232,6 +332,29 @@
 
     switchLink.addEventListener('click', () => {
       setMode(!isRegister);
+    });
+
+    goChatBtn.addEventListener('click', () => {
+      window.location.href = redirectUrl || '/page/chat/';
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      profileError.textContent = '';
+      logoutBtn.disabled = true;
+      try {
+        const { resp, data } = await callAccountTool('account.auth.logout', {});
+        if (!resp.ok || !data || data.ok !== true) {
+          profileError.textContent = data && data.error && data.error.message
+            ? data.error.message
+            : '退出失败，请重试';
+          return;
+        }
+        setLoggedOutView();
+      } catch (_) {
+        profileError.textContent = '退出失败，请重试';
+      } finally {
+        logoutBtn.disabled = false;
+      }
     });
 
     authForm.addEventListener('submit', async (e) => {
@@ -262,7 +385,14 @@
         const toolID = isRegister ? 'account.auth.register' : 'account.auth.login';
         const { resp, data } = await callAccountTool(toolID, { username, password });
         if (resp.ok && data && data.ok === true) {
-          window.location.href = redirectUrl;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
+          }
+          passwordInput.value = '';
+          confirmInput.value = '';
+          usernameInput.value = '';
+          setLoggedInView(data.result || { username, user_id: '' });
         } else {
           const message = data && data.error && data.error.message
             ? data.error.message
@@ -275,6 +405,17 @@
         submitBtn.disabled = false;
       }
     });
+
+    (async function checkAuth() {
+      try {
+        const { resp, data } = await callAccountTool('account.auth.me', {});
+        if (resp.ok && data && data.ok === true && data.result) {
+          setLoggedInView(data.result);
+          return;
+        }
+      } catch (_) { }
+      setLoggedOutView();
+    })();
   </script>
 </body>
 

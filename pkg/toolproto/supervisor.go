@@ -67,6 +67,7 @@ type AccountActiveSessionsResult struct {
 type SupervisorRegisterRequest struct {
 	ServiceID  string        `json:"service_id"`
 	InstanceID string        `json:"instance_id"`
+	PID        int           `json:"pid,omitempty"`
 	Version    string        `json:"version,omitempty"`
 	Transport  string        `json:"transport,omitempty"`
 	Endpoint   Endpoint      `json:"endpoint"`

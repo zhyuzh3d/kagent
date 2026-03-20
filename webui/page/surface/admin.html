@@ -1,204 +1,188 @@
 <!doctype html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Surface Admin</title>
   <style>
     :root {
-      --bg: #f2f5ef;
-      --card: #ffffff;
-      --line: #d7dfd1;
-      --text: #1f2b1d;
-      --muted: #5f6f5b;
-      --ok: #2a8f45;
-      --warn: #af7b00;
-      --err: #b73622;
+      --bg: #f4f1e8;
+      --card: #fffef9;
+      --line: #d7d2c1;
+      --text: #1f2420;
+      --muted: #68706b;
       --accent: #115e59;
+      --accent2: #1d4ed8;
+      --warn: #b45309;
+      --err: #b91c1c;
+      --ok: #15803d;
     }
-
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
-      background:
-        radial-gradient(circle at 12% 10%, rgba(17, 94, 89, 0.1), transparent 35%),
-        radial-gradient(circle at 80% 10%, rgba(245, 158, 11, 0.12), transparent 38%),
-        var(--bg);
       color: var(--text);
+      background:
+        radial-gradient(circle at 14% 8%, rgba(17,94,89,.1), transparent 32%),
+        radial-gradient(circle at 84% 12%, rgba(29,78,216,.08), transparent 34%),
+        var(--bg);
     }
-
     .topbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.9);
       position: sticky;
       top: 0;
-      backdrop-filter: blur(6px);
       z-index: 10;
-    }
-
-    .topbar h1 { margin: 0; font-size: 16px; flex: 1; }
-    .badge {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(360px, 1.1fr) minmax(300px, 0.9fr);
-      gap: 12px;
-      padding: 12px;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .card h2 {
-      margin: 0;
-      font-size: 13px;
-      color: var(--accent);
-      padding: 10px 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 14px 18px;
+      background: rgba(255,254,249,.92);
+      backdrop-filter: blur(8px);
       border-bottom: 1px solid var(--line);
     }
-
-    .body { padding: 10px 12px; }
-    .stack { display: grid; gap: 10px; }
-    .mono { font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace; font-size: 12px; }
-
+    .topbar h1 { margin: 0; font-size: 18px; flex: 1; }
+    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
     button {
-      border: 1px solid #9ab3a0;
-      border-radius: 8px;
-      background: #eff4ec;
-      color: #1f2b1d;
-      padding: 6px 10px;
+      border: 1px solid #9ca8a1;
+      background: #f7faf7;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 12px;
       cursor: pointer;
       font-size: 12px;
     }
-    button:hover { border-color: #587865; }
-    button.primary { background: #0f766e; color: #fff; border-color: #0f766e; }
-    button.warn { background: #b45309; color: #fff; border-color: #b45309; }
-
-    .surface-list {
-      max-height: 420px;
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.secondary { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+    button.warn { background: var(--warn); color: #fff; border-color: var(--warn); }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.95fr) minmax(520px, 1.35fr) minmax(320px, 0.95fr);
+      gap: 12px;
+      padding: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card h2 { margin: 0; padding: 11px 13px; font-size: 13px; color: var(--accent); border-bottom: 1px solid var(--line); }
+    .body { padding: 12px; display: grid; gap: 10px; }
+    .mono { font-family: "JetBrains Mono", monospace; font-size: 12px; }
+    .list {
+      max-height: 740px;
       overflow: auto;
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-radius: 12px;
+      background: #fff;
     }
-    .surface-item {
+    .item {
       padding: 10px;
       border-bottom: 1px solid var(--line);
       display: grid;
       gap: 6px;
       cursor: pointer;
+    }
+    .item.active { background: #eef8f5; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .ok { color: var(--ok); }
+    .warn-text { color: var(--warn); }
+    .err { color: var(--err); }
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      font: inherit;
       background: #fff;
+      color: var(--text);
     }
-    .surface-item.active { background: #edf8f4; }
-    .surface-item:last-child { border-bottom: 0; }
-    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .row .muted { color: var(--muted); font-size: 12px; }
-
-    .status-ok { color: var(--ok); }
-    .status-warn { color: var(--warn); }
-    .status-err { color: var(--err); }
-
-    .kv {
-      display: grid;
-      grid-template-columns: 120px 1fr;
-      gap: 6px 10px;
-      font-size: 12px;
-      align-items: start;
-    }
-    .kv label { color: var(--muted); }
+    textarea { min-height: 220px; resize: vertical; }
     pre {
       margin: 0;
-      max-height: 260px;
-      overflow: auto;
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 10px;
       background: #fbfcfa;
       white-space: pre-wrap;
       word-break: break-word;
+      max-height: 300px;
+      overflow: auto;
     }
-
-    @media (max-width: 980px) {
-      .layout { grid-template-columns: 1fr; }
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px 10px;
+      font-size: 12px;
+      align-items: start;
     }
+    .kv label { color: var(--muted); }
+    @media (max-width: 1200px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
-
 <body>
   <div class="topbar">
     <h1>Surface Admin Console</h1>
     <button id="refreshBtn" class="primary">Refresh</button>
     <button id="rescanBtn" class="warn">Rescan</button>
     <button id="rebindBtn">Rebind</button>
-    <span id="globalStatus" class="badge">idle</span>
+    <span id="statusBadge" class="badge">idle</span>
   </div>
 
   <div class="layout">
     <section class="card">
-      <h2>Registry</h2>
-      <div class="body stack">
-        <div id="surfaceList" class="surface-list"></div>
-        <div id="warnings" class="mono"></div>
+      <h2>Catalog</h2>
+      <div class="body">
+        <div class="list" id="surfaceList"></div>
       </div>
     </section>
 
-    <div class="stack">
-      <section class="card">
-        <h2>Permissions</h2>
-        <div class="body stack">
-          <div class="row">
-            <button id="issueSessionBtn">Issue Session</button>
-            <button id="issueCapabilityBtn">Issue Capability</button>
-          </div>
-          <div class="kv">
-            <label>Surface</label><div id="permSurface" class="mono">-</div>
-            <label>Session Token</label><div id="sessionToken" class="mono">-</div>
-            <label>Capability Token</label><div id="capabilityToken" class="mono">-</div>
-          </div>
+    <section class="card">
+      <h2>Package Editor</h2>
+      <div class="body">
+        <div class="row">
+          <button id="toggleEnableBtn">Enable / Disable</button>
+          <button id="openBtn" class="secondary">Open</button>
+          <button id="issueSessionBtn">Issue Session</button>
+          <button id="issueCapBtn">Issue Capability</button>
         </div>
-      </section>
-
-      <section class="card">
-        <h2>Runtime</h2>
-        <div class="body stack">
-          <div class="row">
-            <button id="runtimeBtn">Load Runtime</button>
-            <button id="logsBtn">Load Logs</button>
-          </div>
-          <pre id="runtimePanel" class="mono">(empty)</pre>
+        <div class="kv">
+          <label>Surface</label><div id="surfaceTitle" class="mono">-</div>
+          <label>Entry</label><div id="surfaceEntry" class="mono">-</div>
+          <label>Session</label><div id="sessionToken" class="mono">-</div>
+          <label>Capability</label><div id="capToken" class="mono">-</div>
         </div>
-      </section>
-
-      <section class="card">
-        <h2>Storage</h2>
-        <div class="body stack">
-          <div class="kv">
-            <label>Scope</label><div class="mono">surface</div>
-            <label>Path</label><div id="storagePath" class="mono">data/user/&lt;uid&gt;/surface/&lt;surface_id&gt;/</div>
-            <label>Tips</label><div class="mono">Use capability token via /api/tool/call (ui.surface.* / storage.*)</div>
-          </div>
+        <div class="row">
+          <select id="fileSelect"></select>
+          <button id="loadFileBtn">Load File</button>
+          <button id="saveFileBtn" class="primary">Save File</button>
         </div>
-      </section>
+        <textarea id="fileEditor" class="mono"></textarea>
+      </div>
+    </section>
 
+    <div style="display:grid;gap:12px;">
       <section class="card">
-        <h2>Debug</h2>
+        <h2>Generate Surface</h2>
         <div class="body">
-          <pre id="debugPanel" class="mono">(empty)</pre>
+          <input id="generateName" placeholder="surface_name，例如 note_pad" />
+          <textarea id="generatePrompt" class="mono" style="min-height:140px;">创建一个可在 page/surface/index.html 里装载的轻量文本记录 surface，保留 state_change 与 action_result 回报。</textarea>
+          <div class="row">
+            <button id="generateBtn" class="primary">Generate</button>
+            <button id="generateOpenBtn">Generate + Open</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Runtime / Logs</h2>
+        <div class="body">
+          <div class="row">
+            <button id="runtimeBtn">Runtime</button>
+            <button id="logsBtn">Logs</button>
+            <button id="pkgListBtn">Package Files</button>
+          </div>
+          <pre id="infoPanel" class="mono">(empty)</pre>
         </div>
       </section>
     </div>
@@ -206,34 +190,38 @@
 
   <script>
     const els = {
-      globalStatus: document.getElementById("globalStatus"),
       refreshBtn: document.getElementById("refreshBtn"),
       rescanBtn: document.getElementById("rescanBtn"),
       rebindBtn: document.getElementById("rebindBtn"),
+      statusBadge: document.getElementById("statusBadge"),
       surfaceList: document.getElementById("surfaceList"),
-      warnings: document.getElementById("warnings"),
-      permSurface: document.getElementById("permSurface"),
+      surfaceTitle: document.getElementById("surfaceTitle"),
+      surfaceEntry: document.getElementById("surfaceEntry"),
       sessionToken: document.getElementById("sessionToken"),
-      capabilityToken: document.getElementById("capabilityToken"),
+      capToken: document.getElementById("capToken"),
+      toggleEnableBtn: document.getElementById("toggleEnableBtn"),
+      openBtn: document.getElementById("openBtn"),
       issueSessionBtn: document.getElementById("issueSessionBtn"),
-      issueCapabilityBtn: document.getElementById("issueCapabilityBtn"),
+      issueCapBtn: document.getElementById("issueCapBtn"),
+      fileSelect: document.getElementById("fileSelect"),
+      loadFileBtn: document.getElementById("loadFileBtn"),
+      saveFileBtn: document.getElementById("saveFileBtn"),
+      fileEditor: document.getElementById("fileEditor"),
+      generateName: document.getElementById("generateName"),
+      generatePrompt: document.getElementById("generatePrompt"),
+      generateBtn: document.getElementById("generateBtn"),
+      generateOpenBtn: document.getElementById("generateOpenBtn"),
       runtimeBtn: document.getElementById("runtimeBtn"),
       logsBtn: document.getElementById("logsBtn"),
-      runtimePanel: document.getElementById("runtimePanel"),
-      storagePath: document.getElementById("storagePath"),
-      debugPanel: document.getElementById("debugPanel"),
+      pkgListBtn: document.getElementById("pkgListBtn"),
+      infoPanel: document.getElementById("infoPanel"),
     };
 
-    const state = {
-      surfaces: [],
-      selected: null,
-      sessionToken: "",
-      capabilityToken: "",
-    };
+    const state = { items: [], selectedID: "", sessionToken: "", capabilityToken: "" };
 
-    function setStatus(text, type = "") {
-      els.globalStatus.textContent = text;
-      els.globalStatus.className = "badge " + (type ? `status-${type}` : "");
+    function setStatus(text, cls = "") {
+      els.statusBadge.textContent = text;
+      els.statusBadge.className = "badge " + cls;
     }
 
     async function callTool(toolID, args = {}) {
@@ -246,150 +234,173 @@
       let data = null;
       try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
       if (!resp.ok || !data || data.ok !== true) {
-        const msg = (data && data.error && data.error.message) || (data && data.error) || raw || `http ${resp.status}`;
+        const msg = (data && data.error && data.error.message) || raw || `http ${resp.status}`;
         throw new Error(msg);
       }
       return data.result || {};
     }
 
+    function pretty(v) { return JSON.stringify(v, null, 2); }
+    function selected() { return state.items.find((item) => item.surface_id === state.selectedID) || null; }
+    function encodeBase64(text) { return btoa(unescape(encodeURIComponent(text))); }
+    function decodeBase64(text) { return decodeURIComponent(escape(atob(text || ""))); }
+
     function renderList() {
-      if (!Array.isArray(state.surfaces) || state.surfaces.length === 0) {
-        els.surfaceList.innerHTML = '<div class="surface-item"><div class="muted">no surfaces</div></div>';
+      if (!state.items.length) {
+        els.surfaceList.innerHTML = '<div class="item"><div class="muted">no surfaces</div></div>';
         return;
       }
-      els.surfaceList.innerHTML = state.surfaces.map((it) => {
-        const statusCls = it.status === "ok" ? "status-ok" : (it.status === "missing" || it.status === "invalid" ? "status-err" : "status-warn");
-        const active = state.selected && state.selected.surface_id === it.surface_id ? "active" : "";
+      els.surfaceList.innerHTML = state.items.map((item) => {
+        const active = item.surface_id === state.selectedID ? "active" : "";
+        const statusCls = item.status === "ok" ? "ok" : (item.status === "invalid" || item.status === "missing_entry" ? "err" : "warn-text");
         return `
-          <div class="surface-item ${active}" data-id="${it.surface_id}">
+          <div class="item ${active}" data-id="${item.surface_id}">
+            <div class="row"><strong>${item.name || item.surface_id}</strong><span class="mono muted">${item.surface_id}</span></div>
             <div class="row">
-              <strong>${it.name || it.surface_id}</strong>
-              <span class="mono muted">${it.surface_id}</span>
+              <span class="${statusCls}">${item.status}</span>
+              <span class="muted">enabled=${item.enabled}</span>
+              <span class="muted">${item.surface_type}</span>
+              <span class="muted">${item.entry_url || "-"}</span>
             </div>
-            <div class="row">
-              <span class="${statusCls}">${it.status}</span>
-              <span class="muted">enabled=${it.enabled}</span>
-              <span class="muted">available=${it.available}</span>
-              <button type="button" data-enable="${it.surface_id}" data-next="${it.enabled ? "0" : "1"}">${it.enabled ? "Disable" : "Enable"}</button>
-            </div>
-            <div class="row"><span class="muted">${it.desc || ""}</span></div>
           </div>
         `;
       }).join("");
-      for (const el of els.surfaceList.querySelectorAll(".surface-item[data-id]")) {
-        el.addEventListener("click", () => selectSurface(el.dataset.id));
-      }
-      for (const btn of els.surfaceList.querySelectorAll("button[data-enable]")) {
-        btn.addEventListener("click", async (evt) => {
-          evt.stopPropagation();
-          const sid = btn.dataset.enable;
-          const enabled = btn.dataset.next === "1";
-          try {
-            await callTool("ui.surface.enable_set", { surface_id: sid, enabled });
-            await loadSurfaces();
-          } catch (err) {
-            setStatus(err.message || String(err), "err");
-          }
-        });
+      for (const itemEl of els.surfaceList.querySelectorAll(".item[data-id]")) {
+        itemEl.addEventListener("click", () => selectSurface(itemEl.dataset.id));
       }
     }
 
-    async function loadSurfaces() {
-      setStatus("loading...");
+    async function refreshList() {
+      setStatus("loading");
       const result = await callTool("ui.surface.catalog_list", {});
-      state.surfaces = (result && result.items) || [];
-      if (state.selected) {
-        state.selected = state.surfaces.find((x) => x.surface_id === state.selected.surface_id) || null;
-      }
+      state.items = Array.isArray(result.items) ? result.items : [];
+      if (!state.selectedID && state.items[0]) state.selectedID = state.items[0].surface_id;
       renderList();
-      renderWarnings();
-      setStatus(`surfaces=${state.surfaces.length}`, "ok");
+      if (state.selectedID) await selectSurface(state.selectedID);
+      setStatus("ready");
     }
 
-    function renderWarnings() {
-      const warns = [];
-      for (const it of state.surfaces) {
-        if (it.status && it.status !== "ok") {
-          warns.push(`[${it.surface_id}] status=${it.status} ${it.error || ""}`);
-        }
-      }
-      els.warnings.textContent = warns.length ? warns.join("\n") : "no warnings";
-    }
-
-    function selectSurface(surfaceID) {
-      state.selected = state.surfaces.find((x) => x.surface_id === surfaceID) || null;
+    async function selectSurface(surfaceID) {
+      state.selectedID = surfaceID;
       state.sessionToken = "";
       state.capabilityToken = "";
       renderList();
-      syncPermissionPanel();
+      const item = selected();
+      if (!item) return;
+      els.surfaceTitle.textContent = `${item.name || item.surface_id} / ${item.surface_type}`;
+      els.surfaceEntry.textContent = item.entry_url || "-";
+      els.sessionToken.textContent = "-";
+      els.capToken.textContent = "-";
+      els.fileEditor.value = "";
+      await listPackageFiles();
     }
 
-    function syncPermissionPanel() {
-      const sid = state.selected ? state.selected.surface_id : "-";
-      els.permSurface.textContent = sid;
+    async function listPackageFiles() {
+      const item = selected();
+      if (!item) return;
+      const result = await callTool("ui.surface.package_list", { surface_id: item.surface_id });
+      const items = Array.isArray(result.items) ? result.items.filter((it) => !it.is_dir) : [];
+      els.fileSelect.innerHTML = items.map((it) => `<option value="${it.path}">${it.path}</option>`).join("");
+      els.infoPanel.textContent = pretty(result);
+    }
+
+    async function loadFile() {
+      const item = selected();
+      if (!item) return;
+      const path = els.fileSelect.value;
+      const result = await callTool("ui.surface.package_read", { surface_id: item.surface_id, path });
+      els.fileEditor.value = decodeBase64(result.data_base64 || "");
+      els.infoPanel.textContent = pretty(result);
+    }
+
+    async function saveFile() {
+      const item = selected();
+      if (!item) return;
+      const path = els.fileSelect.value;
+      const result = await callTool("ui.surface.package_write", {
+        surface_id: item.surface_id,
+        path,
+        data_base64: encodeBase64(els.fileEditor.value || ""),
+      });
+      els.infoPanel.textContent = pretty(result);
+      await refreshList();
+      await selectSurface(item.surface_id);
+      setStatus("saved", "ok");
+    }
+
+    async function toggleEnable() {
+      const item = selected();
+      if (!item) return;
+      await callTool("ui.surface.enable_set", { surface_id: item.surface_id, enabled: !item.enabled });
+      await refreshList();
+      await selectSurface(item.surface_id);
+    }
+
+    async function issueSession() {
+      const item = selected();
+      if (!item) return;
+      const result = await callTool("ui.surface.session_issue", { surface_id: item.surface_id });
+      state.sessionToken = result.surface_session_token || "";
       els.sessionToken.textContent = state.sessionToken || "-";
-      els.capabilityToken.textContent = state.capabilityToken || "-";
-      if (state.selected) {
-        els.storagePath.textContent = `data/user/<user_id>/surface/${state.selected.surface_id}/`;
-      }
+      els.infoPanel.textContent = pretty(result);
     }
 
-    async function issueSessionToken() {
-      if (!state.selected) return setStatus("请选择 surface", "warn");
-      const sid = state.selected.surface_id;
-      const result = await callTool("ui.surface.session_issue", { surface_id: sid });
-      state.sessionToken = (result && result.surface_session_token) || "";
-      state.capabilityToken = "";
-      syncPermissionPanel();
-      setStatus("session token issued", "ok");
-    }
-
-    async function issueCapabilityToken() {
-      if (!state.selected) return setStatus("请选择 surface", "warn");
-      if (!state.sessionToken) return setStatus("请先签发 session token", "warn");
+    async function issueCapability() {
+      const item = selected();
+      if (!item) return;
+      if (!state.sessionToken) await issueSession();
       const result = await callTool("ui.surface.capability_issue", {
         surface_session_token: state.sessionToken,
-        scope: "fs.*",
+        scope: "fs.write",
         path_prefix: ".",
-        ttl_seconds: 300,
       });
-      state.capabilityToken = (result && result.capability_token) || "";
-      syncPermissionPanel();
-      setStatus("capability token issued", "ok");
+      state.capabilityToken = result.capability_token || "";
+      els.capToken.textContent = state.capabilityToken || "-";
+      els.infoPanel.textContent = pretty(result);
+    }
+
+    async function generate(openAfter) {
+      const result = await callTool("ui.surface.generate", {
+        surface_name: (els.generateName.value || "").trim(),
+        prompt: els.generatePrompt.value || "",
+      });
+      state.selectedID = result.surface_id || state.selectedID;
+      await refreshList();
+      if (state.selectedID) await selectSurface(state.selectedID);
+      if (openAfter && state.selectedID) window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
+      setStatus("generated", "ok");
     }
 
     async function loadRuntime() {
-      if (!state.selected) return setStatus("请选择 surface", "warn");
-      const sid = state.selected.surface_id;
-      const result = await callTool("ui.surface.runtime_status", { surface_id: sid });
-      els.runtimePanel.textContent = JSON.stringify(result, null, 2);
-      setStatus("runtime loaded", "ok");
+      const item = selected();
+      if (!item) return;
+      const result = await callTool("ui.surface.runtime_status", { surface_id: item.surface_id });
+      els.infoPanel.textContent = pretty(result);
     }
 
     async function loadLogs() {
-      if (!state.selected) return setStatus("请选择 surface", "warn");
-      const sid = state.selected.surface_id;
-      const result = await callTool("ui.surface.logs_query", { surface_id: sid, limit: 80 });
-      els.runtimePanel.textContent = JSON.stringify(result, null, 2);
-      setStatus("logs loaded", "ok");
+      const item = selected();
+      if (!item) return;
+      const result = await callTool("ui.surface.logs_query", { surface_id: item.surface_id, limit: 80 });
+      els.infoPanel.textContent = pretty(result);
     }
 
-    async function callAdminAction(toolID) {
-      const result = await callTool(toolID, {});
-      els.debugPanel.textContent = JSON.stringify(result, null, 2);
-      await loadSurfaces();
-    }
-
-    els.refreshBtn.addEventListener("click", () => loadSurfaces().catch((err) => setStatus(err.message, "err")));
-    els.rescanBtn.addEventListener("click", () => callAdminAction("ui.surface.rescan").catch((err) => setStatus(err.message, "err")));
-    els.rebindBtn.addEventListener("click", () => callAdminAction("ui.surface.rebind").catch((err) => setStatus(err.message, "err")));
-    els.issueSessionBtn.addEventListener("click", () => issueSessionToken().catch((err) => setStatus(err.message, "err")));
-    els.issueCapabilityBtn.addEventListener("click", () => issueCapabilityToken().catch((err) => setStatus(err.message, "err")));
+    els.refreshBtn.addEventListener("click", () => refreshList().catch((err) => setStatus(err.message, "err")));
+    els.rescanBtn.addEventListener("click", () => callTool("ui.surface.rescan", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
+    els.rebindBtn.addEventListener("click", () => callTool("ui.surface.rebind", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
+    els.toggleEnableBtn.addEventListener("click", () => toggleEnable().catch((err) => setStatus(err.message, "err")));
+    els.openBtn.addEventListener("click", () => { if (state.selectedID) window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank"); });
+    els.issueSessionBtn.addEventListener("click", () => issueSession().catch((err) => setStatus(err.message, "err")));
+    els.issueCapBtn.addEventListener("click", () => issueCapability().catch((err) => setStatus(err.message, "err")));
+    els.loadFileBtn.addEventListener("click", () => loadFile().catch((err) => setStatus(err.message, "err")));
+    els.saveFileBtn.addEventListener("click", () => saveFile().catch((err) => setStatus(err.message, "err")));
+    els.generateBtn.addEventListener("click", () => generate(false).catch((err) => setStatus(err.message, "err")));
+    els.generateOpenBtn.addEventListener("click", () => generate(true).catch((err) => setStatus(err.message, "err")));
     els.runtimeBtn.addEventListener("click", () => loadRuntime().catch((err) => setStatus(err.message, "err")));
     els.logsBtn.addEventListener("click", () => loadLogs().catch((err) => setStatus(err.message, "err")));
+    els.pkgListBtn.addEventListener("click", () => listPackageFiles().catch((err) => setStatus(err.message, "err")));
 
-    loadSurfaces().then(syncPermissionPanel).catch((err) => setStatus(err.message || String(err), "err"));
+    refreshList().catch((err) => setStatus(err.message, "err"));
   </script>
 </body>
-
 </html>

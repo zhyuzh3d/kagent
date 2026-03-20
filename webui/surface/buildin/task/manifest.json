@@ -1,0 +1,13 @@
+{
+  "id": "d6087230-7e90-4d4f-9f7b-1dd8df6a5b40",
+  "name": "Task",
+  "version": "1.0",
+  "min_supported_version": "1.0",
+  "entry": "index.html",
+  "desc": "任务执行面板，展示任务状态、计划、操作时间线与最近结果",
+  "tags": ["buildin", "task", "automation"],
+  "permissions": {
+    "sandbox": ["allow-scripts", "allow-downloads"],
+    "allow": []
+  }
+}

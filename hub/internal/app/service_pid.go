@@ -146,6 +146,9 @@ func CleanRecordedProcess(pid int, expectedExecPath string, expectedStartedAtMS 
 	}
 	actualExecPath, err := processExecutablePath(pid)
 	if err != nil {
+		if !isProcessAlive(pid) {
+			return true, nil
+		}
 		return false, err
 	}
 	if normalizeExecutablePath(actualExecPath) != expected {
@@ -159,6 +162,9 @@ func CleanRecordedProcess(pid int, expectedExecPath string, expectedStartedAtMS 
 		}
 	}
 	if err := terminateProcess(pid, 1500*time.Millisecond); err != nil {
+		if !isProcessAlive(pid) {
+			return true, nil
+		}
 		return false, err
 	}
 	return true, nil
@@ -313,7 +319,11 @@ func terminateProcess(pid int, grace time.Duration) error {
 		return nil
 	}
 	if runtime.GOOS == "windows" {
-		return exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid)).Run()
+		if err := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid)).Run(); err != nil {
+			return err
+		}
+		time.Sleep(200 * time.Millisecond)
+		return nil
 	}
 	if grace <= 0 {
 		grace = 1500 * time.Millisecond
@@ -326,7 +336,11 @@ func terminateProcess(pid int, grace time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return killProcess(pid)
+	if err := killProcess(pid); err != nil {
+		return err
+	}
+	time.Sleep(200 * time.Millisecond)
+	return nil
 }
 
 func absInt64(v int64) int64 {

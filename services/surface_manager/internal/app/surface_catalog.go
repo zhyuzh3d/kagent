@@ -47,6 +47,7 @@ type ScannedSurface struct {
 	SurfaceID    string
 	SurfaceType  string
 	PkgPath      string
+	PkgDir       string
 	ManifestJSON string
 	ManifestHash string
 	Status       string
@@ -106,6 +107,14 @@ func ScanSurfaceCatalog(surfaceRoot string, scannedAtMS int64) ([]ScannedSurface
 	out := make([]ScannedSurface, 0, 16)
 	for _, surfaceType := range []string{SurfaceTypeBuildin, SurfaceTypeExt, SurfaceTypeCustom} {
 		typeRoot := filepath.Join(root, surfaceType)
+		if surfaceType == SurfaceTypeCustom {
+			items, err := scanSurfacePackagesRecursive(typeRoot, surfaceType, root, scannedAtMS)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, items...)
+			continue
+		}
 		entries, err := os.ReadDir(typeRoot)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -125,8 +134,65 @@ func ScanSurfaceCatalog(surfaceRoot string, scannedAtMS int64) ([]ScannedSurface
 			out = append(out, item)
 		}
 	}
+	userRoots, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	for _, ent := range userRoots {
+		if !ent.IsDir() {
+			continue
+		}
+		name := strings.TrimSpace(ent.Name())
+		if name == "" || name == SurfaceTypeBuildin || name == SurfaceTypeExt || name == SurfaceTypeCustom {
+			continue
+		}
+		customRoot := filepath.Join(root, name, SurfaceTypeCustom)
+		items, err := scanSurfacePackagesRecursive(customRoot, SurfaceTypeCustom, root, scannedAtMS)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		out = append(out, items...)
+	}
 	markSurfaceConflicts(out)
 	return out, nil
+}
+
+func scanSurfacePackagesRecursive(scanRoot string, surfaceType string, surfaceRoot string, scannedAtMS int64) ([]ScannedSurface, error) {
+	entries := make([]ScannedSurface, 0, 8)
+	if _, err := os.Stat(scanRoot); err != nil {
+		return nil, err
+	}
+	err := filepath.WalkDir(scanRoot, func(current string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		manifestPath := filepath.Join(current, "manifest.json")
+		if _, err := os.Stat(manifestPath); err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(surfaceRoot, current)
+		if err != nil {
+			return err
+		}
+		pkgPath := filepath.ToSlash(strings.TrimSpace(rel))
+		if strings.HasPrefix(pkgPath, SurfaceTypeCustom+"/") {
+			pkgPath = strings.TrimPrefix(pkgPath, SurfaceTypeCustom+"/")
+		}
+		item := scanOneSurfacePkg(current, surfaceType, pkgPath, scannedAtMS)
+		item.PkgDir = current
+		entries = append(entries, item)
+		return filepath.SkipDir
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 func parseSurfaceVersion(raw string) (surfaceSemVersion, error) {
@@ -185,12 +251,16 @@ func markSurfaceConflicts(items []ScannedSurface) {
 }
 
 func scanOneSurfacePkg(typeRoot string, surfaceType string, pkgPath string, scannedAtMS int64) ScannedSurface {
-	pkgDir := filepath.Join(typeRoot, pkgPath)
+	pkgDir := typeRoot
+	if strings.TrimSpace(pkgPath) != "" {
+		pkgDir = filepath.Join(typeRoot, filepath.FromSlash(pkgPath))
+	}
 	fallbackID := fallbackInvalidSurfaceID(surfaceType, pkgPath)
 	result := ScannedSurface{
 		SurfaceID:   fallbackID,
 		SurfaceType: surfaceType,
 		PkgPath:     pkgPath,
+		PkgDir:      pkgDir,
 		Status:      SurfaceStatusInvalid,
 		Error:       "manifest is invalid",
 		ScannedAtMS: scannedAtMS,
@@ -308,6 +378,9 @@ func buildSurfaceEntryURL(surfaceType string, pkgPath string, entry string) stri
 	ent := strings.Trim(strings.TrimSpace(entry), "/")
 	if typ == "" || pkg == "" || ent == "" {
 		return ""
+	}
+	if typ == SurfaceTypeCustom && strings.Contains(pkg, "/custom/") {
+		return "/" + path.Join("surface", pkg, ent)
 	}
 	return "/" + path.Join("surface", typ, pkg, ent)
 }

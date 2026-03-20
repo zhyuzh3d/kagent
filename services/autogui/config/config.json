@@ -1,0 +1,5 @@
+{
+  "service": {
+    "capture_dir": "data/service/autogui/captures"
+  }
+}

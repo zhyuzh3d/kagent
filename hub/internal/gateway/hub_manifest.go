@@ -45,6 +45,102 @@ func HubManifest() toolproto.SupervisorRegisterRequest {
 				Protocol:           "http",
 				AllowedCallerTypes: []string{"user"},
 			},
+			{
+				ToolID:             "hub.admin.service.get",
+				Description:        "Inspect one managed service including runtime and governance details.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.start",
+				Description:        "Start one managed service instance.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.stop",
+				Description:        "Stop one managed service instance.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.restart",
+				Description:        "Restart one managed service instance.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.drain",
+				Description:        "Drain one managed service instance.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.rebind",
+				Description:        "Rebind routes after managed service changes.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.disable",
+				Description:        "Temporarily disable one service from manual routing.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.manifest.get",
+				Description:        "Read a managed service runtime manifest.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.manifest.update",
+				Description:        "Update a managed service runtime manifest.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.config.get",
+				Description:        "Read a managed service config file.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.config.update",
+				Description:        "Update a managed service config file.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.files.list",
+				Description:        "List editable files in one managed service workspace.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.files.read",
+				Description:        "Read one file from a managed service workspace.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.files.write",
+				Description:        "Write one file in a managed service workspace.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.build",
+				Description:        "Build a managed service binary.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
+			{
+				ToolID:             "hub.admin.service.generate",
+				Description:        "Generate a custom managed service scaffold under the user workspace.",
+				Protocol:           "http",
+				AllowedCallerTypes: []string{"user"},
+			},
 
 			// Governance Tools
 			{

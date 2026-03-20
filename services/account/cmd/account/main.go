@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
 	app "kagent/services/account/internal/app"
@@ -20,11 +19,11 @@ func main() {
 		InstanceID:     *instanceID,
 	})
 	if err != nil {
-		log.Printf("error: %v", err)
+		app.Errorf("%v", err)
 		os.Exit(1)
 	}
 	if err := accountApp.Run(); err != nil {
-		log.Printf("error: %v", err)
+		app.Errorf("%v", err)
 		os.Exit(1)
 	}
 }

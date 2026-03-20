@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hub 服务治理控制台</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- Header with global actions -->
+  <header class="app-header">
+    <div class="header-left">
+      <h1>Hub 治理中心</h1>
+      <div class="header-tabs">
+        <button class="header-tab active" data-tab="services">
+          服务列表 <span class="tab-badge" id="serviceCount">0</span>
+        </button>
+        <button class="header-tab" data-tab="tools">
+          工具全集 <span class="tab-badge" id="totalToolsCount">0</span>
+        </button>
+      </div>
+      <span id="statusBadge" class="status-badge">就绪</span>
+    </div>
+    <div class="header-right">
+      <button id="refreshBtn" class="action-btn">刷新列表</button>
+      <button id="openGeneratorBtn" class="action-btn primary">创建新服务</button>
+    </div>
+  </header>
+ 
+  <!-- Main Content Areas -->
+  <main class="main-container">
+    <!-- Services Section -->
+    <section id="sectionServices" class="tab-section active">
+      <div class="table-card">
+        <div class="table-scroll">
+          <table id="serviceTable">
+            <thead>
+              <tr>
+                <th>运行中心 / 服务 ID</th>
+                <th>状态</th>
+                <th>实例/PID</th>
+                <th>健康度</th>
+                <th>版本</th>
+                <th>端点 URL (Endpoint)</th>
+                <th style="text-align: right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="serviceTableBody">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+        <div id="serviceEmptyMsg" class="empty-state" style="display: none;">
+          <h3>未发现托管服务</h3>
+          <p>请确保 Hub 已正确配置且相关服务已启动。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tools Section -->
+    <section id="sectionTools" class="tab-section">
+      <div class="table-card">
+        <div class="table-scroll">
+          <table id="toolsTable">
+            <thead>
+              <tr>
+                <th style="width: 25%">工具 ID (Tool ID)</th>
+                <th>能力描述 & 说明</th>
+                <th style="width: 15%">所属服务</th>
+                <th style="width: 12%">协议/通信</th>
+                <th style="width: 100px; text-align: right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="toolsTableBody">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="toolsEmptyMsg" class="empty-state" style="display: none;">
+          <h3>暂无注册工具</h3>
+          <p>集群内尚未发现任何已注册的原子工具。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Generator Modal (New Service) -->
+  <div id="genModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>创建新服务</h3>
+        <button id="closeGenBtn" class="btn-close">&times;</button>
+      </div>
+      <div id="genModalBody" class="modal-body">
+        <!-- Content from tpl-generator -->
+      </div>
+      <div class="modal-footer">
+        <button id="cancelGenBtn" class="action-btn">取消</button>
+        <button id="runGenBtn" class="action-btn primary">生成并初始化</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side Drawer -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <div id="sideDrawer" class="side-drawer">
+    <div class="drawer-header">
+      <div class="header-info">
+        <h2 id="drawerTitle">服务详情</h2>
+        <span id="drawerSubTitle" class="mono" style="font-size: 12px; color: var(--muted);"></span>
+      </div>
+      <button id="closeDrawerBtn" class="btn-close">&times;</button>
+    </div>
+    
+    <div class="drawer-tabs">
+      <button class="tab-btn active" data-tab="lifecycle">生命周期</button>
+      <button class="tab-btn" data-tab="tools">工具列表</button>
+      <button class="tab-btn" data-tab="config">配置管理</button>
+      <button class="tab-btn" data-tab="ops">运维与审计</button>
+      <button class="tab-btn" data-tab="files">文件浏览</button>
+    </div>
+ 
+    <div id="drawerContent" class="drawer-content">
+      <!-- Content injected here -->
+    </div>
+ 
+    <div class="drawer-footer">
+      <button id="drawerCancelBtn" class="action-btn">关闭</button>
+      <button id="drawerSaveBtn" class="action-btn primary" style="display: none;">保存修改</button>
+    </div>
+  </div>
+ 
+  <template id="tpl-tools">
+    <div class="tab-pane">
+      <div id="toolsListContainer" class="tools-list">
+        <!-- Tool items populated here -->
+      </div>
+    </div>
+  </template>
+ 
+  <template id="tpl-lifecycle">
+    <div class="tab-pane">
+      <div id="serviceMetadata" class="action-card" style="margin-bottom: 16px; background: #f0f9ff; border-color: #bae6fd;">
+        <!-- Metadata summary here -->
+      </div>
+      <div class="action-card">
+        <h4>运行时控制</h4>
+        <div class="button-row">
+          <button class="action-btn" data-action="start">▶ 启动进程</button>
+          <button class="action-btn" data-action="stop">■ 停止进程</button>
+          <button class="action-btn" data-action="restart">↻ 重启服务</button>
+        </div>
+      </div>
+      <div class="action-card" style="margin-top: 16px;">
+        <h4>治理操作</h4>
+        <div class="button-row">
+          <button class="action-btn" data-action="build">构建 (Build)</button>
+          <button class="action-btn" data-action="drain" style="color: var(--err);">排空并下线 (Drain)</button>
+        </div>
+      </div>
+    </div>
+  </template>
+ 
+  <template id="tpl-config">
+    <div class="tab-pane">
+      <div class="config-selector" style="margin-bottom: 12px;">
+        <select id="configTypeSelect" class="mono" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line);">
+          <option value="config">config/config.json (业务配置)</option>
+          <option value="configx">config/configx.json (敏感密钥)</option>
+          <option value="manifest">manifest.json (工具定义)</option>
+        </select>
+      </div>
+      <textarea id="configEditor" class="editor mono" style="min-height: 450px;"></textarea>
+    </div>
+  </template>
+ 
+  <template id="tpl-generator">
+    <div class="generator-container">
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 8px;">服务 ID (Slug)</label>
+        <input id="genName" placeholder="例如: ai_helper_service" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;" />
+      </div>
+      <div>
+        <label style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 8px;">Prompt 指令</label>
+        <textarea id="genPrompt" class="editor mono" style="min-height: 200px;">创建一个可被 Hub 管理的自定义 service，需实现 echo 示例工具。</textarea>
+      </div>
+      <div style="margin-top: 16px; display: flex; gap: 12px;">
+        <label><input type="checkbox" id="genBuildFlag" checked /> 生成后自动构建</label>
+      </div>
+    </div>
+  </template>
+ 
+  <template id="tpl-ops">
+    <div class="tab-pane">
+      <div class="action-card">
+        <h4>工具探测 (Probe)</h4>
+        <div style="margin-bottom: 12px;">
+          <input id="pToolID" class="mono" placeholder="service.lifecycle.state.get" style="width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 6px;" />
+        </div>
+        <textarea id="pArgs" class="editor mono" style="min-height: 100px; margin-bottom: 12px;" placeholder='{"args":{}}'>{}</textarea>
+        <button id="pRunBtn" class="action-btn primary">执行探测</button>
+        <div style="margin-top: 16px;">
+          <pre id="pOutput" class="mono result-box" style="background: #1e293b; color: #fff; padding: 16px; border-radius: 8px; font-size: 12px; max-height: 200px; overflow: auto;"></pre>
+        </div>
+      </div>
+      <div class="action-card" style="margin-top: 16px;">
+        <h4>审计日志回溯</h4>
+        <button id="auditBtn" class="action-btn">加载历史审计数据</button>
+        <pre id="auditOutput" class="mono result-box" style="margin-top: 12px; max-height: 150px;"></pre>
+      </div>
+    </div>
+  </template>
+ 
+  <template id="tpl-files">
+    <div class="files-container">
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <select id="fSelect" style="flex: 1; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px;"></select>
+        <button id="fLoadBtn" class="action-btn">加载文件内容</button>
+      </div>
+      <textarea id="fEditor" class="editor mono" style="min-height: 400px;"></textarea>
+    </div>
+  </template>
+ 
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -34,23 +34,27 @@ type Claims struct {
 }
 
 type Handler struct {
-	store     Store
-	signing   SigningKey
-	serviceID string
-	instance  string
-	endpoint  string
+	store       Store
+	signing     SigningKey
+	serviceID   string
+	instance    string
+	endpoint    string
+	initFn      func(context.Context) (SigningKey, error)
+	ready       bool
+	initing     bool
+	lastInitErr string
 
 	mu       sync.RWMutex
 	shutdown func(reason string)
 }
 
-func NewHandler(store Store, signingKey SigningKey, instanceID string, endpoint string) *Handler {
+func NewHandler(store Store, instanceID string, endpoint string, initFn func(context.Context) (SigningKey, error)) *Handler {
 	return &Handler{
 		store:     store,
-		signing:   signingKey,
 		serviceID: serviceID,
 		instance:  strings.TrimSpace(instanceID),
 		endpoint:  strings.TrimSpace(endpoint),
+		initFn:    initFn,
 	}
 }
 
@@ -69,24 +73,54 @@ func (h *Handler) HandleTool(ctx context.Context, req toolproto.CallRequest) (to
 	}
 	switch req.ToolID {
 	case "account.auth.register":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleRegister(ctx, req)
 	case "account.auth.login":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleLogin(ctx, req)
 	case "account.auth.logout":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleLogout(ctx, req)
 	case "account.auth.me":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleMe(ctx, req)
 	case "account.auth.password_change":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handlePasswordChange(ctx, req)
 	case "service.lifecycle.health":
 		resp = h.handleHealth(req)
 	case "service.lifecycle.state.get":
 		resp = h.handleStateGet(req)
+	case "service.lifecycle.init":
+		resp = h.handleInit(ctx, req)
 	case "service.lifecycle.shutdown":
 		resp = h.handleShutdown(req)
 	case "account.system.keys.get":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleKeysGet(ctx, req)
 	case "account.session.dump_active":
+		if !h.Ready() {
+			resp = serviceUnavailable(resp, "service not initialized")
+			break
+		}
 		resp = h.handleDumpActive(ctx, req)
 	default:
 		resp.Error = &toolproto.Error{Code: toolproto.ErrorCodeToolNotFound, Message: "tool not found"}
@@ -306,14 +340,60 @@ func (h *Handler) handleStateGet(req toolproto.CallRequest) toolproto.CallRespon
 	resp.Ok = true
 	resp.Error = nil
 	resp.Result = map[string]any{
-		"service_id":   h.serviceID,
-		"instance_id":  h.instance,
-		"pid":          os.Getpid(),
-		"endpoint":     h.endpoint,
-		"healthy":      true,
-		"status":       "ready",
-		"timestamp_ms": time.Now().UnixMilli(),
+		"service_id":      h.serviceID,
+		"instance_id":     h.instance,
+		"pid":             os.Getpid(),
+		"endpoint":        h.endpoint,
+		"healthy":         h.Healthy(),
+		"status":          h.CurrentStatus(),
+		"ready":           h.Ready(),
+		"initialized":     h.Ready(),
+		"last_init_error": h.LastInitError(),
+		"timestamp_ms":    time.Now().UnixMilli(),
 	}
+	return resp
+}
+
+func (h *Handler) handleInit(ctx context.Context, req toolproto.CallRequest) toolproto.CallResponse {
+	resp := baseResponse(req, h)
+	if !isSelfServiceCaller(req.Context.Caller) {
+		return forbidden(resp, "forbidden")
+	}
+	h.mu.Lock()
+	if h.ready {
+		h.mu.Unlock()
+		resp.Ok = true
+		resp.Error = nil
+		resp.Result = map[string]any{"ok": true, "status": "ready"}
+		return resp
+	}
+	if h.initing {
+		h.mu.Unlock()
+		resp.Ok = true
+		resp.Error = nil
+		resp.Result = map[string]any{"ok": true, "status": "initializing"}
+		return resp
+	}
+	h.initing = true
+	h.lastInitErr = ""
+	initFn := h.initFn
+	h.mu.Unlock()
+
+	signingKey, err := initFn(ctx)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.initing = false
+	if err != nil {
+		h.lastInitErr = err.Error()
+		return serviceUnavailable(resp, err.Error())
+	}
+	h.signing = signingKey
+	h.ready = true
+	h.lastInitErr = ""
+	resp.Ok = true
+	resp.Error = nil
+	resp.Result = map[string]any{"ok": true, "status": "ready"}
 	return resp
 }
 
@@ -342,6 +422,39 @@ func (h *Handler) handleShutdown(req toolproto.CallRequest) toolproto.CallRespon
 
 func isSelfServiceCaller(caller toolproto.Caller) bool {
 	return strings.EqualFold(strings.TrimSpace(caller.Type), "service") && strings.TrimSpace(caller.ServiceID) == serviceID
+}
+
+func (h *Handler) Ready() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.ready
+}
+
+func (h *Handler) Healthy() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return strings.TrimSpace(h.lastInitErr) == ""
+}
+
+func (h *Handler) CurrentStatus() string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	switch {
+	case h.ready:
+		return "ready"
+	case h.initing:
+		return "initializing"
+	case strings.TrimSpace(h.lastInitErr) != "":
+		return "failed"
+	default:
+		return "registered"
+	}
+}
+
+func (h *Handler) LastInitError() string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return strings.TrimSpace(h.lastInitErr)
 }
 
 func (h *Handler) handleKeysGet(ctx context.Context, req toolproto.CallRequest) toolproto.CallResponse {
@@ -416,6 +529,11 @@ func badRequest(resp toolproto.CallResponse, msg string) toolproto.CallResponse 
 
 func unauthorized(resp toolproto.CallResponse, msg string) toolproto.CallResponse {
 	resp.Error = &toolproto.Error{Code: toolproto.ErrorCodeUnauthorized, Message: msg}
+	return resp
+}
+
+func serviceUnavailable(resp toolproto.CallResponse, msg string) toolproto.CallResponse {
+	resp.Error = &toolproto.Error{Code: toolproto.ErrorCodeServiceUnavailable, Message: msg}
 	return resp
 }
 

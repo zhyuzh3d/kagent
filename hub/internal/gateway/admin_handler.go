@@ -24,6 +24,9 @@ type AdminHandler struct {
 	routingEngine *routing.Engine
 	auditStore    *observability.Store
 	toolHandler   *ToolHandler
+	lifecycle     *supervisor.LifecycleManager
+	servicesPath  string
+	appRoot       string
 }
 
 // NewAdminHandler creates a new AdminHandler with required dependencies.
@@ -34,6 +37,9 @@ func NewAdminHandler(
 	routingEngine *routing.Engine,
 	auditStore *observability.Store,
 	toolHandler *ToolHandler,
+	lifecycle *supervisor.LifecycleManager,
+	servicesPath string,
+	appRoot string,
 ) *AdminHandler {
 	h := &AdminHandler{
 		authService:   authService,
@@ -42,6 +48,9 @@ func NewAdminHandler(
 		routingEngine: routingEngine,
 		auditStore:    auditStore,
 		toolHandler:   toolHandler,
+		lifecycle:     lifecycle,
+		servicesPath:  servicesPath,
+		appRoot:       appRoot,
 	}
 	h.RegisterTools(toolHandler)
 	return h
@@ -56,6 +65,22 @@ func (h *AdminHandler) RegisterTools(th *ToolHandler) {
 	th.RegisterTool("hub.admin.routes.bind", h.handleBindTool)
 	th.RegisterTool("hub.admin.audits.list", h.handleAuditsTool)
 	th.RegisterTool("hub.admin.tool.probe", h.handleToolProbeTool)
+	th.RegisterTool("hub.admin.service.get", h.handleServiceGetTool)
+	th.RegisterTool("hub.admin.service.start", h.handleServiceStartTool)
+	th.RegisterTool("hub.admin.service.stop", h.handleServiceStopTool)
+	th.RegisterTool("hub.admin.service.restart", h.handleServiceRestartTool)
+	th.RegisterTool("hub.admin.service.drain", h.handleServiceDrainTool)
+	th.RegisterTool("hub.admin.service.rebind", h.handleServiceRebindTool)
+	th.RegisterTool("hub.admin.service.disable", h.handleServiceDisableTool)
+	th.RegisterTool("hub.admin.service.manifest.get", h.handleServiceManifestGetTool)
+	th.RegisterTool("hub.admin.service.manifest.update", h.handleServiceManifestUpdateTool)
+	th.RegisterTool("hub.admin.service.config.get", h.handleServiceConfigGetTool)
+	th.RegisterTool("hub.admin.service.config.update", h.handleServiceConfigUpdateTool)
+	th.RegisterTool("hub.admin.service.files.list", h.handleServiceFilesListTool)
+	th.RegisterTool("hub.admin.service.files.read", h.handleServiceFilesReadTool)
+	th.RegisterTool("hub.admin.service.files.write", h.handleServiceFilesWriteTool)
+	th.RegisterTool("hub.admin.service.build", h.handleServiceBuildTool)
+	th.RegisterTool("hub.admin.service.generate", h.handleServiceGenerateTool)
 }
 
 func (h *AdminHandler) checkAuth(ctx context.Context) error {
@@ -71,11 +96,16 @@ func (h *AdminHandler) handleServicesTool(ctx context.Context, req toolproto.Cal
 	if err := h.checkAuth(ctx); err != nil {
 		return toolproto.CallResponse{}, err
 	}
+	managed := []supervisor.ManagedServiceInfo{}
+	if h.lifecycle != nil {
+		managed = h.lifecycle.ListManagedServices()
+	}
 	return toolproto.CallResponse{
 		Ok: true,
 		Result: map[string]any{
 			"active_provider": "tool-routing-engine-v1",
 			"services":        h.hubPlatform.ListServices(),
+			"managed":         managed,
 		},
 	}, nil
 }
@@ -168,4 +198,6 @@ func (h *AdminHandler) handleToolProbeTool(ctx context.Context, req toolproto.Ca
 	callResp, _, err := h.toolHandler.ProbeServiceTool(ctx, serviceID, toolID, args, timeoutMS)
 	return callResp, err
 }
-
+func (h *AdminHandler) UpdateLifecycleManager(lm *supervisor.LifecycleManager) {
+	h.lifecycle = lm
+}

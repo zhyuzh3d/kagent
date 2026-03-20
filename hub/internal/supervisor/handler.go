@@ -289,7 +289,9 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 			Category:             category,
 			Type:                 typ,
 			Tool:                 tool,
-			Description:          toolID,
+			Description:          strings.TrimSpace(t.Description),
+			InputSchema:          t.InputSchema,
+			OutputSchema:         t.OutputSchema,
 			CapabilitiesRequired: t.CapabilitiesRequired,
 			AllowedCallerTypes:   t.AllowedCallerTypes,
 			TimeoutMSDefault:     t.TimeoutMS,
@@ -334,6 +336,7 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 			Provides:    tools,
 		},
 		InstanceID: strings.TrimSpace(req.InstanceID),
+		PID:        req.PID,
 		Endpoint:   endpoint,
 		Healthy:    req.Healthy,
 	}, transportName, nil
@@ -362,7 +365,7 @@ func verifyServiceInternalAuth(hubPlatform *app.HubPlatform, r *http.Request, ex
 
 func instanceStatusFromHealth(healthy bool) string {
 	if healthy {
-		return InstanceStatusReady
+		return InstanceStatusRegistered
 	}
 	return InstanceStatusUnhealthy
 }
@@ -386,6 +389,9 @@ func (h *SupervisorHandler) ensureServiceStoppedForRegister(serviceID string, ne
 		return existing, true, err
 	}
 	h.hubPlatform.UnregisterService(existing.ServiceID, existing.InstanceID)
+	if h.registry != nil {
+		h.registry.Unregister(existing.ServiceID, existing.InstanceID)
+	}
 	return existing, true, nil
 }
 
@@ -398,6 +404,7 @@ func parseRegisterRequest(args map[string]any) toolproto.SupervisorRegisterReque
 	var out toolproto.SupervisorRegisterRequest
 	out.ServiceID = asStr(args["service_id"])
 	out.InstanceID = asStr(args["instance_id"])
+	out.PID = asIntVal(args["pid"])
 	out.Version = asStr(args["version"])
 	out.Transport = asStr(args["transport"])
 
@@ -413,6 +420,13 @@ func parseRegisterRequest(args map[string]any) toolproto.SupervisorRegisterReque
 				var st toolproto.ServiceTool
 				st.ToolID = asStr(tm["tool_id"])
 				st.Version = asStr(tm["version"])
+				st.Description = asStr(tm["description"])
+				if is, ok := tm["input_schema"].(map[string]any); ok {
+					st.InputSchema = is
+				}
+				if os, ok := tm["output_schema"].(map[string]any); ok {
+					st.OutputSchema = os
+				}
 				st.Streaming, _ = tm["streaming"].(bool)
 				st.WSPath = asStr(tm["ws_path"])
 				st.TimeoutMS = asIntVal(tm["timeout_ms"])

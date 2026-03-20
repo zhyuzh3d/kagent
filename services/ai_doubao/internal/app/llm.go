@@ -13,7 +13,7 @@ import (
 )
 
 const chatSurfaceActionPromptSuffix = "" +
-	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.<surface_id>.<action_name>。\n" +
+	"你可以使用以下动作：get_surfaces、open_surface、close_surface、surface.get_state、surface.call.<surface_id>.<action_name>、tool.call.<tool_id>。\n" +
 	"当你需要动作时，必须只输出 JSON（可以是纯 JSON 或 ```json 代码块），不能在 JSON 外再输出任何解释文字。\n" +
 	"格式：{\"say\":\"给用户看的主内容\",\"aside\":\"可选的小字说明\",\"action\":null|{\"type\":\"call\",\"id\":\"可选\",\"path\":\"动作名\",\"args\":{\"target\":\"surface_id或surface名称\",\"surface_id\":\"surface_id\",\"...\":\"动作参数\"},\"followup\":\"none|report\"}}\n" +
 	"硬性约束：say 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/协议字段片段。\n" +
@@ -21,7 +21,8 @@ const chatSurfaceActionPromptSuffix = "" +
 	"1) 用户要求打开某个 surface：先调用 get_surfaces 且 followup=report；拿到列表后若命中目标再调用 open_surface(target) 且 followup=report；若不存在则直接回复找不到且不发动作。\n" +
 	"2) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
 	"3) 调用 surface action 前，必须确保目标 surface 已启用且已打开；action 名称与参数必须来自该 surface 运行时注册信息。\n" +
-	"4) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
+	"4) 调用 tool.call.<tool_id> 前，必须确认这是 Hub 正式工具；autogui 相关动作必须先打开 task surface，并把关键执行过程通过 task surface action 写回时间线。\n" +
+	"5) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
 	"如果不需要动作，输出普通自然文本即可，不要伪造动作执行结果。"
 
 const continuationUserPrompt = "请基于最新 observer 事件继续推理并回复用户。只输出用户可读结论，禁止复述协议字段原文。"
@@ -43,8 +44,12 @@ func NewDoubaoLLMClient(cfg ChatConfig, runtimeConfig *RuntimeConfigManager) *Do
 }
 
 func (c *DoubaoLLMClient) Stream(ctx context.Context, input string, history []ChatMessage, onDelta func(string)) (string, error) {
+	return c.StreamWithSystem(ctx, "", input, history, onDelta)
+}
+
+func (c *DoubaoLLMClient) StreamWithSystem(ctx context.Context, systemPromptOverride string, input string, history []ChatMessage, onDelta func(string)) (string, error) {
 	chatCfg := c.chatConfig()
-	systemPrompt := buildChatSystemPrompt(chatCfg.LLM.SystemPrompt)
+	systemPrompt := buildChatSystemPrompt(firstNonEmpty(strings.TrimSpace(systemPromptOverride), chatCfg.LLM.SystemPrompt))
 	// Build the input array: system + history + user input.
 	// Some providers require the final message role to be `user`.
 	inputArr := buildLLMInputMessages(systemPrompt, history, input)
@@ -164,6 +169,7 @@ func hasSurfaceActionHints(prompt string) bool {
 	return strings.Contains(lower, "get_surfaces") &&
 		strings.Contains(lower, "open_surface") &&
 		strings.Contains(lower, "close_surface") &&
+		strings.Contains(lower, "tool.call.") &&
 		strings.Contains(lower, "followup")
 }
 

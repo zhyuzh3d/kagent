@@ -133,6 +133,9 @@ function normalizeAction(rawAction, payload) {
   if (!canonical && lowerName.startsWith("surface.call.")) {
     canonical = nameRaw;
   }
+  if (!canonical && lowerName.startsWith("tool.call.")) {
+    canonical = nameRaw;
+  }
   if (!canonical) return null;
 
   const followup = normalizeFollowup(rawAction.followup || payload.followup);
@@ -170,6 +173,12 @@ function normalizeAction(rawAction, payload) {
     normalized.args = args;
     return normalized;
   }
+  if (canonical.startsWith("tool.call.")) {
+    const parts = canonical.split(".");
+    if (parts.length < 4) return null;
+    normalized.args = args;
+    return normalized;
+  }
   return null;
 }
 
@@ -190,6 +199,9 @@ function inferActionSurfaceID(actionName, args, fallback = "") {
     if (parts.length >= 4 && parts[2]) {
       return parts[2];
     }
+  }
+  if (action.startsWith("tool.call.")) {
+    return "hub_tool";
   }
   return fallback;
 }
@@ -292,6 +304,9 @@ export function createChatActionEngine(options) {
   }
 
   function evaluateActionGuard(action) {
+    if (typeof action.path === "string" && action.path.startsWith("tool.call.autogui.")) {
+      return "high_risk";
+    }
     const now = Date.now();
     while (actionRateWindow.length > 0 && now - actionRateWindow[0] > rateWindowMs) {
       actionRateWindow.shift();
@@ -310,7 +325,9 @@ export function createChatActionEngine(options) {
   }
 
   async function requestManualConfirm(blockReason, action) {
-    const reasonText = blockReason === "rate_limit" ? "动作调用频率过高" : "检测到短时间重复动作";
+    const reasonText = blockReason === "rate_limit"
+      ? "动作调用频率过高"
+      : (blockReason === "high_risk" ? "检测到高风险桌面自动化动作" : "检测到短时间重复动作");
     const actionText = `${action.path} ${JSON.stringify(action.args || {})}`;
     const ok = window.confirm(`${reasonText}。是否仍继续执行？\n\n${actionText}`);
     return ok ? "confirm" : "cancel";

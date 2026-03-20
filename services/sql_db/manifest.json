@@ -11,7 +11,7 @@
     "env": {}
   },
   "lifecycle": {
-    "register_timeout_ms": 1000,
+    "register_timeout_ms": 5000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
     "restart_times": 3,

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,7 +46,7 @@ func New(cfg Config) (*App, error) {
 	}
 	appRoot, err := detectRepoRoot()
 	if err != nil {
-		log.Printf("warn: detect app root fallback: %v", err)
+		Warnf("detect app root fallback: %v", err)
 	}
 	serviceSecretPath := filepath.Join(appRoot, "services", serviceID, "run", ".service_secret")
 	bootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
@@ -69,14 +68,16 @@ func New(cfg Config) (*App, error) {
 		instance = serviceID + "-" + newID()
 	}
 	client := NewClient(registerURL, bootstrap, 8*time.Second)
-	if err := client.EnsureSchema(context.Background()); err != nil {
-		return nil, fmt.Errorf("ensure account schema failed: %w", err)
-	}
-	signingKey, err := client.GetOrCreateSigningKey(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("init signing key failed: %w", err)
-	}
-	executor := NewHandler(client, signingKey, instance, "http://"+addr)
+	executor := NewHandler(client, instance, "http://"+addr, func(ctx context.Context) (SigningKey, error) {
+		if err := client.EnsureSchema(ctx); err != nil {
+			return SigningKey{}, fmt.Errorf("ensure account schema failed: %w", err)
+		}
+		signingKey, err := client.GetOrCreateSigningKey(ctx)
+		if err != nil {
+			return SigningKey{}, fmt.Errorf("init signing key failed: %w", err)
+		}
+		return signingKey, nil
+	})
 	app := &App{
 		Addr:           addr,
 		ServiceID:      serviceID,
@@ -114,7 +115,7 @@ func (a *App) Run() error {
 	if a.RegisterURL != "" {
 		a.startHubHeartbeatGuard()
 	}
-	log.Printf("info: account service listening=http://%s", a.Addr)
+	Infof("account service listening=http://%s", a.Addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
@@ -122,7 +123,7 @@ func (a *App) Run() error {
 }
 
 func (a *App) shutdownNow(reason string) {
-	log.Printf("warn: account service shutdown: %s", strings.TrimSpace(reason))
+	Warnf("account service shutdown: %s", strings.TrimSpace(reason))
 	if a.server != nil {
 		_ = a.server.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
@@ -179,14 +180,13 @@ func (a *App) startHubHeartbeatGuard() {
 		ticker := time.NewTicker(a.HeartbeatEvery)
 		defer ticker.Stop()
 		send := func() error {
-			healthy := true
 			callReq := toolproto.CallRequest{
 				ToolID: "hub.governance.service.heartbeat",
 				Args: map[string]any{
 					"service_id":  a.ServiceID,
 					"instance_id": a.InstanceID,
-					"status":      "ready",
-					"healthy":     &healthy,
+					"status":      a.executor.CurrentStatus(),
+					"healthy":     boolPtr(a.executor.Healthy()),
 					"pid":         os.Getpid(),
 					"endpoint":    "http://" + strings.TrimSpace(a.Addr),
 				},
@@ -227,17 +227,128 @@ func postHubToolCall(hubToolCallURL string, serviceAuth hubsvc.BootstrapSecret, 
 
 func supervisorTools(version string) []toolproto.ServiceTool {
 	return []toolproto.ServiceTool{
-		{ToolID: "service.lifecycle.health", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
-		{ToolID: "service.lifecycle.state.get", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
-		{ToolID: "service.lifecycle.shutdown", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
-		{ToolID: "account.auth.register", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"anonymous", "user"}},
-		{ToolID: "account.auth.login", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"anonymous", "user"}},
-		{ToolID: "account.auth.logout", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"user"}},
-		{ToolID: "account.auth.me", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"user"}},
-		{ToolID: "account.auth.password_change", Version: version, TimeoutMS: 5000, AllowedCallerTypes: []string{"user"}},
-		{ToolID: "account.system.keys.get", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
-		{ToolID: "account.session.dump_active", Version: version, TimeoutMS: 3000, AllowedCallerTypes: []string{"service"}},
+		{
+			ToolID:             "service.lifecycle.health",
+			Version:            version,
+			Description:        "服务健康状况探测",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"service"},
+		},
+		{
+			ToolID:             "service.lifecycle.state.get",
+			Version:            version,
+			Description:        "获取服务运行时生命周期状态快照",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"service"},
+		},
+		{
+			ToolID:             "service.lifecycle.init",
+			Version:            version,
+			Description:        "执行服务依赖初始化并切换为 ready",
+			TimeoutMS:          8000,
+			AllowedCallerTypes: []string{"service"},
+		},
+		{
+			ToolID:             "service.lifecycle.shutdown",
+			Version:            version,
+			Description:        "强制停止服务进程",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"service"},
+		},
+		{
+			ToolID:             "account.auth.register",
+			Version:            version,
+			Description:        "注册新用户账号并初始化基础资料",
+			TimeoutMS:          5000,
+			AllowedCallerTypes: []string{"anonymous", "user"},
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"username": map[string]any{"type": "string", "description": "用户名"},
+					"password": map[string]any{"type": "string", "description": "密码 (最少6位)"},
+				},
+				"required": []string{"username", "password"},
+			},
+			OutputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"ok":      map[string]any{"type": "boolean"},
+					"user_id": map[string]any{"type": "string"},
+				},
+			},
+		},
+		{
+			ToolID:             "account.auth.login",
+			Version:            version,
+			Description:        "用户登录并获取访问凭证 (Token)",
+			TimeoutMS:          5000,
+			AllowedCallerTypes: []string{"anonymous", "user"},
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"username": map[string]any{"type": "string"},
+					"password": map[string]any{"type": "string"},
+				},
+				"required": []string{"username", "password"},
+			},
+			OutputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"ok":            map[string]any{"type": "boolean"},
+					"access_token":  map[string]any{"type": "string"},
+					"refresh_token": map[string]any{"type": "string"},
+					"expires_in":    map[string]any{"type": "integer"},
+				},
+			},
+		},
+		{
+			ToolID:             "account.auth.logout",
+			Version:            version,
+			Description:        "注销当前登录状态并清除 Cookie",
+			TimeoutMS:          5000,
+			AllowedCallerTypes: []string{"user"},
+		},
+		{
+			ToolID:             "account.auth.me",
+			Version:            version,
+			Description:        "获取当前登录用户的个人资料",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"user"},
+		},
+		{
+			ToolID:             "account.auth.password_change",
+			Version:            version,
+			Description:        "修改当前登录用户的密码",
+			TimeoutMS:          5000,
+			AllowedCallerTypes: []string{"user"},
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"old_password": map[string]any{"type": "string"},
+					"new_password": map[string]any{"type": "string"},
+				},
+				"required": []string{"old_password", "new_password"},
+			},
+		},
+		{
+			ToolID:             "account.system.keys.get",
+			Version:            version,
+			Description:        "【系统级】获取用于验证 Token 的公钥列表",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"service"},
+		},
+		{
+			ToolID:             "account.session.dump_active",
+			Version:            version,
+			Description:        "【系统级】导出当前所有活动的 Session",
+			TimeoutMS:          3000,
+			AllowedCallerTypes: []string{"service"},
+		},
 	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 func detectRepoRoot() (string, error) {

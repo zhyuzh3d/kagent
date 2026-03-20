@@ -560,6 +560,8 @@ func toSupervisorTools(manifest app.ServiceManifest) []toolproto.ServiceTool {
 			Streaming:            strings.EqualFold(strings.TrimSpace(descriptor.Streaming), "stream"),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			TimeoutMSDefault:     descriptor.TimeoutMSDefault,
+			InputSchema:          descriptor.InputSchema,
+			OutputSchema:         descriptor.OutputSchema,
 			ScopeSupport:         append([]string(nil), descriptor.ScopeSupport...),
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
 			AllowedCallerTypes:   append([]string(nil), descriptor.AllowedCallerTypes...),

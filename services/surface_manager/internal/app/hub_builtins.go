@@ -41,6 +41,7 @@ func BuiltinServiceManifests() []ServiceManifest {
 			Provides: []ServiceToolDescriptor{
 				{ToolID: "service.lifecycle.health", Category: "service", Type: "lifecycle", Tool: "health", Description: "service health probe", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
+				{ToolID: "service.lifecycle.init", Category: "service", Type: "lifecycle", Tool: "init", Description: "service lifecycle initialization", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
 				{ToolID: "ui.surface.catalog_list", Category: "ui", Type: "surface", Tool: "catalog_list", Description: "list surface catalog"},
 				{ToolID: "ui.surface.get", Category: "ui", Type: "surface", Tool: "get", Description: "get one surface"},
@@ -51,6 +52,10 @@ func BuiltinServiceManifests() []ServiceManifest {
 				{ToolID: "ui.surface.logs_query", Category: "ui", Type: "surface", Tool: "logs_query", Description: "query surface logs"},
 				{ToolID: "ui.surface.rescan", Category: "ui", Type: "surface", Tool: "rescan", Description: "rescan packages"},
 				{ToolID: "ui.surface.rebind", Category: "ui", Type: "surface", Tool: "rebind", Description: "rebind manifest"},
+				{ToolID: "ui.surface.generate", Category: "ui", Type: "surface", Tool: "generate", Description: "generate custom surface package"},
+				{ToolID: "ui.surface.package_read", Category: "ui", Type: "surface", Tool: "package_read", Description: "read surface package file"},
+				{ToolID: "ui.surface.package_write", Category: "ui", Type: "surface", Tool: "package_write", Description: "write surface package file"},
+				{ToolID: "ui.surface.package_list", Category: "ui", Type: "surface", Tool: "package_list", Description: "list surface package files"},
 				{ToolID: "ui.surface.fs_read", Category: "ui", Type: "surface", Tool: "fs_read", Description: "surface fs read"},
 				{ToolID: "ui.surface.fs_write", Category: "ui", Type: "surface", Tool: "fs_write", Description: "surface fs write"},
 				{ToolID: "ui.surface.fs_list", Category: "ui", Type: "surface", Tool: "fs_list", Description: "surface fs list"},

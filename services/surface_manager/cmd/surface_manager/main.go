@@ -59,21 +59,74 @@ func main() {
 		registerURL = strings.TrimSpace(*hubRegisterURL)
 	}
 	hubToolCallURL := buildHubToolCallURL(registerURL)
-	store := app.NewHubStore(hubToolCallURL, serviceBootstrap, manifest.ServiceID, 8*time.Second)
-	if err := store.EnsureSchema(context.Background()); err != nil {
-		app.Errorf("init hub-backed store failed: %v", err)
-		os.Exit(1)
-	}
-	defer store.Close()
-	if err := app.SyncSurfaceCatalog(context.Background(), store, surfaceRoot); err != nil {
-		app.Warnf("surface catalog scan skipped: %v", err)
-	}
 	instance := strings.TrimSpace(serviceBootstrap.InstanceID)
 	if instance == "" {
 		instance = strings.TrimSpace(*instanceID)
 	}
 	if instance == "" {
 		instance = "surface_manager-" + app.NewRequestID()
+	}
+	var lifecycleMu sync.RWMutex
+	var initialized bool
+	var initializing bool
+	var lastInitErr string
+	var store *app.HubStore
+	currentStatus := func() string {
+		lifecycleMu.RLock()
+		defer lifecycleMu.RUnlock()
+		switch {
+		case initialized:
+			return "ready"
+		case initializing:
+			return "initializing"
+		case strings.TrimSpace(lastInitErr) != "":
+			return "failed"
+		default:
+			return "registered"
+		}
+	}
+	currentHealthy := func() bool {
+		lifecycleMu.RLock()
+		defer lifecycleMu.RUnlock()
+		return strings.TrimSpace(lastInitErr) == ""
+	}
+	runInit := func(ctx context.Context) error {
+		lifecycleMu.Lock()
+		if initialized {
+			lifecycleMu.Unlock()
+			return nil
+		}
+		if initializing {
+			lifecycleMu.Unlock()
+			return nil
+		}
+		initializing = true
+		lastInitErr = ""
+		lifecycleMu.Unlock()
+
+		nextStore := app.NewHubStore(hubToolCallURL, serviceBootstrap, manifest.ServiceID, 8*time.Second)
+		if err := nextStore.EnsureSchema(ctx); err != nil {
+			lifecycleMu.Lock()
+			initializing = false
+			lastInitErr = err.Error()
+			lifecycleMu.Unlock()
+			_ = nextStore.Close()
+			return fmt.Errorf("init hub-backed store failed: %w", err)
+		}
+		if err := app.SyncSurfaceCatalog(ctx, nextStore, surfaceRoot); err != nil {
+			app.Warnf("surface catalog scan skipped: %v", err)
+		}
+		lifecycleMu.Lock()
+		oldStore := store
+		store = nextStore
+		initializing = false
+		initialized = true
+		lastInitErr = ""
+		lifecycleMu.Unlock()
+		if oldStore != nil {
+			_ = oldStore.Close()
+		}
+		return nil
 	}
 	if registerURL != "" {
 		healthy := true
@@ -124,6 +177,12 @@ func main() {
 	shutdownNow := func(reason string) {
 		shutdownOnce.Do(func() {
 			app.Warnf("surface_manager shutdown: %s", strings.TrimSpace(reason))
+			lifecycleMu.RLock()
+			activeStore := store
+			lifecycleMu.RUnlock()
+			if activeStore != nil {
+				_ = activeStore.Close()
+			}
 			if server != nil {
 				_ = server.Close()
 				ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
@@ -218,6 +277,18 @@ func main() {
 		}
 		startedAt := time.Now()
 		resp := toolproto.CallResponse{Ok: false, Result: nil, Error: nil, Meta: meta}
+		toErrResp := func(code string, msg string, retryable bool) toolproto.CallResponse {
+			return toolproto.CallResponse{
+				Ok:     false,
+				Result: nil,
+				Error: &toolproto.Error{
+					Code:      code,
+					Message:   msg,
+					Retryable: retryable,
+				},
+				Meta: meta,
+			}
+		}
 		if hubOnly && healthzRequested(req.Args) {
 			resp.Ok = true
 			resp.Result = map[string]any{
@@ -231,28 +302,41 @@ func main() {
 		if req.ToolID == "service.lifecycle.health" || req.ToolID == "service.lifecycle.state.get" {
 			resp.Ok = true
 			resp.Result = map[string]any{
-				"service_id":   strings.TrimSpace(manifest.ServiceID),
-				"instance_id":  strings.TrimSpace(instance),
-				"pid":          os.Getpid(),
-				"endpoint":     "http://" + strings.TrimSpace(*addr),
-				"healthy":      true,
-				"status":       "ready",
+				"service_id":  strings.TrimSpace(manifest.ServiceID),
+				"instance_id": strings.TrimSpace(instance),
+				"pid":         os.Getpid(),
+				"endpoint":    "http://" + strings.TrimSpace(*addr),
+				"healthy":     currentHealthy(),
+				"status":      currentStatus(),
+				"ready":       currentStatus() == "ready",
+				"initialized": currentStatus() == "ready",
+				"last_init_error": strings.TrimSpace(func() string {
+					lifecycleMu.RLock()
+					defer lifecycleMu.RUnlock()
+					return lastInitErr
+				}()),
 				"timestamp_ms": time.Now().UnixMilli(),
 			}
 			writeToolResponse(w, http.StatusOK, resp)
 			return
 		}
-		toErrResp := func(code string, msg string, retryable bool) toolproto.CallResponse {
-			return toolproto.CallResponse{
-				Ok:     false,
-				Result: nil,
-				Error: &toolproto.Error{
-					Code:      code,
-					Message:   msg,
-					Retryable: retryable,
-				},
-				Meta: meta,
+		if req.ToolID == "service.lifecycle.init" {
+			if !strings.EqualFold(strings.TrimSpace(caller.Type), "service") || strings.TrimSpace(caller.ServiceID) != strings.TrimSpace(manifest.ServiceID) {
+				writeToolResponse(w, http.StatusForbidden, toErrResp(toolproto.ErrorCodeForbidden, "forbidden", false))
+				return
 			}
+			if err := runInit(reqCtx); err != nil {
+				writeToolResponse(w, http.StatusServiceUnavailable, toErrResp(toolproto.ErrorCodeServiceUnavailable, err.Error(), true))
+				return
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{"ok": true, "status": currentStatus()}
+			writeToolResponse(w, http.StatusOK, resp)
+			return
+		}
+		if currentStatus() != "ready" {
+			writeToolResponse(w, http.StatusServiceUnavailable, toErrResp(toolproto.ErrorCodeServiceUnavailable, "service not initialized", true))
+			return
 		}
 		requireCallerUser := func() (string, error) {
 			uid := strings.TrimSpace(effectiveCaller.UserID)
@@ -267,6 +351,24 @@ func main() {
 				return "", fmt.Errorf("surface_id is required")
 			}
 			return sid, nil
+		}
+		requireSurfaceEntry := func() (string, app.SurfaceCatalogEntry, error) {
+			userID, err := requireCallerUser()
+			if err != nil {
+				return "", app.SurfaceCatalogEntry{}, err
+			}
+			surfaceID, err := requireSurfaceID()
+			if err != nil {
+				return "", app.SurfaceCatalogEntry{}, err
+			}
+			entry, ok, err := store.GetSurfaceForUser(reqCtx, userID, surfaceID)
+			if err != nil {
+				return "", app.SurfaceCatalogEntry{}, err
+			}
+			if !ok {
+				return "", app.SurfaceCatalogEntry{}, fmt.Errorf("surface not found")
+			}
+			return userID, entry, nil
 		}
 
 		switch req.ToolID {
@@ -472,6 +574,104 @@ func main() {
 			}
 			resp.Ok = true
 			resp.Result = map[string]any{"ok": true, "total": len(items), "items": items}
+		case "ui.surface.generate":
+			userID, err := requireCallerUser()
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeUnauthorized, err.Error(), false)
+				break
+			}
+			surfaceName := asString(req.Args["surface_name"])
+			if surfaceName == "" {
+				surfaceName = "generated_surface"
+			}
+			prompt := asString(req.Args["prompt"])
+			dir, generatedManifest, err := app.GenerateSurfaceScaffold(surfaceRoot, userID, surfaceName, prompt)
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "generate surface failed: "+err.Error(), false)
+				break
+			}
+			if text, ok := generateSurfaceByAI(hubToolCallURL, serviceBootstrap, manifest.ServiceID, surfaceName, prompt); ok {
+				if generatedFiles, parseErr := app.ParseGeneratedFilesMap(text); parseErr == nil && len(generatedFiles) > 0 {
+					for relPath, content := range generatedFiles {
+						target := filepath.Clean(filepath.Join(dir, relPath))
+						if !strings.HasPrefix(target, filepath.Clean(dir)+string(filepath.Separator)) && target != filepath.Clean(dir) {
+							continue
+						}
+						if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+							continue
+						}
+						_ = os.WriteFile(target, []byte(content), 0o644)
+					}
+				}
+			}
+			if err := app.SyncSurfaceCatalog(reqCtx, store, surfaceRoot); err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "rescan generated surface failed: "+err.Error(), false)
+				break
+			}
+			entry, _, _ := store.GetSurfaceForUser(reqCtx, userID, generatedManifest.ID)
+			resp.Ok = true
+			resp.Result = map[string]any{
+				"surface_id": generatedManifest.ID,
+				"dir":        dir,
+				"manifest":   generatedManifest,
+				"entry":      entry,
+			}
+		case "ui.surface.package_read":
+			_, entry, err := requireSurfaceEntry()
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeBadRequest, err.Error(), false)
+				break
+			}
+			relPath := asString(req.Args["path"])
+			raw, resolvedPath, err := app.ReadSurfacePackageFile(surfaceRoot, entry, relPath)
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "read surface package failed: "+err.Error(), false)
+				break
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{
+				"surface_id":  entry.SurfaceID,
+				"path":        relPath,
+				"resolved":    resolvedPath,
+				"data_base64": base64.StdEncoding.EncodeToString(raw),
+			}
+		case "ui.surface.package_write":
+			_, entry, err := requireSurfaceEntry()
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeBadRequest, err.Error(), false)
+				break
+			}
+			relPath := asString(req.Args["path"])
+			dataBase64 := asString(req.Args["data_base64"])
+			raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(dataBase64))
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeBadRequest, "invalid data_base64", false)
+				break
+			}
+			resolvedPath, err := app.WriteSurfacePackageFile(surfaceRoot, entry, relPath, raw)
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "write surface package failed: "+err.Error(), false)
+				break
+			}
+			if err := app.SyncSurfaceCatalog(reqCtx, store, surfaceRoot); err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "rescan surface package failed: "+err.Error(), false)
+				break
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{"surface_id": entry.SurfaceID, "path": relPath, "resolved": resolvedPath, "ok": true}
+		case "ui.surface.package_list":
+			_, entry, err := requireSurfaceEntry()
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeBadRequest, err.Error(), false)
+				break
+			}
+			items, dir, err := app.ListSurfacePackageFiles(surfaceRoot, entry)
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "list surface package failed: "+err.Error(), false)
+				break
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{"surface_id": entry.SurfaceID, "dir": dir, "items": items}
 		case "ui.surface.fs_read":
 			if strings.TrimSpace(hubToolCallURL) == "" {
 				resp = toErrResp(toolproto.ErrorCodeServiceUnavailable, "hub register url is not configured", false)
@@ -808,13 +1008,37 @@ func main() {
 
 	server = &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	if hubToolCallURL := buildHubToolCallURL(registerURL); hubToolCallURL != "" {
-		startHubToolHeartbeatGuard(hubToolCallURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
+		startHubToolHeartbeatGuard(hubToolCallURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow, currentStatus, currentHealthy)
 	}
 	app.Infof("surface_manager listening=http://%s", *addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		app.Errorf("server failed: %v", err)
 		os.Exit(1)
 	}
+}
+
+func generateSurfaceByAI(hubToolCallURL string, bootstrap hubsvc.BootstrapSecret, callerServiceID string, surfaceName string, prompt string) (string, bool) {
+	if strings.TrimSpace(hubToolCallURL) == "" || strings.TrimSpace(prompt) == "" {
+		return "", false
+	}
+	systemPrompt := `你是一个 Surface scaffold 生成器。你必须只输出 JSON，格式为 {"files":{"相对路径":"文件内容"}}。
+要求：
+1. 只允许输出 manifest.json、index.html、README.md。
+2. 必须兼容 Page -> Surface 的 postMessage/MessageChannel 握手模式。
+3. surface 必须能回报 surface_ready、state_change、action_result。
+4. index.html 里必须至少支持 get_state 和一个可见业务动作。
+5. 不要输出 markdown 代码块，不要输出解释。`
+	result, err := callHubToolAsService(hubToolCallURL, bootstrap, callerServiceID, "gen-"+app.NewRequestID(), "tr-"+app.NewRequestID(), "ai.llm.generate", map[string]any{
+		"system_prompt": systemPrompt,
+		"input":         fmt.Sprintf("surface_name=%s\n用户需求：%s", strings.TrimSpace(surfaceName), strings.TrimSpace(prompt)),
+	})
+	if err != nil || !result.Ok {
+		return "", false
+	}
+	payload, _ := result.Result.(map[string]any)
+	text, _ := payload["text"].(string)
+	text = strings.TrimSpace(text)
+	return text, text != ""
 }
 
 func builtinManifest(serviceID string) app.ServiceManifest {
@@ -857,6 +1081,8 @@ func toSupervisorTools(manifest app.ServiceManifest) []toolproto.ServiceTool {
 			Streaming:            strings.EqualFold(strings.TrimSpace(descriptor.Streaming), "stream"),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			TimeoutMSDefault:     descriptor.TimeoutMSDefault,
+			InputSchema:          descriptor.InputSchema,
+			OutputSchema:         descriptor.OutputSchema,
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
 			AllowedCallerTypes:   append([]string(nil), descriptor.AllowedCallerTypes...),
 			WSPath:               strings.TrimSpace(descriptor.WSPath),
@@ -1087,19 +1313,27 @@ func buildHubToolCallURL(registerURL string) string {
 	return hubsvc.BuildHubToolCallURL(registerURL)
 }
 
-func startHubToolHeartbeatGuard(hubToolCallURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {
+func startHubToolHeartbeatGuard(hubToolCallURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string), statusFn func() string, healthyFn func() bool) {
 	if strings.TrimSpace(hubToolCallURL) == "" || strings.TrimSpace(serviceID) == "" || strings.TrimSpace(instanceID) == "" || onFailure == nil {
 		return
 	}
 	go func() {
 		send := func() error {
+			status := "ready"
+			if statusFn != nil && strings.TrimSpace(statusFn()) != "" {
+				status = strings.TrimSpace(statusFn())
+			}
+			healthy := true
+			if healthyFn != nil {
+				healthy = healthyFn()
+			}
 			callReq := toolproto.CallRequest{
 				ToolID: "hub.governance.service.heartbeat",
 				Args: map[string]any{
 					"service_id":  strings.TrimSpace(serviceID),
 					"instance_id": strings.TrimSpace(instanceID),
-					"status":      "ready",
-					"healthy":     true,
+					"status":      status,
+					"healthy":     healthy,
 					"pid":         pid,
 					"endpoint":    strings.TrimSpace(endpoint),
 				},

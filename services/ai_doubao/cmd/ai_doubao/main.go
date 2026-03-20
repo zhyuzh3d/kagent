@@ -92,6 +92,18 @@ func main() {
 			WSPath:               "/service/tool/ws",
 		},
 		{
+			Name:                 "ai.llm.generate",
+			Description:          "Generate one full text output from LLM using optional custom system prompt.",
+			InputSchema:          map[string]any{"type": "object", "properties": map[string]any{"input": map[string]any{"type": "string"}, "system_prompt": map[string]any{"type": "string"}}},
+			OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}},
+			SideEffect:           "none",
+			CapabilitiesRequired: []string{"ai.llm"},
+			AllowedCallerTypes:   []string{"service", "user"},
+			Idempotency:          "idempotent",
+			TimeoutMSDefault:     65000,
+			Streaming:            "none",
+		},
+		{
 			Name:                 "ai.speech.tts",
 			Description:          "Synthesize text to speech audio bytes.",
 			InputSchema:          map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}},
@@ -139,7 +151,7 @@ func main() {
 			ServiceName:  "ai_doubao",
 			Version:      version,
 			Provider:     "ai_doubao",
-			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.speech.tts"},
+			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.llm.generate", "ai.speech.tts"},
 			Transport:    "http+ws",
 		}
 		manifest := app.BuildAIServiceManifest(info, toolDescriptors, true)
@@ -330,6 +342,17 @@ func main() {
 			resp.Result = map[string]any{
 				"audio_base64": base64.StdEncoding.EncodeToString(audio),
 				"format":       format,
+			}
+		case "ai.llm.generate":
+			llm := app.NewDoubaoLLMClient(cfg.ActiveChat(), nil)
+			finalText, err := llm.StreamWithSystem(r.Context(), asString(req.Args["system_prompt"]), asString(req.Args["input"]), nil, nil)
+			if err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "llm generate failed: " + err.Error()}
+				break
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{
+				"text": finalText,
 			}
 		default:
 			resp.Error = &app.ToolError{
@@ -563,6 +586,8 @@ func toSupervisorToolsFromDescriptors(version string, descriptors []app.AIServic
 			WSPath:               strings.TrimSpace(descriptor.WSPath),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			TimeoutMSDefault:     descriptor.TimeoutMSDefault,
+			InputSchema:          descriptor.InputSchema,
+			OutputSchema:         descriptor.OutputSchema,
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
 			AllowedCallerTypes:   append([]string(nil), descriptor.AllowedCallerTypes...),
 		})

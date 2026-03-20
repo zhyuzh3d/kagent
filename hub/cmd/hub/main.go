@@ -27,6 +27,7 @@ func main() {
 	fileStorageURL := flag.String("file-storage-url", "http://127.0.0.1:18084", "file_storage service base url")
 	sqlDBURL := flag.String("sql-db-url", "http://127.0.0.1:18085", "sql_db service base url")
 	surfaceManagerURL := flag.String("surface-manager-url", "http://127.0.0.1:18086", "surface_manager service base url")
+	autoguiURL := flag.String("autogui-url", "http://127.0.0.1:18087", "autogui service base url")
 	flag.Parse()
 
 	app.InitLogger(app.LevelDebug, "HUB")
@@ -75,6 +76,7 @@ func main() {
 		{serviceID: "file_storage", dir: "file_storage"},
 		{serviceID: "sql_db", dir: "sql_db"},
 		{serviceID: "surface_manager", dir: "surface_manager"},
+		{serviceID: "autogui", dir: "autogui"},
 	}
 	for _, item := range serviceDirs {
 		if err := app.EnsureServiceConfigFiles(filepath.Join(servicesRoot, item.dir)); err != nil {
@@ -113,6 +115,7 @@ func main() {
 			"file_storage":    {Transport: "tcp", TCPURL: strings.TrimSpace(*fileStorageURL)},
 			"sql_db":          {Transport: "tcp", TCPURL: strings.TrimSpace(*sqlDBURL)},
 			"surface_manager": {Transport: "tcp", TCPURL: strings.TrimSpace(*surfaceManagerURL)},
+			"autogui":         {Transport: "tcp", TCPURL: strings.TrimSpace(*autoguiURL)},
 		},
 	)
 
@@ -136,26 +139,17 @@ func main() {
 		}
 		return lastErr
 	}
-	supervisorHandler.SetOnServiceReady(func(serviceID string) {
-		if strings.TrimSpace(serviceID) != "account" {
-			return
-		}
-		go func() {
-			if err := syncAccountStateWithRetry(); err != nil {
-				app.Warnf("sync account state failed: %v", err)
-				return
-			}
-			app.Infof("account security state synced")
-		}()
-	})
 
-	_ = hubgateway.NewAdminHandler(
+	adminHandler := hubgateway.NewAdminHandler(
 		authService,
 		hubPlatform,
 		supervisorRegistry,
 		routingEngine,
 		auditStore,
 		toolHandler,
+		lifecycleManager,
+		servicesConfigPathResolved,
+		appRoot,
 	)
 
 	systemHandler := hubgateway.NewSystemHandler(
@@ -187,12 +181,13 @@ func main() {
 		app.Warnf("ServiceLifecycle-Config-Load-Error:%v", cfgErr)
 	} else {
 		registerURL := "http://" + strings.TrimSpace(*addr) + "/api/tool/call"
-		manager, managerErr := supervisor.NewLifecycleManager(appRoot, registerURL, cfg, hubPlatform, supervisorRegistry, transportClient)
+		manager, managerErr := supervisor.NewLifecycleManager(appRoot, servicesConfigPathResolved, registerURL, cfg, hubPlatform, supervisorRegistry, transportClient)
 		if managerErr != nil {
 			app.Warnf("ServiceLifecycle-Init-Error:%v", managerErr)
 		} else {
 			lifecycleManager = manager
 			systemHandler.UpdateLifecycleManager(manager)
+			adminHandler.UpdateLifecycleManager(manager)
 		}
 	}
 
@@ -222,15 +217,33 @@ func main() {
 			app.Infof("System:Internal:Startup:Lifecycle:StartAll: begin")
 			snapshot := lifecycleManager.StartAll(startCtx)
 			readyCount := 0
+			registeredCount := 0
 			for _, svc := range snapshot.Services {
+				if svc.Registered {
+					registeredCount++
+				}
 				if svc.Ready {
 					readyCount++
 					app.Infof("System:Internal:Startup:ServiceReady: service=%s pid=%d instance=%s endpoint=%s attempts=%d", svc.ServiceID, svc.PID, svc.Instance, svc.Endpoint, svc.Attempts)
 					continue
 				}
+				if svc.Registered {
+					app.Warnf("System:Internal:Startup:ServiceRegisteredOnly: service=%s pid=%d instance=%s endpoint=%s status=%s attempts=%d err=%s", svc.ServiceID, svc.PID, svc.Instance, svc.Endpoint, svc.Status, svc.Attempts, svc.ErrorText)
+					continue
+				}
 				app.Warnf("System:Internal:Startup:ServiceFailed: service=%s dir=%s exec=%s attempts=%d err=%s", svc.ServiceID, svc.Dir, svc.ExecPath, svc.Attempts, svc.ErrorText)
 			}
-			app.Infof("System:Internal:Startup:Lifecycle:Done: ready=%d total=%d duration_ms=%d", readyCount, len(snapshot.Services), snapshot.CompletedAtMS-snapshot.StartedAtMS)
+			for _, svc := range snapshot.Services {
+				if strings.TrimSpace(svc.ServiceID) == "account" && svc.Ready {
+					if err := syncAccountStateWithRetry(); err != nil {
+						app.Warnf("sync account state failed: %v", err)
+					} else {
+						app.Infof("account security state synced")
+					}
+					break
+				}
+			}
+			app.Infof("System:Internal:Startup:Lifecycle:Done: registered=%d ready=%d total=%d duration_ms=%d", registeredCount, readyCount, len(snapshot.Services), snapshot.CompletedAtMS-snapshot.StartedAtMS)
 			if startupSnapshotStore != nil {
 				if err := startupSnapshotStore.Save(ver.Backend, snapshot); err != nil {
 					app.Warnf("StartupSnapshotStore-Save-Error:%v", err)

@@ -80,7 +80,7 @@ export function createChatStore(options) {
   }
 
   function isDefaultVisibleRole(role) {
-    return role === "user" || role === "assistant" || role === "ai";
+    return role === "user" || role === "assistant" || role === "ai" || role === "observer";
   }
 
   function applyRoleVisibility(msg) {

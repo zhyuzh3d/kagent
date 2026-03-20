@@ -52,10 +52,11 @@ type AIServiceASREvent struct {
 }
 
 type AIServiceLLMStreamRequest struct {
-	RequestID string        `json:"request_id,omitempty"`
-	TurnID    uint64        `json:"turn_id,omitempty"`
-	Input     string        `json:"input"`
-	History   []ChatMessage `json:"history,omitempty"`
+	RequestID    string        `json:"request_id,omitempty"`
+	TurnID       uint64        `json:"turn_id,omitempty"`
+	Input        string        `json:"input"`
+	SystemPrompt string        `json:"system_prompt,omitempty"`
+	History      []ChatMessage `json:"history,omitempty"`
 }
 
 type AIServiceLLMStreamEvent struct {

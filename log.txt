@@ -1,165 +1,61 @@
-[2026-03-20 13:38:33] [INFO] [DEPLOY] Starting Hub (kagent)...
-[2026-03-20 13:38:33] [SUCC] [DEPLOY] Hub launch command submitted. Hub will handle port preemption, service orchestration, and startup result logging.
-[2026-03-20 13:38:33] [INFO] [DEPLOY] Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)...
-[2026-03-20 13:38:33] [WARN] [HUB] [anonymous] shutdown requested from 127.0.0.1:52515 via tool
-[2026-03-20 13:38:34] [DEBUG] [CHAT_SERVER] read ws failed: websocket: close 1006 (abnormal closure): unexpected EOF
-[2026-03-20 13:38:34] [INFO] [HUB] System:Internal:Startup:PortPreempted: 18080
-[2026-03-20 13:38:34] [WARN] [SURFACE_MANAGER] surface_manager shutdown: hub heartbeat failed: execute hub tool call: Post "http://127.0.0.1:18080/api/tool/call": dial tcp 127.0.0.1:18080: connect: connection refused
-[2026-03-20 13:38:34] [INFO] [HUB] System:Internal:Version:backend=26032001,webui=26032001
-[2026-03-20 13:38:34] [INFO] [HUB] System:Internal:Startup:Listen: 127.0.0.1:18080
-[2026-03-20 13:38:34] [INFO] [HUB] System:Internal:Startup:Lifecycle:StartAll: begin
-[2026-03-20 13:38:34] [INFO] [HUB] service old process cleaned: service=sql_db pid=64891 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/sql_db/run/sql_db-latest started_at_ms=1773984771097
-2026/03/20 13:38:35 warn: account service shutdown: hub heartbeat failed: heartbeat status=500 body={"ok":false,"error":{"code":"INTERNAL_ERROR","message":"heartbeat restricted to services"},"meta":{"request_id":"hb-BsC_uy3jlaBo097-","trace_id":"tr-95I6_TGdu27N1L6C","service_id":"hub"}}
-[2026-03-20 13:38:35] [INFO] [HUB] System:Internal:RegistrationSuccess:service=sql_db,endpoint=http://127.0.0.1:18085
-[2026-03-20 13:38:35] [INFO] [SQL_DB] register sql_db service to hub status=200
-[2026-03-20 13:38:35] [INFO] [SQL_DB] sql_db service listening=http://127.0.0.1:18085
-[2026-03-20 13:38:35] [INFO] [HUB] service old process cleaned: service=ai_doubao pid=64895 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/ai_doubao/run/ai_doubao-latest started_at_ms=1773984771736
-[2026-03-20 13:38:35] [INFO] [HUB] System:Internal:RegistrationSuccess:service=ai_doubao,endpoint=http://127.0.0.1:18081
-[2026-03-20 13:38:35] [INFO] [AI_DOUBAO] register ai_doubao to hub status=200
-[2026-03-20 13:38:35] [INFO] [AI_DOUBAO] ai_doubao service listening at http://127.0.0.1:18081
-[2026-03-20 13:38:36] [INFO] [HUB] service old process cleaned: service=chat_server pid=64899 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/run/chat_server-latest started_at_ms=1773984772376
-[2026-03-20 13:38:36] [INFO] [HUB] System:Internal:RegistrationSuccess:service=chat_server,endpoint=http://127.0.0.1:18082
-[2026-03-20 13:38:36] [INFO] [CHAT_SERVER] register chat_server to hub status=200
-[2026-03-20 13:38:36] [INFO] [CHAT_SERVER] chat_server listening at http://127.0.0.1:18082
-[2026-03-20 13:38:36] [INFO] [HUB] service old process not cleaned: service=account pid=64901 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/account/run/account-latest started_at_ms=1773984772984
-[2026-03-20 13:38:37] [INFO] [HUB] System:Internal:RegistrationSuccess:service=account,endpoint=http://127.0.0.1:18083
-2026/03/20 13:38:37 info: account service listening=http://127.0.0.1:18083
-[2026-03-20 13:38:37] [INFO] [HUB] service old process cleaned: service=file_storage pid=64907 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/file_storage/run/file_storage-latest started_at_ms=1773984773622
-[2026-03-20 13:38:37] [INFO] [HUB] account security state synced
-[2026-03-20 13:38:37] [INFO] [HUB] System:Internal:RegistrationSuccess:service=file_storage,endpoint=http://127.0.0.1:18084
-[2026-03-20 13:38:37] [INFO] [FILE_STORAGE] register file_storage service to hub status=200
-[2026-03-20 13:38:37] [INFO] [FILE_STORAGE] file_storage service listening=http://127.0.0.1:18084
-[2026-03-20 13:38:37] [INFO] [HUB] service old process not cleaned: service=surface_manager pid=64911 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/surface_manager/run/surface_manager-latest started_at_ms=1773984774256
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:RegistrationSuccess:service=surface_manager,endpoint=http://127.0.0.1:18086
-[2026-03-20 13:38:38] [INFO] [SURFACE_MANAGER] register surface_manager to hub status=200
-[2026-03-20 13:38:38] [INFO] [SURFACE_MANAGER] surface_manager listening=http://127.0.0.1:18086
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=sql_db pid=66874 instance=sql_db-1773985114948766000 endpoint=http://127.0.0.1:18085 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=ai_doubao pid=66882 instance=ai_doubao-1773985115580404000 endpoint=http://127.0.0.1:18081 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=chat_server pid=66888 instance=chat_server-1773985116223971000 endpoint=http://127.0.0.1:18082 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=account pid=66889 instance=account-1773985116712521000 endpoint=http://127.0.0.1:18083 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=file_storage pid=66893 instance=file_storage-1773985117349595000 endpoint=http://127.0.0.1:18084 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=surface_manager pid=66895 instance=surface_manager-1773985117836145000 endpoint=http://127.0.0.1:18086 attempts=1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:Startup:Lifecycle:Done: ready=6 total=6 duration_ms=3524
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.register
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.me
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#1
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#2
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.sso.old-token-rejected
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_list
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_create
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_create
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_list
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.storage.database.schema
-[2026-03-20 13:38:38] [INFO] [HUB] System:Internal:SmokeTest:Passed: user=smoke_1773985118328492000 project=prj-1d138e8b5f47f2ccd7238628543c67c4 thread=thd-186d6a66d30e2ff4bf098f103d003156 stages=10
-[2026-03-20 13:38:42] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/chat/ [304] (346.333µs)
-[2026-03-20 13:38:42] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (72.959µs)
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:Script module start
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /json/config_info.json [200] (8.173875ms)
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:runtime config loaded
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:version b26032001 ui26032001
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Initializing sidebar...
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 projects
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Selecting first project:project-default
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 2 threads for project
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Final context:proj=project-default thd=chat-default
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Sidebar initialization complete
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:38:43] [DEBUG] [CHAT_SERVER] received fetch_history: before_id=0 cursor=0 limit=20
-[2026-03-20 13:38:43] [ERROR] [CHAT_SERVER] fetch history failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:43] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
-[2026-03-20 13:38:45] [DEBUG] [CHAT_SERVER] read ws failed: websocket: close 1005 (no status)
-[2026-03-20 13:38:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:reconnecting with proj=project-default thd=thd-a75737ff34abec809f554cd0b9588d7a
-[2026-03-20 13:38:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:38:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
-[2026-03-20 13:38:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
-[2026-03-20 13:38:45] [ERROR] [CHAT_SERVER] chat_server ws user store failed: database execute failed: database is locked (5) (SQLITE_BUSY)
-[2026-03-20 13:38:45] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws closed (via worker)
-[2026-03-20 13:38:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:38:47] [DEBUG] [CHAT_SERVER] received fetch_history: before_id=0 cursor=0 limit=20
-[2026-03-20 13:38:47] [ERROR] [CHAT_SERVER] fetch history failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
-[2026-03-20 13:38:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:audio path:AudioWorklet
-[2026-03-20 13:38:47] [ERROR] [CHAT_SERVER] [Turn:0] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:47] [DEBUG] [CHAT_SERVER] [Turn:0] Connecting dedicated ASR WebSocket
-[2026-03-20 13:38:47] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
-[2026-03-20 13:38:47] [DEBUG] [AI_DOUBAO] [ai_doubao] asr stream open request_id=svc-fb256b78cb44a5595c2cc25372428475
-[2026-03-20 13:38:48] [INFO] [CHAT_SERVER] [Turn:1] -> VAD listening started
-[2026-03-20 13:38:48] [DEBUG] [CHAT_SERVER] [Turn:1] Connecting dedicated ASR WebSocket
-[2026-03-20 13:38:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:FrontendVAD:Speech onset detected (start_listen)
-[2026-03-20 13:38:48] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
-[2026-03-20 13:38:48] [DEBUG] [AI_DOUBAO] [ai_doubao] asr stream open request_id=svc-41fb7c687a8efcd2c60a278032f409d3
-[2026-03-20 13:38:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
-[2026-03-20 13:38:49] [DEBUG] [AI_DOUBAO] Finish signal received, sending ending frame to ASR server
-[2026-03-20 13:38:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:SessionControl:Trigger LLM explicitly (trigger_llm)
-[2026-03-20 13:38:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
-[2026-03-20 13:38:49] [DEBUG] [AI_DOUBAO] [ai_doubao] asr stream closed request_id=chat-9140ce45d1e05b8c0bb42f7afb707de5 turn_id=1
-[2026-03-20 13:38:49] [INFO] [CHAT_SERVER] [Turn:1] "吃饭了没有？" -> ASR final (segment), full="吃饭了没有？"
-[2026-03-20 13:38:49] [DEBUG] [CHAT_SERVER] [Turn:1] ASR final received for trigger_llm
-[2026-03-20 13:38:49] [INFO] [CHAT_SERVER] [Turn:1] "吃饭了没有？" -> LLM Triggered
-[2026-03-20 13:38:49] [DEBUG] [CHAT_SERVER] [Turn:1] Dedicated ASR connection closed
-[2026-03-20 13:38:49] [ERROR] [CHAT_SERVER] [Turn:1] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Recognizing
-[2026-03-20 13:38:49] [DEBUG] [AI_DOUBAO] [ai_doubao] llm ws request_id=chat-47397d8a5323544d6e1fc04fb51a0530 turn_id=1
-[2026-03-20 13:38:49] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Thinking
-[2026-03-20 13:38:53] [DEBUG] [AI_DOUBAO] [ai_doubao] llm ws finished request_id=chat-47397d8a5323544d6e1fc04fb51a0530 turn_id=1
-[2026-03-20 13:38:54] [INFO] [CHAT_SERVER] [Turn:1] "我没办法吃饭哦，你吃..." -> TTS start sending...
-[2026-03-20 13:38:54] [INFO] [CHAT_SERVER] [Turn:1] -> TTS finished sending
-[2026-03-20 13:38:54] [ERROR] [CHAT_SERVER] [Turn:1] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Speaking
-[2026-03-20 13:38:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:ActionEngine:parsed envelope without action
-[2026-03-20 13:38:54] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Listening
-[2026-03-20 13:38:55] [WARN] [AI_DOUBAO] [ai_doubao] asr stream failed request_id=chat-6b2b0dedffec5fd45bcf79559d7099c6 turn_id=0 err=asr server error code=45000081 message={"error":"[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}
-[2026-03-20 13:38:55] [DEBUG] [CHAT_SERVER] [Turn:0] Dedicated ASR connection closed
-[2026-03-20 13:38:57] [ERROR] [CHAT_SERVER] [Turn:1] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Idle
-[2026-03-20 13:38:57] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/chat/ [304] (1.275458ms)
-[2026-03-20 13:38:57] [ERROR] [CHAT_SERVER] [Turn:1] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:57] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (64.209µs)
-[2026-03-20 13:38:57] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:Script module start
-[2026-03-20 13:38:57] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /json/config_info.json [200] (172.708µs)
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:runtime config loaded
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:version b26032001 ui26032001
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Initializing sidebar...
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 projects
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Selecting first project:project-default
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 2 threads for project
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Final context:proj=project-default thd=chat-default
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Sidebar initialization complete
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:38:58] [DEBUG] [CHAT_SERVER] received fetch_history: before_id=0 cursor=0 limit=20
-[2026-03-20 13:38:58] [ERROR] [CHAT_SERVER] fetch history failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:38:58] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:reconnecting with proj=project-default thd=thd-a75737ff34abec809f554cd0b9588d7a
-[2026-03-20 13:39:00] [DEBUG] [CHAT_SERVER] read ws failed: websocket: close 1005 (no status)
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Browser:Unhandled Promise Rejection:Error:open store failed:database execute failed:database is locked (5) (SQLITE_BUSY)
-[2026-03-20 13:39:00] [DEBUG] [CHAT_SERVER] received fetch_history: before_id=0 cursor=0 limit=20
-[2026-03-20 13:39:00] [ERROR] [CHAT_SERVER] fetch history failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:39:00] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
-[2026-03-20 13:40:18] [ERROR] [CHAT_SERVER] [Turn:0] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Idle
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/chat/ [304] (368.25µs)
-[2026-03-20 13:40:18] [ERROR] [CHAT_SERVER] [Turn:0] persist message failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (73.208µs)
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:Script module start
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /json/config_info.json [200] (496.291µs)
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:runtime config loaded
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:System:version b26032001 ui26032001
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Initializing sidebar...
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 1 projects
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Selecting first project:project-default
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Found 2 threads for project
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering sidebar UI...
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Final context:proj=project-default thd=chat-default
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Rendering 1 projects in loop
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Sidebar:Sidebar initialization complete
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:Network:ws connected (via worker), fetching history sliding window limit=20
-[2026-03-20 13:40:18] [DEBUG] [CHAT_SERVER] received fetch_history: before_id=0 cursor=0 limit=20
-[2026-03-20 13:40:18] [ERROR] [CHAT_SERVER] fetch history failed: Post "http://127.0.0.1:18080/api/tool/call": context canceled
-[2026-03-20 13:40:18] [INFO] [PAGE] [zhyuzh] Service:Report:chat:status_update:Connecting
+[2026-03-21 00:47:27] [INFO] [DEPLOY] Starting Hub (kagent)...
+[2026-03-21 00:47:27] [SUCC] [DEPLOY] Hub launch command submitted. Hub will handle port preemption, service orchestration, and startup result logging.
+[2026-03-21 00:47:27] [INFO] [DEPLOY] Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)...
+[2026-03-21 00:47:27] [WARN] [HUB] [anonymous] shutdown requested from 127.0.0.1:62019 via tool
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:PortPreempted: 18080
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Version:backend=26032002,webui=26032002
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Listen: 127.0.0.1:18080
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Lifecycle:StartAll: begin
+[2026-03-21 00:47:28] [INFO] [HUB] service old process not cleaned: service=autogui pid=35730 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/autogui/run/autogui-latest started_at_ms=1774025230397
+[2026-03-21 00:47:28] [INFO] [HUB] service old process not cleaned: service=surface_manager pid=35732 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/surface_manager/run/surface_manager-latest started_at_ms=1774025230399
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=autogui,endpoint=http://127.0.0.1:18087
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=surface_manager,endpoint=http://127.0.0.1:18086
+[2026-03-21 00:47:28] [INFO] [SURFACE_MANAGER] register surface_manager to hub status=200
+[2026-03-21 00:47:28] [INFO] [SURFACE_MANAGER] surface_manager listening=http://127.0.0.1:18086
+[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=account pid=35720 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/account/run/account-latest started_at_ms=1774025230248
+[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=ai_doubao pid=35722 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/ai_doubao/run/ai_doubao-latest started_at_ms=1774025230249
+[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=sql_db pid=35731 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/sql_db/run/sql_db-latest started_at_ms=1774025230398
+[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=file_storage pid=35721 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/file_storage/run/file_storage-latest started_at_ms=1774025230248
+[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=chat_server pid=35718 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/run/chat_server-latest started_at_ms=1774025230245
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=ai_doubao,endpoint=http://127.0.0.1:18081
+[2026-03-21 00:47:28] [INFO] [AI_DOUBAO] register ai_doubao to hub status=200
+[2026-03-21 00:47:28] [INFO] [AI_DOUBAO] ai_doubao service listening at http://127.0.0.1:18081
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=account,endpoint=http://127.0.0.1:18083
+[2026-03-21 00:47:28] [INFO] [ACCOUNT] account service listening=http://127.0.0.1:18083
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=file_storage,endpoint=http://127.0.0.1:18084
+[2026-03-21 00:47:28] [INFO] [FILE_STORAGE] register file_storage service to hub status=200
+[2026-03-21 00:47:28] [INFO] [FILE_STORAGE] file_storage service listening=http://127.0.0.1:18084
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=chat_server,endpoint=http://127.0.0.1:18082
+[2026-03-21 00:47:28] [INFO] [CHAT_SERVER] register chat_server to hub status=200
+[2026-03-21 00:47:28] [INFO] [CHAT_SERVER] chat_server listening at http://127.0.0.1:18082
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=sql_db,endpoint=http://127.0.0.1:18085
+[2026-03-21 00:47:28] [INFO] [SQL_DB] register sql_db service to hub status=200
+[2026-03-21 00:47:28] [INFO] [SQL_DB] sql_db service listening=http://127.0.0.1:18085
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=sql_db pid=36211 instance=sql_db-1774025248763847000 endpoint=http://127.0.0.1:18085 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=ai_doubao pid=36209 instance=ai_doubao-1774025248762942000 endpoint=http://127.0.0.1:18081 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=chat_server pid=36213 instance=chat_server-1774025248767329000 endpoint=http://127.0.0.1:18082 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=account pid=36210 instance=account-1774025248762858000 endpoint=http://127.0.0.1:18083 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=file_storage pid=36212 instance=file_storage-1774025248763833000 endpoint=http://127.0.0.1:18084 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=surface_manager pid=36198 instance=surface_manager-1774025248597923000 endpoint=http://127.0.0.1:18086 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=autogui pid=36193 instance=autogui-1774025248593670000 endpoint=http://127.0.0.1:18087 attempts=1
+[2026-03-21 00:47:28] [INFO] [HUB] account security state synced
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Lifecycle:Done: registered=7 ready=7 total=7 duration_ms=313
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.register
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.me
+[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#1
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#2
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.sso.old-token-rejected
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_list
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_create
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_create
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_list
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.storage.database.schema
+[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Passed: user=smoke_1774025248911169000 project=prj-c0cddc0ee53a85e5d94dd4fb7c524e79 thread=thd-4cb8d69215a59886c982a8fc9e644a05 stages=10
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.html [304] (216.25µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.css [304] (121.542µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.js [304] (93.875µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/logic.js [304] (102.584µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/render.js [304] (145.875µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/utils.js [304] (445.375µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/state.js [304] (200.417µs)
+[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/api.js [304] (65.458µs)

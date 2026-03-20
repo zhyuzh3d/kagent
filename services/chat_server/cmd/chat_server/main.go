@@ -149,9 +149,13 @@ func main() {
 		})
 	}
 
-	openStore := func(ctx context.Context, uid string, pid string, tid string) (app.ChatStore, error) {
+	openToolStore := func(ctx context.Context, uid string, pid string, tid string) (app.ChatStore, error) {
 		client := app.NewHubToolClient(hubBaseURL, serviceBootstrap, 70*time.Second)
-		return app.NewHubDatabaseStore(ctx, client, uid, firstNonEmpty(pid, *projectID), firstNonEmpty(tid, *threadID))
+		return app.NewHubDatabaseStoreWithOptions(ctx, client, uid, pid, tid, app.HubDatabaseStoreOptions{EnsureDefaults: false})
+	}
+	openSessionStore := func(ctx context.Context, uid string, pid string, tid string) (app.ChatStore, error) {
+		client := app.NewHubToolClient(hubBaseURL, serviceBootstrap, 70*time.Second)
+		return app.NewHubDatabaseStoreWithOptions(ctx, client, uid, firstNonEmpty(pid, *projectID), firstNonEmpty(tid, *threadID), app.HubDatabaseStoreOptions{EnsureDefaults: true})
 	}
 
 	mux.HandleFunc("/service/tool/exec", func(w http.ResponseWriter, r *http.Request) {
@@ -284,7 +288,7 @@ func main() {
 			Error:  nil,
 			Meta:   meta,
 		}
-		store, err := openStore(reqCtx, effectiveCaller.UserID, asString(req.Args["project_id"]), asString(req.Args["thread_id"]))
+		store, err := openToolStore(reqCtx, effectiveCaller.UserID, asString(req.Args["project_id"]), asString(req.Args["thread_id"]))
 		if err != nil {
 			resp.Error = &app.ToolError{
 				Code:    app.ErrorCodeInternalError,
@@ -441,12 +445,14 @@ func main() {
 		if tID == "" {
 			tID = *threadID
 		}
-		wsCtx := hubsvc.ContextWithDelegation(r.Context(), hubsvc.OriginCallerFromHeaders(r.Header), hubsvc.OriginCallerTokenFromHeaders(r.Header))
+		// The HTTP request context is canceled soon after websocket upgrade.
+		// Session-scoped storage must inherit delegation, but outlive the upgrade request.
+		wsCtx := hubsvc.ContextWithDelegation(appCtx, hubsvc.OriginCallerFromHeaders(r.Header), hubsvc.OriginCallerTokenFromHeaders(r.Header))
 		effectiveUserID := strings.TrimSpace(claims.UserID)
 		if originUserID := strings.TrimSpace(hubsvc.OriginCallerFromHeaders(r.Header).UserID); originUserID != "" {
 			effectiveUserID = originUserID
 		}
-		store, err := openStore(wsCtx, effectiveUserID, pID, tID)
+		store, err := openSessionStore(wsCtx, effectiveUserID, pID, tID)
 		if err != nil {
 			app.Errorf("chat_server ws user store failed: %v", err)
 			_ = conn.Close()
@@ -530,6 +536,8 @@ func toSupervisorTools(manifest app.ServiceManifest) []app.ServiceTool {
 			WSPath:               strings.TrimSpace(descriptor.WSPath),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			TimeoutMSDefault:     descriptor.TimeoutMSDefault,
+			InputSchema:          descriptor.InputSchema,
+			OutputSchema:         descriptor.OutputSchema,
 			CapabilitiesRequired: append([]string(nil), descriptor.CapabilitiesRequired...),
 			AllowedCallerTypes:   append([]string(nil), descriptor.AllowedCallerTypes...),
 		})

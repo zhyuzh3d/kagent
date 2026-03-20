@@ -1,0 +1,20 @@
+{
+  "service_id": "autogui",
+  "service_name": "autogui",
+  "version": "1.0.0",
+  "visibility": "public",
+  "entry": {
+    "args": [
+      "-addr",
+      "127.0.0.1:18087"
+    ],
+    "env": {}
+  },
+  "lifecycle": {
+    "register_timeout_ms": 1500,
+    "restart_policy": "never",
+    "restart_backoff_ms": 300,
+    "restart_times": 2,
+    "kill_old": true
+  }
+}

@@ -40,6 +40,7 @@ function toCanonicalActionName(rawName) {
   const lower = name.toLowerCase();
   if (aliases.has(lower)) return aliases.get(lower);
   if (lower.startsWith("surface.call.")) return name;
+  if (lower.startsWith("tool.call.")) return name;
   return "";
 }
 
@@ -72,6 +73,12 @@ function parseSurfaceCallName(name) {
     surfaceID: parts[2],
     actionName: parts.slice(3).join("."),
   };
+}
+
+function parseToolCallName(name) {
+  const text = String(name || "").trim();
+  if (!text.toLowerCase().startsWith("tool.call.")) return "";
+  return text.slice("tool.call.".length).trim();
 }
 
 export function createSurfaceBridge(options) {
@@ -804,6 +811,25 @@ export function createSurfaceBridge(options) {
           },
         });
       });
+    }
+
+    if (action.name.startsWith("tool.call.")) {
+      const toolID = parseToolCallName(action.name);
+      if (!toolID) return { ok: false, reason: "invalid_tool_call_name" };
+      const payload = await callTool(toolID, action.args || {});
+      return {
+        ok: true,
+        status: "ok",
+        action_id: action.id,
+        action_name: action.name,
+        surface_id: "hub_tool",
+        surface_type: "tool",
+        surface_version: "1",
+        result: payload && typeof payload === "object" ? payload : { value: payload },
+        business_state: {},
+        state_version: 0,
+        effect: { source: "hub.tool", tool_id: toolID, payload },
+      };
     }
 
     return { ok: false, reason: "unsupported_action" };

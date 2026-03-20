@@ -57,9 +57,18 @@ type HubDatabaseStore struct {
 	projectID string
 	threadID  string
 	baseCtx   context.Context
+	options   HubDatabaseStoreOptions
+}
+
+type HubDatabaseStoreOptions struct {
+	EnsureDefaults bool
 }
 
 func NewHubDatabaseStore(ctx context.Context, client *HubToolClient, userID string, projectID string, threadID string) (*HubDatabaseStore, error) {
+	return NewHubDatabaseStoreWithOptions(ctx, client, userID, projectID, threadID, HubDatabaseStoreOptions{EnsureDefaults: true})
+}
+
+func NewHubDatabaseStoreWithOptions(ctx context.Context, client *HubToolClient, userID string, projectID string, threadID string, options HubDatabaseStoreOptions) (*HubDatabaseStore, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -69,6 +78,7 @@ func NewHubDatabaseStore(ctx context.Context, client *HubToolClient, userID stri
 		projectID: strings.TrimSpace(projectID),
 		threadID:  strings.TrimSpace(threadID),
 		baseCtx:   ctx,
+		options:   options,
 	}
 	if err := s.init(ctx); err != nil {
 		return nil, err
@@ -168,7 +178,18 @@ func (s *HubDatabaseStore) init(ctx context.Context) error {
 			return err
 		}
 	}
+	if !s.options.EnsureDefaults {
+		return nil
+	}
 	return s.initDefaultIDs(ctx)
+}
+
+func (s *HubDatabaseStore) ensureUserLocked(ctx context.Context, userID string) error {
+	cleanUserID := strings.TrimSpace(firstNonEmpty(userID, s.userID))
+	if cleanUserID == "" {
+		return fmt.Errorf("user_id is required")
+	}
+	return s.execute(ctx, `INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, cleanUserID, nowMS())
 }
 
 func (s *HubDatabaseStore) initDefaultIDs(ctx context.Context) error {
@@ -178,8 +199,7 @@ func (s *HubDatabaseStore) initDefaultIDs(ctx context.Context) error {
 	if strings.TrimSpace(s.userID) == "" {
 		s.userID = "default"
 	}
-	now := nowMS()
-	if err := s.execute(ctx, `INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, s.userID, now); err != nil {
+	if err := s.ensureUserLocked(ctx, s.userID); err != nil {
 		return err
 	}
 
@@ -264,6 +284,9 @@ func (s *HubDatabaseStore) AppendMessage(msg ChatMessage) (ChatMessage, error) {
 	defer s.mu.Unlock()
 
 	ctx := s.baseCtx
+	if err := s.ensureUserLocked(ctx, s.userID); err != nil {
+		return ChatMessage{}, err
+	}
 	if err := s.ensureProjectLocked(ctx, s.projectID, "Default Project", 0); err != nil {
 		return ChatMessage{}, err
 	}
@@ -448,7 +471,7 @@ func (s *HubDatabaseStore) CreateProject(userID string, title string) (string, e
 		return "", fmt.Errorf("user_id is required")
 	}
 	now := nowMS()
-	if err := s.execute(s.baseCtx, `INSERT OR IGNORE INTO users(user_id, created_at_ms) VALUES(?, ?)`, cleanUserID, now); err != nil {
+	if err := s.ensureUserLocked(s.baseCtx, cleanUserID); err != nil {
 		return "", err
 	}
 	rows, err := s.query(s.baseCtx, `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM projects WHERE user_id=?`, cleanUserID)
@@ -530,6 +553,9 @@ func (s *HubDatabaseStore) CreateThread(userID string, projectID string, title s
 	cleanProjectID := strings.TrimSpace(firstNonEmpty(projectID, s.RuntimeProjectID()))
 	if cleanUserID == "" || cleanProjectID == "" {
 		return "", fmt.Errorf("user_id and project_id are required")
+	}
+	if err := s.ensureUserLocked(s.baseCtx, cleanUserID); err != nil {
+		return "", err
 	}
 	now := nowMS()
 	rows, err := s.query(s.baseCtx, `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order FROM threads WHERE user_id=? AND project_id=?`, cleanUserID, cleanProjectID)

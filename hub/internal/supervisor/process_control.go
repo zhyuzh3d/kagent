@@ -16,6 +16,8 @@ import (
 	"kagent/pkg/toolproto"
 )
 
+const serviceSelfShutdownGrace = 500 * time.Millisecond
+
 // BuildServiceControlURL constructs an HTTP URL for controlling a service at the given endpoint.
 // This is the canonical implementation — do NOT duplicate in other packages.
 func BuildServiceControlURL(endpoint string, targetPath string) string {
@@ -71,42 +73,26 @@ func BroadcastServiceShutdown(hubPlatform *app.HubPlatform, timeout time.Duratio
 	}
 }
 
-// StopServiceRegistration gracefully stops a service: lifecycle tool → wait → SIGTERM → SIGKILL.
+// StopServiceRegistration asks the service to stop itself, waits briefly, then force kills if needed.
 func StopServiceRegistration(hubPlatform *app.HubPlatform, reg app.HubServiceRegistration, timeout time.Duration) error {
-	if timeout <= 0 {
-		timeout = 7 * time.Second
-	}
-	deadline := time.Now().Add(timeout)
-
 	if hubPlatform != nil {
 		_, _, _ = callServiceLifecycleTool(hubPlatform, reg, "service.lifecycle.shutdown", map[string]any{
 			"reason": "hub supervisor shutdown",
-		}, timeout)
+		}, serviceSelfShutdownGrace)
 	}
 
+	deadline := time.Now().Add(serviceSelfShutdownGrace)
 	for time.Now().Before(deadline) {
 		alive, pidAlive := ServiceRuntimeAlive(hubPlatform, reg)
 		if !alive && !pidAlive {
 			return nil
 		}
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	if reg.PID > 1 && IsPIDAlive(reg.PID) {
-		_ = syscall.Kill(reg.PID, syscall.SIGTERM)
-		termDeadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(termDeadline) {
-			alive, pidAlive := ServiceRuntimeAlive(hubPlatform, reg)
-			if !alive && !pidAlive {
-				return nil
-			}
-			time.Sleep(150 * time.Millisecond)
-		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	if reg.PID > 1 && IsPIDAlive(reg.PID) {
 		_ = syscall.Kill(reg.PID, syscall.SIGKILL)
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	alive, pidAlive := ServiceRuntimeAlive(hubPlatform, reg)
 	if alive || pidAlive {
