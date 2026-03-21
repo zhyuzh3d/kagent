@@ -1,5 +1,6 @@
+import { callTool } from "./components/api.js";
+import { createSurfaceBridge, isBridgeMessageType } from "./bridge.js";
 import { buildPermissionProfile, extractManifestFromHTML } from "./manifest.js";
-import { createID } from "./utils.js";
 
 function buildReloadURL(rawURL) {
   const u = new URL(rawURL, location.origin);
@@ -19,6 +20,28 @@ export function createSurfaceManager(options) {
   const onStateChange = typeof options.onStateChange === "function" ? options.onStateChange : () => {};
   const onSurfaceEvent = typeof options.onSurfaceEvent === "function" ? options.onSurfaceEvent : () => {};
   const surfaceMap = new Map();
+  const bridge = createSurfaceBridge({
+    callTool,
+    onFlash: ({ runtime, message }) => {
+      notify(`[${runtime.surfaceID}] ${message}`);
+    },
+    onHostCall: ({ runtime, capability, args, payload, ok }) => {
+      onSurfaceEvent({
+        surface_id: runtime.surfaceID,
+        ts: Date.now(),
+        message: {
+          type: "host_call_result",
+          capability,
+          args,
+          payload,
+          ok,
+        },
+      });
+    },
+    onError: (err) => {
+      notify(err && err.message ? err.message : String(err), true);
+    },
+  });
 
   function emitState() {
     onStateChange(listSurfaces());
@@ -41,19 +64,34 @@ export function createSurfaceManager(options) {
     entry.port = null;
   }
 
-  function connectMessageChannel(entry) {
+  async function connectMessageChannel(entry) {
     disposePort(entry);
     if (!entry.iframe || !entry.iframe.contentWindow) {
       setEntryStatus(entry, "iframe 未就绪", "err");
       return;
     }
+    setEntryStatus(entry, "issuing session");
+    const session = await callTool("ui.surface.session_issue", { surface_id: entry.id });
+    const sessionToken = session && typeof session.surface_session_token === "string"
+      ? session.surface_session_token
+      : "";
+    if (!sessionToken) {
+      throw new Error(`surface session token is empty: ${entry.id}`);
+    }
     const channel = new MessageChannel();
     entry.port = channel.port1;
-    entry.sessionToken = createID("st");
+    entry.sessionToken = sessionToken;
+    entry.capabilityCache = new Map();
     entry.port.onmessage = (ev) => {
       const msg = ev && ev.data ? ev.data : null;
       if (!msg || typeof msg !== "object") return;
-      if (entry.frozen && msg.type !== "surface_heartbeat") return;
+      if (entry.frozen && msg.type !== "surface_heartbeat" && !isBridgeMessageType(msg.type)) return;
+      bridge.handleBridgeMessage(entry, msg).catch((err) => {
+        setEntryStatus(entry, err && err.message ? err.message : String(err), "err");
+      });
+      if (isBridgeMessageType(msg.type)) {
+        return;
+      }
       if (msg.type === "surface_ready") {
         setEntryStatus(entry, "ready", "ok");
       }
@@ -69,6 +107,8 @@ export function createSurfaceManager(options) {
         {
           type: "surface_connect",
           surface_id: entry.id,
+          surface_type: entry.manifest.surface_type || "app",
+          surface_version: entry.manifest.surface_version || "1.0",
           session_token: entry.sessionToken,
         },
         "*",
@@ -90,7 +130,9 @@ export function createSurfaceManager(options) {
     }
     iframe.src = urlForLoad;
     iframe.addEventListener("load", () => {
-      connectMessageChannel(entry);
+      connectMessageChannel(entry).catch((err) => {
+        setEntryStatus(entry, err && err.message ? err.message : String(err), "err");
+      });
     });
     entry.bodyEl.replaceChildren(iframe);
     entry.iframe = iframe;
@@ -292,6 +334,10 @@ export function createSurfaceManager(options) {
       maxBtn,
       iframe: null,
       port: null,
+      capabilityCache: new Map(),
+      surfaceID: surfaceID,
+      surfaceType: manifest.surface_type || "app",
+      surfaceVersion: manifest.surface_version || "1.0",
     };
 
     authBtn.addEventListener("click", () => {

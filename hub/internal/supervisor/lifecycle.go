@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	app "kagent/hub/internal/app"
-	"kagent/hub/internal/transport"
 	"kagent/pkg/hubsvc"
 )
 
@@ -51,29 +50,31 @@ type LifecycleDefaultConfig struct {
 }
 
 type LifecycleServiceEntry struct {
-	ServiceID string   `json:"service_id"`
-	Dir       string   `json:"dir"`
-	DependsOn []string `json:"depends_on,omitempty"`
+	ServiceID   string `json:"service_id"`
+	Dir         string `json:"dir"`
+	Enabled     bool   `json:"enabled"`
+	Reliability string `json:"reliability,omitempty"`
 }
 
-type RuntimeManifest struct {
-	ServiceID string                `json:"service_id"`
-	Version   string                `json:"version,omitempty"`
-	Entry     RuntimeManifestEntry  `json:"entry"`
-	Lifecycle RuntimeManifestPolicy `json:"lifecycle"`
+type StartupManifest struct {
+	ServiceID   string                `json:"service_id"`
+	Description string                `json:"description,omitempty"`
+	Version     string                `json:"version,omitempty"`
+	DependsOn   []string              `json:"depends_on,omitempty"`
+	Entry       StartupManifestEntry  `json:"entry"`
+	Lifecycle   StartupManifestPolicy `json:"lifecycle"`
 }
 
-type RuntimeManifestEntry struct {
+type StartupManifestEntry struct {
 	Args []string          `json:"args"`
 	Env  map[string]string `json:"env,omitempty"`
 }
 
-type RuntimeManifestPolicy struct {
+type StartupManifestPolicy struct {
 	RegisterTimeoutMS int    `json:"register_timeout_ms,omitempty"`
 	RestartPolicy     string `json:"restart_policy,omitempty"`
 	RestartBackoffMS  int    `json:"restart_backoff_ms,omitempty"`
 	RestartTimes      int    `json:"restart_times,omitempty"`
-	KillOld           bool   `json:"kill_old,omitempty"`
 }
 
 type StartupSnapshot struct {
@@ -101,16 +102,20 @@ type StartupServiceOutcome struct {
 }
 
 type managedService struct {
-	entry       LifecycleServiceEntry
-	dirAbs      string
-	execPath    string
-	manifest    string
-	secretPath  string
-	restartMax  int
-	restartWait time.Duration
-	policy      string
-	timeout     time.Duration
-	dependsOn   []string
+	entry           LifecycleServiceEntry
+	dirAbs          string
+	execPath        string
+	startupManifest string
+	runtimeManifest string
+	secretPath      string
+	restartMax      int
+	restartWait     time.Duration
+	policy          string
+	timeout         time.Duration
+	enabled         bool
+	reliability     string
+	dependsOn       []string
+	startupConfig   StartupManifest
 }
 
 type managedProcess struct {
@@ -130,15 +135,17 @@ type LifecycleManager struct {
 	defaults    LifecycleDefaultConfig
 
 	hubPlatform *app.HubPlatform
-	pidStore    *app.ServicePidStore
 	registry    *Registry
-	transport   interface {
-		Call(ctx context.Context, endpoint transport.Endpoint, method string, path string, headers http.Header, body []byte, timeout time.Duration) (transport.Response, error)
-	}
 
 	services []managedService
 	procs    map[string]*managedProcess
 	stopping bool
+}
+
+type startupPlan struct {
+	layers      [][]string
+	missingDeps map[string][]string
+	cyclic      map[string]struct{}
 }
 
 func LoadLifecycleConfig(path string) (LifecycleConfig, error) {
@@ -153,9 +160,7 @@ func LoadLifecycleConfig(path string) (LifecycleConfig, error) {
 	return cfg, nil
 }
 
-func NewLifecycleManager(appRoot string, configPath string, registerURL string, cfg LifecycleConfig, hubPlatform *app.HubPlatform, registry *Registry, tp interface {
-	Call(ctx context.Context, endpoint transport.Endpoint, method string, path string, headers http.Header, body []byte, timeout time.Duration) (transport.Response, error)
-}) (*LifecycleManager, error) {
+func NewLifecycleManager(appRoot string, configPath string, registerURL string, cfg LifecycleConfig, hubPlatform *app.HubPlatform, registry *Registry) (*LifecycleManager, error) {
 	root := strings.TrimSpace(appRoot)
 	if root == "" {
 		return nil, fmt.Errorf("app root is empty")
@@ -170,6 +175,7 @@ func NewLifecycleManager(appRoot string, configPath string, registerURL string, 
 	defaults := normalizeDefaults(cfg.Service.LifecycleDefault)
 	services := make([]managedService, 0, len(cfg.Service.Services))
 	for _, item := range cfg.Service.Services {
+		item = normalizeLifecycleServiceEntry(item)
 		sid := strings.TrimSpace(item.ServiceID)
 		dir := strings.TrimSpace(item.Dir)
 		if sid == "" || dir == "" {
@@ -181,19 +187,19 @@ func NewLifecycleManager(appRoot string, configPath string, registerURL string, 
 		}
 		services = append(services, managed)
 	}
-	return &LifecycleManager{
+	manager := &LifecycleManager{
 		appRoot:     root,
 		configPath:  strings.TrimSpace(configPath),
 		registerURL: strings.TrimSpace(registerURL),
 		global:      global,
 		defaults:    defaults,
 		hubPlatform: hubPlatform,
-		pidStore:    app.NewServicePidStore(filepath.Join(root, "hub", "run", ".service_pid")),
 		registry:    registry,
-		transport:   tp,
 		services:    services,
 		procs:       map[string]*managedProcess{},
-	}, nil
+	}
+	manager.syncGovernanceToHubPlatform()
+	return manager, nil
 }
 
 func (m *LifecycleManager) StartAll(ctx context.Context) StartupSnapshot {
@@ -201,17 +207,83 @@ func (m *LifecycleManager) StartAll(ctx context.Context) StartupSnapshot {
 		StartedAtMS: time.Now().UnixMilli(),
 		Services:    make([]StartupServiceOutcome, len(m.services)),
 	}
-	var wg sync.WaitGroup
+	indexByService := map[string]int{}
+	startable := map[string]*managedService{}
 	for i := range m.services {
-		i := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			out.Services[i] = m.startService(ctx, &m.services[i])
-		}()
+		svc := &m.services[i]
+		sid := strings.TrimSpace(svc.entry.ServiceID)
+		indexByService[sid] = i
+		out.Services[i] = baseStartupOutcome(*svc)
+		if !svc.enabled {
+			out.Services[i].Status = "disabled"
+			continue
+		}
+		if _, err := os.Stat(svc.execPath); err != nil {
+			out.Services[i].Status = InstanceStatusFailed
+			out.Services[i].ErrorText = "missing service executable: " + err.Error()
+			continue
+		}
+		if err := m.prepareManagedService(svc); err != nil {
+			out.Services[i].Status = InstanceStatusFailed
+			out.Services[i].ErrorText = err.Error()
+			continue
+		}
+		startable[sid] = svc
 	}
-	wg.Wait()
-	m.finalizeStartup(ctx, &out)
+
+	plan := buildStartupPlan(startable)
+	for sid := range plan.cyclic {
+		if idx, ok := indexByService[sid]; ok {
+			out.Services[idx].Status = InstanceStatusSkipped
+			out.Services[idx].ErrorText = "cyclic dependency detected"
+		}
+	}
+
+	for _, layer := range plan.layers {
+		layerServices := make([]*managedService, 0, len(layer))
+		for _, sid := range layer {
+			svc := startable[sid]
+			if svc == nil {
+				continue
+			}
+			idx := indexByService[sid]
+			current := &out.Services[idx]
+			if current.Status == InstanceStatusSkipped || current.Status == InstanceStatusFailed {
+				continue
+			}
+			if missing := plan.missingDeps[sid]; len(missing) > 0 {
+				current.Status = InstanceStatusSkipped
+				current.ErrorText = "missing dependencies: " + strings.Join(missing, ", ")
+				continue
+			}
+			if dep := firstFailedDependency(out.Services, indexByService, svc.dependsOn); dep != "" {
+				current.Status = InstanceStatusSkipped
+				current.ErrorText = "dependency not ready or failed: " + dep
+				continue
+			}
+			layerServices = append(layerServices, svc)
+		}
+		if len(layerServices) == 0 {
+			continue
+		}
+		layerOut := make([]StartupServiceOutcome, len(layerServices))
+		var wg sync.WaitGroup
+		for i := range layerServices {
+			i := i
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				layerOut[i] = m.startService(ctx, layerServices[i])
+			}()
+		}
+		wg.Wait()
+		for _, svcOut := range layerOut {
+			if idx, ok := indexByService[strings.TrimSpace(svcOut.ServiceID)]; ok {
+				out.Services[idx] = svcOut
+			}
+		}
+	}
+
 	out.CompletedAtMS = time.Now().UnixMilli()
 	return out
 }
@@ -231,48 +303,24 @@ func (m *LifecycleManager) StopAll(timeout time.Duration) {
 	}
 	m.mu.Unlock()
 
+	slices.Sort(serviceIDs)
 	for i := len(serviceIDs) - 1; i >= 0; i-- {
 		m.stopOne(serviceIDs[i], timeout)
 	}
 }
 
 func (m *LifecycleManager) startService(ctx context.Context, svc *managedService) StartupServiceOutcome {
-	serviceID := strings.TrimSpace(svc.entry.ServiceID)
-	out := StartupServiceOutcome{
-		ServiceID:  serviceID,
-		Dir:        strings.TrimSpace(svc.entry.Dir),
-		ExecPath:   svc.execPath,
-		Manifest:   svc.manifest,
-		SecretPath: svc.secretPath,
-		Status:     InstanceStatusStarting,
-	}
+	out := baseStartupOutcome(*svc)
 	if _, err := os.Stat(svc.execPath); err != nil {
+		out.Status = InstanceStatusFailed
 		out.ErrorText = "missing service executable: " + err.Error()
 		return out
 	}
-	runtimeManifest, err := loadRuntimeManifest(svc.manifest, serviceID)
-	if err != nil {
+	if err := m.prepareManagedService(svc); err != nil {
+		out.Status = InstanceStatusFailed
 		out.ErrorText = err.Error()
 		return out
 	}
-	if runtimeManifest.Lifecycle.KillOld {
-		if err := m.cleanupRecordedServiceProcess(svc); err != nil {
-			out.ErrorText = err.Error()
-			return out
-		}
-	}
-	svc.policy = normalizeRestartPolicy(firstNonEmptyValue(strings.TrimSpace(runtimeManifest.Lifecycle.RestartPolicy), m.defaults.RestartPolicy))
-	svc.timeout = clampDurationMS(firstPositive(runtimeManifest.Lifecycle.RegisterTimeoutMS, m.defaults.RegisterTimeoutMS), m.global.MaxTimeoutMS)
-	svc.restartWait = clampDurationMS(firstPositive(runtimeManifest.Lifecycle.RestartBackoffMS, m.defaults.RestartBackoffMS), m.global.MaxTimeoutMS)
-	maxRestart := firstPositive(runtimeManifest.Lifecycle.RestartTimes, m.global.MaxRestartTimes)
-	if maxRestart > m.global.MaxRestartTimes {
-		maxRestart = m.global.MaxRestartTimes
-	}
-	if maxRestart < 0 {
-		maxRestart = 0
-	}
-	svc.restartMax = maxRestart
-	svc.dependsOn = normalizeDependsOn(serviceID, svc.entry.DependsOn)
 
 	attemptLimit := 1 + svc.restartMax
 	if svc.policy == "never" {
@@ -280,17 +328,21 @@ func (m *LifecycleManager) startService(ctx context.Context, svc *managedService
 	}
 	for attempt := 1; attempt <= attemptLimit; attempt++ {
 		out.Attempts = attempt
-		proc, reg, readyErr := m.startOnce(ctx, svc, runtimeManifest)
+		proc, reg, readyErr := m.startOnce(ctx, svc, svc.startupConfig)
 		if readyErr == nil {
 			out.Registered = true
+			out.Ready = true
+			out.Status = InstanceStatusReady
 			out.PID = proc.cmd.Process.Pid
 			out.Instance = strings.TrimSpace(reg.InstanceID)
 			out.Endpoint = strings.TrimSpace(reg.Endpoint)
-			out.Status = InstanceStatusRegistered
-			m.recordServiceStart(serviceID, proc.cmd.Process.Pid, svc.execPath, proc.startedAtMS)
+			if m.registry != nil {
+				m.registry.MarkReady(out.ServiceID, out.Instance)
+			}
 			m.trackProcess(proc)
 			return out
 		}
+		out.Status = InstanceStatusFailed
 		out.ErrorText = readyErr.Error()
 		if attempt >= attemptLimit {
 			break
@@ -300,130 +352,107 @@ func (m *LifecycleManager) startService(ctx context.Context, svc *managedService
 	return out
 }
 
-func (m *LifecycleManager) finalizeStartup(ctx context.Context, snapshot *StartupSnapshot) {
-	if m == nil || snapshot == nil {
-		return
+func (m *LifecycleManager) prepareManagedService(svc *managedService) error {
+	if svc == nil {
+		return fmt.Errorf("managed service is nil")
 	}
-	indexByService := map[string]int{}
-	pending := map[string]managedService{}
-	for i, svc := range m.services {
-		sid := strings.TrimSpace(svc.entry.ServiceID)
-		indexByService[sid] = i
-		if i >= len(snapshot.Services) {
-			continue
-		}
-		out := &snapshot.Services[i]
-		if !out.Registered {
-			if strings.TrimSpace(out.Status) == "" {
-				out.Status = InstanceStatusFailed
-			}
-			continue
-		}
-		if len(svc.dependsOn) == 0 {
-			out.Initialized = true
-			out.Ready = true
-			out.Status = InstanceStatusReady
-			m.registry.MarkReady(out.ServiceID, out.Instance)
-			continue
-		}
-		pending[sid] = svc
+	startupManifest, err := loadStartupManifest(svc.startupManifest, strings.TrimSpace(svc.entry.ServiceID))
+	if err != nil {
+		return err
 	}
-	for len(pending) > 0 {
-		layer := make([]managedService, 0, len(pending))
-		for sid, svc := range pending {
-			idx := indexByService[sid]
-			out := &snapshot.Services[idx]
-			depFailure := false
-			waiting := false
-			for _, dep := range svc.dependsOn {
-				if depIdx, ok := indexByService[dep]; ok {
-					depOut := snapshot.Services[depIdx]
-					if !depOut.Ready {
-						if depOut.Registered {
-							waiting = true
-							continue
-						}
-						depFailure = true
-						break
-					}
-					continue
-				}
-				depFailure = true
-				break
-			}
-			if depFailure {
-				out.Status = InstanceStatusFailed
-				out.ErrorText = firstNonEmptyValue(out.ErrorText, "dependency not ready or failed")
-				m.registry.MarkFailed(out.ServiceID, out.Instance)
-				m.hubPlatform.MarkServiceDown(out.ServiceID, out.ErrorText)
-				delete(pending, sid)
+	svc.startupConfig = startupManifest
+	svc.policy = normalizeRestartPolicy(firstNonEmptyValue(strings.TrimSpace(startupManifest.Lifecycle.RestartPolicy), m.defaults.RestartPolicy))
+	svc.timeout = clampDurationMS(firstPositive(startupManifest.Lifecycle.RegisterTimeoutMS, m.defaults.RegisterTimeoutMS), m.global.MaxTimeoutMS)
+	svc.restartWait = clampDurationMS(firstPositive(startupManifest.Lifecycle.RestartBackoffMS, m.defaults.RestartBackoffMS), m.global.MaxTimeoutMS)
+	maxRestart := firstPositive(startupManifest.Lifecycle.RestartTimes, m.global.MaxRestartTimes)
+	if maxRestart > m.global.MaxRestartTimes {
+		maxRestart = m.global.MaxRestartTimes
+	}
+	if maxRestart < 0 {
+		maxRestart = 0
+	}
+	svc.restartMax = maxRestart
+	svc.dependsOn = normalizeDependsOn(strings.TrimSpace(startupManifest.ServiceID), startupManifest.DependsOn)
+	return nil
+}
+
+func buildStartupPlan(services map[string]*managedService) startupPlan {
+	adjacency := map[string][]string{}
+	indegree := map[string]int{}
+	missingDeps := map[string][]string{}
+	for sid := range services {
+		indegree[sid] = 0
+	}
+	for sid, svc := range services {
+		for _, dep := range svc.dependsOn {
+			if _, ok := services[dep]; !ok {
+				missingDeps[sid] = append(missingDeps[sid], dep)
 				continue
 			}
-			if waiting {
-				continue
-			}
-			layer = append(layer, svc)
+			adjacency[dep] = append(adjacency[dep], sid)
+			indegree[sid]++
 		}
-		if len(layer) == 0 {
-			for sid := range pending {
-				idx := indexByService[sid]
-				out := &snapshot.Services[idx]
-				out.Status = InstanceStatusFailed
-				out.ErrorText = firstNonEmptyValue(out.ErrorText, "startup dependency graph blocked")
-				m.registry.MarkFailed(out.ServiceID, out.Instance)
-				m.hubPlatform.MarkServiceDown(out.ServiceID, out.ErrorText)
-				delete(pending, sid)
-			}
-			break
+	}
+	ready := make([]string, 0, len(indegree))
+	for sid, degree := range indegree {
+		if degree == 0 {
+			ready = append(ready, sid)
 		}
-		var wg sync.WaitGroup
-		for _, svc := range layer {
-			svc := svc
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				idx := indexByService[strings.TrimSpace(svc.entry.ServiceID)]
-				out := &snapshot.Services[idx]
-				out.Status = InstanceStatusInitializing
-				m.registry.MarkInitializing(out.ServiceID, out.Instance)
-				if err := m.runServiceInit(ctx, *out); err != nil {
-					out.Status = InstanceStatusFailed
-					out.ErrorText = err.Error()
-					m.registry.MarkFailed(out.ServiceID, out.Instance)
-					m.hubPlatform.MarkServiceDown(out.ServiceID, err.Error())
-					return
+	}
+	slices.Sort(ready)
+
+	layers := make([][]string, 0, len(ready))
+	processed := map[string]struct{}{}
+	for len(ready) > 0 {
+		layer := append([]string(nil), ready...)
+		layers = append(layers, layer)
+		nextSet := map[string]struct{}{}
+		for _, sid := range layer {
+			processed[sid] = struct{}{}
+			for _, dependent := range adjacency[sid] {
+				indegree[dependent]--
+				if indegree[dependent] == 0 {
+					nextSet[dependent] = struct{}{}
 				}
-				out.Initialized = true
-				out.Ready = true
-				out.Status = InstanceStatusReady
-				m.registry.MarkReady(out.ServiceID, out.Instance)
-			}()
+			}
 		}
-		wg.Wait()
-		for _, svc := range layer {
-			delete(pending, strings.TrimSpace(svc.entry.ServiceID))
+		next := make([]string, 0, len(nextSet))
+		for sid := range nextSet {
+			next = append(next, sid)
 		}
+		slices.Sort(next)
+		ready = next
+	}
+
+	cyclic := map[string]struct{}{}
+	for sid := range services {
+		if _, ok := processed[sid]; ok {
+			continue
+		}
+		cyclic[sid] = struct{}{}
+	}
+	for sid, deps := range missingDeps {
+		slices.Sort(deps)
+		missingDeps[sid] = deps
+	}
+	return startupPlan{
+		layers:      layers,
+		missingDeps: missingDeps,
+		cyclic:      cyclic,
 	}
 }
 
-func (m *LifecycleManager) runServiceInit(ctx context.Context, out StartupServiceOutcome) error {
-	reg, ok := m.hubPlatform.GetService(out.ServiceID)
-	if !ok {
-		return fmt.Errorf("service not registered")
-	}
-	_, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	resp, _, err := callServiceLifecycleTool(m.hubPlatform, reg, "service.lifecycle.init", map[string]any{}, 8*time.Second)
-	if err != nil {
-		return fmt.Errorf("init tool failed: %w", err)
-	}
-	if !resp.Ok {
-		if resp.Error != nil && strings.TrimSpace(resp.Error.Message) != "" {
-			return fmt.Errorf("init tool failed: %s", strings.TrimSpace(resp.Error.Message))
+func firstFailedDependency(outcomes []StartupServiceOutcome, indexByService map[string]int, deps []string) string {
+	for _, dep := range deps {
+		idx, ok := indexByService[dep]
+		if !ok {
+			return dep
 		}
-		return fmt.Errorf("init tool failed")
+		if !outcomes[idx].Ready {
+			return dep
+		}
 	}
-	return nil
+	return ""
 }
 
 func normalizeDependsOn(serviceID string, values []string) []string {
@@ -444,15 +473,16 @@ func normalizeDependsOn(serviceID string, values []string) []string {
 		seen[clean] = struct{}{}
 		out = append(out, clean)
 	}
+	slices.Sort(out)
 	if len(out) == 0 {
 		return nil
 	}
 	return out
 }
 
-func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, runtimeManifest RuntimeManifest) (*managedProcess, app.HubServiceRegistration, error) {
+func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, startupManifest StartupManifest) (*managedProcess, app.HubServiceRegistration, error) {
 	serviceID := strings.TrimSpace(svc.entry.ServiceID)
-	args := append([]string(nil), runtimeManifest.Entry.Args...)
+	args := append([]string(nil), startupManifest.Entry.Args...)
 	args = ensureFlagValue(args, "-hub-register-url", m.registerURL)
 	instanceID := flagValue(args, "-instance-id")
 	if strings.TrimSpace(instanceID) == "" {
@@ -466,9 +496,10 @@ func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, r
 	if err := hubsvc.WriteBootstrapSecret(svc.secretPath, bootstrap); err != nil {
 		return nil, app.HubServiceRegistration{}, fmt.Errorf("write bootstrap secret failed: %w", err)
 	}
+
 	cmd := exec.Command(svc.execPath, args...)
 	cmd.Dir = m.appRoot
-	cmd.Env = append(os.Environ(), flattenEnv(runtimeManifest.Entry.Env)...)
+	cmd.Env = append(os.Environ(), flattenEnv(startupManifest.Entry.Env)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
@@ -486,9 +517,29 @@ func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, r
 		close(proc.done)
 	}()
 
-	startedAt := time.Now()
-	deadline := startedAt.Add(svc.timeout)
-	for time.Now().Before(deadline) {
+	ticker := time.NewTicker(120 * time.Millisecond)
+	defer ticker.Stop()
+	timer := time.NewTimer(svc.timeout)
+	defer timer.Stop()
+
+	checkRegistered := func() (app.HubServiceRegistration, bool) {
+		reg, ok := m.hubPlatform.GetService(serviceID)
+		if !ok {
+			return app.HubServiceRegistration{}, false
+		}
+		if !reg.Healthy || strings.TrimSpace(reg.Status) != app.ServiceStatusActive {
+			return app.HubServiceRegistration{}, false
+		}
+		if strings.TrimSpace(reg.InstanceID) != strings.TrimSpace(instanceID) {
+			return app.HubServiceRegistration{}, false
+		}
+		return reg, true
+	}
+
+	for {
+		if reg, ok := checkRegistered(); ok {
+			return proc, reg, nil
+		}
 		select {
 		case <-ctx.Done():
 			_ = m.stopProcess(proc, time.Duration(m.global.GracePeriodMS)*time.Millisecond)
@@ -497,20 +548,17 @@ func (m *LifecycleManager) startOnce(ctx context.Context, svc *managedService, r
 			if err == nil {
 				err = fmt.Errorf("service exited unexpectedly")
 			}
-			m.hubPlatform.MarkServiceDown(serviceID, "process exited before ready")
-			return nil, app.HubServiceRegistration{}, fmt.Errorf("service exited before ready: %w", err)
-		default:
-		}
-		reg, ok := m.hubPlatform.GetService(serviceID)
-		if ok && reg.Healthy && strings.TrimSpace(reg.Status) == app.ServiceStatusActive {
-			if strings.TrimSpace(reg.InstanceID) == strings.TrimSpace(instanceID) {
+			m.hubPlatform.MarkServiceDown(serviceID, "process exited before register")
+			return nil, app.HubServiceRegistration{}, fmt.Errorf("service exited before register: %w", err)
+		case <-ticker.C:
+		case <-timer.C:
+			if reg, ok := checkRegistered(); ok {
 				return proc, reg, nil
 			}
+			_ = m.stopProcess(proc, time.Duration(m.global.GracePeriodMS)*time.Millisecond)
+			return nil, app.HubServiceRegistration{}, fmt.Errorf("register timeout after %v", svc.timeout)
 		}
-		time.Sleep(120 * time.Millisecond)
 	}
-	_ = m.stopProcess(proc, time.Duration(m.global.GracePeriodMS)*time.Millisecond)
-	return nil, app.HubServiceRegistration{}, fmt.Errorf("register timeout after %v", svc.timeout)
 }
 
 func (m *LifecycleManager) trackProcess(proc *managedProcess) {
@@ -564,17 +612,19 @@ func (m *LifecycleManager) watchProcess(proc *managedProcess) {
 			return
 		}
 		time.Sleep(svc.restartWait)
-		runtimeManifest, mfErr := loadRuntimeManifest(svc.manifest, strings.TrimSpace(svc.entry.ServiceID))
-		if mfErr != nil {
-			app.Warnf("service restart manifest load failed: service=%s attempt=%d err=%v", svc.entry.ServiceID, attempt, mfErr)
+		if err := m.prepareManagedService(&svc); err != nil {
+			app.Warnf("service restart manifest load failed: service=%s attempt=%d err=%v", svc.entry.ServiceID, attempt, err)
 			continue
 		}
-		newProc, _, restartErr := m.startOnce(context.Background(), &svc, runtimeManifest)
+		newProc, reg, restartErr := m.startOnce(context.Background(), &svc, svc.startupConfig)
 		if restartErr != nil {
 			app.Warnf("service restart failed: service=%s attempt=%d err=%v", svc.entry.ServiceID, attempt, restartErr)
 			continue
 		}
 		app.Warnf("service restarted: service=%s attempt=%d pid=%d", svc.entry.ServiceID, attempt, newProc.cmd.Process.Pid)
+		if m.registry != nil {
+			m.registry.MarkReady(svc.entry.ServiceID, reg.InstanceID)
+		}
 		m.trackProcess(newProc)
 		return
 	}
@@ -636,68 +686,23 @@ func (m *LifecycleManager) stopProcess(proc *managedProcess, timeout time.Durati
 	return nil
 }
 
-func (m *LifecycleManager) cleanupRecordedServiceProcess(svc *managedService) error {
-	if m == nil || m.pidStore == nil {
-		return nil
-	}
-	serviceID := strings.TrimSpace(svc.entry.ServiceID)
-	if serviceID == "" {
-		return nil
-	}
-	record, ok := m.pidStore.Get(serviceID)
-	if !ok {
-		return nil
-	}
-	expectedExecPath := strings.TrimSpace(record.ExecPath)
-	if expectedExecPath == "" {
-		expectedExecPath = strings.TrimSpace(svc.execPath)
-	}
-	if expectedExecPath == "" {
-		return nil
-	}
-	cleaned, err := app.CleanRecordedProcess(record.PID, expectedExecPath, record.StartedAtMS)
-	if err != nil {
-		return fmt.Errorf("cleanup recorded service process failed: service=%s pid=%d path=%s err=%w", serviceID, record.PID, expectedExecPath, err)
-	}
-	if cleaned {
-		app.Infof("service old process cleaned: service=%s pid=%d path=%s started_at_ms=%d", serviceID, record.PID, expectedExecPath, record.StartedAtMS)
-		return nil
-	}
-	app.Infof("service old process not cleaned: service=%s pid=%d path=%s started_at_ms=%d", serviceID, record.PID, expectedExecPath, record.StartedAtMS)
-	return nil
-}
-
-func (m *LifecycleManager) recordServiceStart(serviceID string, pid int, execPath string, startedAtMS int64) {
-	if m == nil || m.pidStore == nil {
-		return
-	}
-	if err := m.pidStore.Upsert(app.ServicePidRecord{
-		ServiceID:   serviceID,
-		PID:         pid,
-		ExecPath:    execPath,
-		StartedAtMS: startedAtMS,
-	}); err != nil {
-		app.Warnf("service pid record update failed: service=%s pid=%d path=%s err=%v", serviceID, pid, execPath, err)
-	}
-}
-
-func loadRuntimeManifest(path string, serviceID string) (RuntimeManifest, error) {
+func loadStartupManifest(path string, serviceID string) (StartupManifest, error) {
 	raw, err := os.ReadFile(strings.TrimSpace(path))
 	if err != nil {
-		return RuntimeManifest{}, fmt.Errorf("read runtime manifest failed: %w", err)
+		return StartupManifest{}, fmt.Errorf("read startup manifest failed: %w", err)
 	}
-	var out RuntimeManifest
+	var out StartupManifest
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return RuntimeManifest{}, fmt.Errorf("decode runtime manifest failed: %w", err)
+		return StartupManifest{}, fmt.Errorf("decode startup manifest failed: %w", err)
 	}
 	if strings.TrimSpace(out.ServiceID) == "" {
-		return RuntimeManifest{}, fmt.Errorf("runtime manifest missing service_id")
+		return StartupManifest{}, fmt.Errorf("startup manifest missing service_id")
 	}
 	if strings.TrimSpace(out.ServiceID) != strings.TrimSpace(serviceID) {
-		return RuntimeManifest{}, fmt.Errorf("runtime manifest service_id mismatch: expect=%s got=%s", serviceID, out.ServiceID)
+		return StartupManifest{}, fmt.Errorf("startup manifest service_id mismatch: expect=%s got=%s", serviceID, out.ServiceID)
 	}
 	if len(out.Entry.Args) == 0 {
-		return RuntimeManifest{}, fmt.Errorf("runtime manifest entry.args is required")
+		return StartupManifest{}, fmt.Errorf("startup manifest entry.args is required")
 	}
 	return out, nil
 }
@@ -762,16 +767,6 @@ func ensureFlagValue(args []string, flagName string, value string) []string {
 		out = append(out, flagName, strings.TrimSpace(value))
 	}
 	return out
-}
-
-func hasFlag(args []string, flagName string) bool {
-	target := strings.TrimSpace(flagName)
-	for i := 0; i < len(args); i++ {
-		if strings.TrimSpace(args[i]) == target {
-			return true
-		}
-	}
-	return false
 }
 
 func flagValue(args []string, flagName string) string {
@@ -841,6 +836,7 @@ func newStamp() string {
 }
 
 func buildManagedService(appRoot string, entry LifecycleServiceEntry) (managedService, error) {
+	entry = normalizeLifecycleServiceEntry(entry)
 	sid := strings.TrimSpace(entry.ServiceID)
 	dir := strings.TrimSpace(entry.Dir)
 	if sid == "" || dir == "" {
@@ -855,10 +851,48 @@ func buildManagedService(appRoot string, entry LifecycleServiceEntry) (managedSe
 		execPath += ".exe"
 	}
 	return managedService{
-		entry:      entry,
-		dirAbs:     dirAbs,
-		execPath:   execPath,
-		manifest:   filepath.Join(dirAbs, "run", "manifest.json"),
-		secretPath: filepath.Join(dirAbs, "run", ".service_secret"),
+		entry:           entry,
+		dirAbs:          dirAbs,
+		execPath:        execPath,
+		startupManifest: filepath.Join(dirAbs, "run", "manifest.json"),
+		runtimeManifest: filepath.Join(dirAbs, "run", "manifest_runtime.json"),
+		secretPath:      filepath.Join(dirAbs, "run", ".service_secret"),
+		enabled:         entry.Enabled,
+		reliability:     entry.Reliability,
 	}, nil
+}
+
+func normalizeLifecycleReliability(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "trusted":
+		return "trusted"
+	case "verified":
+		return "verified"
+	case "unverified":
+		return "unverified"
+	case "risky":
+		return "risky"
+	case "high_risk":
+		return "high_risk"
+	default:
+		return "unverified"
+	}
+}
+
+func normalizeLifecycleServiceEntry(entry LifecycleServiceEntry) LifecycleServiceEntry {
+	entry.ServiceID = strings.TrimSpace(entry.ServiceID)
+	entry.Dir = strings.TrimSpace(entry.Dir)
+	entry.Reliability = normalizeLifecycleReliability(entry.Reliability)
+	return entry
+}
+
+func baseStartupOutcome(svc managedService) StartupServiceOutcome {
+	return StartupServiceOutcome{
+		ServiceID:  strings.TrimSpace(svc.entry.ServiceID),
+		Dir:        strings.TrimSpace(svc.entry.Dir),
+		ExecPath:   svc.execPath,
+		Manifest:   svc.startupManifest,
+		SecretPath: svc.secretPath,
+		Status:     InstanceStatusStarting,
+	}
 }

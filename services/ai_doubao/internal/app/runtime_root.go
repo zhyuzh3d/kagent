@@ -43,7 +43,7 @@ func DetectAppRoot() (string, error) {
 		}
 	}
 	if len(candidates) > 0 {
-		return candidates[0], fmt.Errorf("service root fallback in use, missing one of config/manifest.json")
+		return candidates[0], fmt.Errorf("repo root fallback in use, missing one of webui/go.mod")
 	}
 	return ".", fmt.Errorf("unable to detect app root")
 }
@@ -60,20 +60,13 @@ func ResolvePathFromRoot(root string, rawPath string) string {
 	if cleanRoot == "" {
 		return cleanPath
 	}
-	joined := filepath.Join(cleanRoot, cleanPath)
-	if _, err := os.Stat(joined); err == nil {
-		return joined
-	}
-	if _, err := os.Stat(cleanPath); err == nil {
-		return cleanPath
-	}
-	return joined
+	return filepath.Join(cleanRoot, cleanPath)
 }
 
 func isLikelyAppRoot(path string) bool {
-	configPath := filepath.Join(path, "config")
-	manifestPath := filepath.Join(path, "manifest.json")
-	if !isDir(configPath) || !isFile(manifestPath) {
+	webuiPath := filepath.Join(path, "webui")
+	goModPath := filepath.Join(path, "go.mod")
+	if !isDir(webuiPath) || !isFile(goModPath) {
 		return false
 	}
 	return true

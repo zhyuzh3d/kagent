@@ -50,8 +50,10 @@ func (h *AdminHandler) handleServiceGetTool(ctx context.Context, req toolproto.C
 	if !ok {
 		return toolproto.CallResponse{}, fmt.Errorf("managed service not found: %s", serviceID)
 	}
-	manifest, manifestErr := lifecycle.ReadRuntimeManifest(serviceID)
+	startupManifest, startupManifestErr := lifecycle.ReadStartupManifest(serviceID)
+	runtimeManifest, runtimeManifestPath, runtimeManifestErr := lifecycle.ReadServiceRuntimeManifest(serviceID)
 	config, configPath, configErr := lifecycle.ReadConfigJSON(serviceID)
+	configx, _, configxErr := lifecycle.ReadConfigXJSON(serviceID)
 	stateResp, _, stateErr := h.toolHandler.ProbeServiceTool(ctx, serviceID, "service.lifecycle.state.get", map[string]any{}, 2500)
 	audits := h.auditStore.List(200)
 	filteredAudits := make([]any, 0, 32)
@@ -67,15 +69,51 @@ func (h *AdminHandler) handleServiceGetTool(ctx context.Context, req toolproto.C
 			stateResult = payload
 		}
 	}
+	allToolViews := h.hubPlatform.ListTools()
+	serviceToolIDs := map[string]struct{}{}
+	if info.RegisteredManifest != nil {
+		for _, descriptor := range info.RegisteredManifest.Provides {
+			if toolID := strings.TrimSpace(descriptor.ToolID); toolID != "" {
+				serviceToolIDs[toolID] = struct{}{}
+			}
+		}
+	}
+	toolViews := make([]any, 0, len(serviceToolIDs))
+	for _, item := range allToolViews {
+		if _, ok := serviceToolIDs[strings.TrimSpace(item.ToolID)]; !ok {
+			continue
+		}
+		// Skip self in candidates list for cleaner UI in service-specific view
+		if len(item.Candidates) > 0 {
+			filtered := make([]toolproto.ToolCandidate, 0, len(item.Candidates))
+			for _, c := range item.Candidates {
+				if c.ServiceID != serviceID {
+					filtered = append(filtered, c)
+				}
+			}
+			item.Candidates = filtered
+		}
+		toolViews = append(toolViews, item)
+	}
 	return toolproto.CallResponse{
 		Ok: true,
 		Result: map[string]any{
 			"service":             info,
-			"runtime_manifest":    manifest,
-			"runtime_manifest_ok": manifestErr == nil,
+			"registered_manifest": info.RegisteredManifest,
+			"startup_manifest":    startupManifest,
+			"startup_manifest_ok": startupManifestErr == nil,
+			"startup_manifest_err": func() string {
+				if startupManifestErr != nil {
+					return startupManifestErr.Error()
+				}
+				return ""
+			}(),
+			"runtime_manifest":      runtimeManifest,
+			"runtime_manifest_path": runtimeManifestPath,
+			"runtime_manifest_ok":   runtimeManifestErr == nil,
 			"runtime_manifest_err": func() string {
-				if manifestErr != nil {
-					return manifestErr.Error()
+				if runtimeManifestErr != nil {
+					return runtimeManifestErr.Error()
 				}
 				return ""
 			}(),
@@ -93,11 +131,20 @@ func (h *AdminHandler) handleServiceGetTool(ctx context.Context, req toolproto.C
 				}
 				return ""
 			}(),
+			"configx":    configx,
+			"configx_ok": configxErr == nil,
+			"configx_err": func() string {
+				if configxErr != nil {
+					return configxErr.Error()
+				}
+				return ""
+			}(),
 			"state":       stateResult,
 			"state_ok":    stateErr == nil,
 			"state_error": errString(stateErr),
 			"instances":   h.registry.GetByService(serviceID),
 			"audits":      filteredAudits,
+			"tool_views":  toolViews,
 		},
 	}, nil
 }
@@ -210,11 +257,85 @@ func (h *AdminHandler) handleServiceDisableTool(ctx context.Context, req toolpro
 	if err != nil {
 		return toolproto.CallResponse{}, err
 	}
-	if err := lifecycle.StopService(serviceID, 7*time.Second); err != nil {
+	// 1. Stop the service first
+	_ = lifecycle.StopService(serviceID, 7*time.Second)
+
+	// 2. Set enabled = false in config
+	if err := lifecycle.SetServiceEnabled(serviceID, false); err != nil {
 		return toolproto.CallResponse{}, err
 	}
+
 	h.routingEngine.SyncServices(h.hubPlatform.ListRegisteredServices())
-	return toolproto.CallResponse{Ok: true, Result: map[string]any{"service_id": serviceID, "disabled": true}}, nil
+	return toolproto.CallResponse{Ok: true, Result: map[string]any{"service_id": serviceID, "enabled": false}}, nil
+}
+
+func (h *AdminHandler) handleServiceEnableTool(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error) {
+	if err := h.checkAuth(ctx); err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	lifecycle, err := h.requireLifecycle()
+	if err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	serviceID, err := h.requireServiceID(req.Args)
+	if err != nil {
+		return toolproto.CallResponse{}, err
+	}
+
+	if err := lifecycle.SetServiceEnabled(serviceID, true); err != nil {
+		return toolproto.CallResponse{}, err
+	}
+
+	// Optionally start the service automatically?
+	// The user's rule says "managed services ... and the status should reflect real-time session".
+	// Let's just enable it, user can click "Start" if they want.
+
+	return toolproto.CallResponse{Ok: true, Result: map[string]any{"service_id": serviceID, "enabled": true}}, nil
+}
+
+func (h *AdminHandler) handleServiceGovernanceUpdateTool(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error) {
+	if err := h.checkAuth(ctx); err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	lifecycle, err := h.requireLifecycle()
+	if err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	serviceID, err := h.requireServiceID(req.Args)
+	if err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	enabled, ok := req.Args["enabled"].(bool)
+	if !ok {
+		return toolproto.CallResponse{}, fmt.Errorf("enabled is required")
+	}
+	reliability, _ := req.Args["reliability"].(string)
+	prevInfo, prevOK := lifecycle.ManagedServiceInfo(serviceID)
+	wasEnabled := prevOK && prevInfo.Enabled
+	if !enabled {
+		_ = lifecycle.StopService(serviceID, 7*time.Second)
+	}
+	if err := lifecycle.UpdateServiceGovernance(serviceID, enabled, reliability); err != nil {
+		return toolproto.CallResponse{}, err
+	}
+	if enabled && !wasEnabled {
+		startCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		if _, err := lifecycle.StartService(startCtx, serviceID); err != nil {
+			h.routingEngine.SyncServices(h.hubPlatform.ListRegisteredServices())
+			return toolproto.CallResponse{}, fmt.Errorf("service enabled but auto-start failed: %w", err)
+		}
+	}
+	h.routingEngine.SyncServices(h.hubPlatform.ListRegisteredServices())
+	info, ok := lifecycle.ManagedServiceInfo(serviceID)
+	if !ok {
+		return toolproto.CallResponse{}, fmt.Errorf("managed service not found: %s", serviceID)
+	}
+	return toolproto.CallResponse{Ok: true, Result: map[string]any{
+		"service_id":  serviceID,
+		"enabled":     info.Enabled,
+		"reliability": info.Reliability,
+	}}, nil
 }
 
 func (h *AdminHandler) handleServiceManifestGetTool(ctx context.Context, req toolproto.CallRequest) (toolproto.CallResponse, error) {
@@ -230,7 +351,7 @@ func (h *AdminHandler) handleServiceManifestGetTool(ctx context.Context, req too
 		return toolproto.CallResponse{}, err
 	}
 	info, _ := lifecycle.ManagedServiceInfo(serviceID)
-	manifest, err := lifecycle.ReadRuntimeManifest(serviceID)
+	manifest, err := lifecycle.ReadStartupManifest(serviceID)
 	if err != nil {
 		return toolproto.CallResponse{}, err
 	}
@@ -257,12 +378,12 @@ func (h *AdminHandler) handleServiceManifestUpdateTool(ctx context.Context, req 
 	if !ok {
 		return toolproto.CallResponse{}, fmt.Errorf("manifest is required")
 	}
-	var manifest supervisor.RuntimeManifest
+	var manifest supervisor.StartupManifest
 	b, _ := json.Marshal(raw)
 	if err := json.Unmarshal(b, &manifest); err != nil {
 		return toolproto.CallResponse{}, err
 	}
-	if err := lifecycle.WriteRuntimeManifest(serviceID, manifest); err != nil {
+	if err := lifecycle.WriteStartupManifest(serviceID, manifest); err != nil {
 		return toolproto.CallResponse{}, err
 	}
 	return h.handleServiceManifestGetTool(ctx, toolproto.CallRequest{Args: map[string]any{"service_id": serviceID}})
@@ -312,7 +433,16 @@ func (h *AdminHandler) handleServiceConfigUpdateTool(ctx context.Context, req to
 	if err := json.Unmarshal(b, &payload); err != nil {
 		return toolproto.CallResponse{}, err
 	}
-	path, err := lifecycle.WriteConfigJSON(serviceID, payload)
+	configType, _ := req.Args["type"].(string)
+	fileName := "config.json"
+	if configType == "configx" {
+		fileName = "configx.json"
+	} else if configType == "manifest" {
+		// handle manifest via manifest tool? or here?
+		// for now keep it simple as user asked for restore default mainly
+	}
+
+	path, err := lifecycle.WriteConfigJSON(serviceID, payload, fileName)
 	if err != nil {
 		return toolproto.CallResponse{}, err
 	}
@@ -444,26 +574,26 @@ func (h *AdminHandler) handleServiceGenerateTool(ctx context.Context, req toolpr
 	serviceID := slug
 	serviceDir := filepath.Join(h.appRoot, "data", "user", userID, "service", "custom", serviceID)
 	port := supervisor.NextSuggestedPort(lifecycle.ListManagedServices())
-	runtimeManifest := supervisor.RuntimeManifest{
+	startupManifest := supervisor.StartupManifest{
 		ServiceID: serviceID,
 		Version:   "1.0.0",
-		Entry: supervisor.RuntimeManifestEntry{
+		Entry: supervisor.StartupManifestEntry{
 			Args: []string{"-addr", fmt.Sprintf("127.0.0.1:%d", port)},
 			Env:  map[string]string{},
 		},
-		Lifecycle: supervisor.RuntimeManifestPolicy{
+		Lifecycle: supervisor.StartupManifestPolicy{
 			RegisterTimeoutMS: 1500,
 			RestartPolicy:     "never",
 			RestartBackoffMS:  300,
 			RestartTimes:      2,
-			KillOld:           true,
 		},
 	}
 	files := map[string]string{
 		filepath.Join(serviceDir, "go.mod"):                         renderGeneratedServiceGoMod(h.appRoot, serviceID),
-		filepath.Join(serviceDir, "manifest.json"):                  mustJSONText(runtimeManifest),
-		filepath.Join(serviceDir, "run", "manifest.json"):           mustJSONText(runtimeManifest),
+		filepath.Join(serviceDir, "manifest.json"):                  mustJSONText(startupManifest),
+		filepath.Join(serviceDir, "run", "manifest.json"):           mustJSONText(startupManifest),
 		filepath.Join(serviceDir, "config", "config.json"):          "{\n  \"service\": {\n    \"welcome\": \"hello from generated service\"\n  }\n}\n",
+		filepath.Join(serviceDir, "config", "configx.json"):         "{}\n",
 		filepath.Join(serviceDir, "config", "configx.json.example"): "{\n  \"secrets\": {}\n}\n",
 		filepath.Join(serviceDir, "README.md"):                      renderGeneratedServiceReadme(serviceID, rawPrompt, port),
 		filepath.Join(serviceDir, "cmd", serviceID, "main.go"):      renderGeneratedServiceMain(serviceID),
@@ -501,7 +631,7 @@ func (h *AdminHandler) handleServiceGenerateTool(ctx context.Context, req toolpr
 		"service_id":       serviceID,
 		"dir":              serviceDir,
 		"port":             port,
-		"runtime_manifest": runtimeManifest,
+		"startup_manifest": startupManifest,
 		"managed_service":  info,
 		"prompt_summary":   strings.TrimSpace(rawPrompt),
 	}}, nil
@@ -514,7 +644,7 @@ func (h *AdminHandler) runServiceScaffoldGeneration(ctx context.Context, service
 	systemPrompt := `你是一个 Go service scaffold 生成器。你必须只输出 JSON，格式为 {"files":{"相对路径":"文件内容"}}。
 要求：
 1. 只返回和 service scaffold 直接相关的文本文件。
-2. 相对路径只允许：go.mod、README.md、manifest.json、run/manifest.json、config/config.json、config/configx.json.example、cmd/` + serviceID + `/main.go。
+2. 相对路径只允许：go.mod、README.md、manifest.json、run/manifest.json、config/config.json、config/configx.json、config/configx.json.example、cmd/` + serviceID + `/main.go。
 3. main.go 必须实现一个可注册到 Hub 的最小 service，并至少包含 ` + serviceID + `.echo、service.lifecycle.health、service.lifecycle.state.get、service.lifecycle.shutdown。
 4. 不要输出 markdown 代码块，不要输出解释。`
 	result, _, err := h.toolHandler.ProbeServiceTool(ctx, "ai_doubao", "ai.llm.generate", map[string]any{
@@ -632,7 +762,6 @@ func main() {
 		ServiceID:   serviceID,
 		ServiceName: serviceID,
 		Version:     "1.0.0",
-		Reliability: "unverified",
 		Visibility:  "public",
 		Provides: []toolproto.ServiceTool{
 			{ToolID: serviceID + ".echo", Description: "Echo generated payload", AllowedCallerTypes: []string{"user", "service"}},

@@ -79,6 +79,26 @@ func (h *ToolHandler) RegisterWSTool(toolID string, fn func(context.Context, *we
 	h.wsRegistry[toolID] = fn
 }
 
+func (h *ToolHandler) resolveRequestIdentity(r *http.Request) app.Identity {
+	identity := app.IdentityFromContext(r.Context())
+	if identity.Type != app.IdentityAnonymous || h == nil || h.hubPlatform == nil {
+		return identity
+	}
+	serviceID, instanceID, serviceAuth := hubsvc.ExtractServiceAuthHeaders(r.Header)
+	if serviceID == "" && instanceID == "" && serviceAuth == "" {
+		return identity
+	}
+	verified, err := h.hubPlatform.VerifyServiceAuth(serviceID, instanceID, serviceAuth)
+	if err != nil {
+		return identity
+	}
+	return app.Identity{
+		Type: app.IdentityService,
+		ID:   strings.TrimSpace(verified.ServiceID),
+		Name: strings.TrimSpace(verified.ServiceID),
+	}
+}
+
 func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -89,6 +109,10 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeToolError(w, http.StatusBadRequest, toolproto.ErrorCodeBadRequest, "invalid request body", "", "", "", "")
 		return
+	}
+	queryToolID := strings.TrimSpace(r.URL.Query().Get("tool_id"))
+	if queryToolID != "" {
+		req.ToolID = queryToolID
 	}
 	req, err := toolproto.NormalizeRequest(req)
 	if err != nil {
@@ -108,7 +132,7 @@ func (h *ToolHandler) HandleCall(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Context.TraceID) == "" {
 		req.Context.TraceID = "tr_" + app.NewRequestID()
 	}
-	identity := app.IdentityFromContext(r.Context())
+	identity := h.resolveRequestIdentity(r)
 	ctx := context.WithValue(r.Context(), app.RemoteAddrContextKey, r.RemoteAddr)
 
 	caller := toolproto.Caller{
@@ -370,7 +394,7 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	identity := app.IdentityFromContext(r.Context())
+	identity := h.resolveRequestIdentity(r)
 	caller := toolproto.Caller{
 		Type:      strings.ToLower(string(identity.Type)),
 		UserID:    identity.ID,
@@ -602,7 +626,7 @@ func findToolWSPath(manifest app.ServiceManifest, toolID string) string {
 			continue
 		}
 		path := strings.TrimSpace(tool.WSPath)
-		if path == "" && strings.TrimSpace(tool.Streaming) != "" {
+		if path == "" && tool.Streaming {
 			path = "/service/tool/ws"
 		}
 		if path != "" && !strings.HasPrefix(path, "/") {

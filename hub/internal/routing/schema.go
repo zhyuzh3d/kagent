@@ -82,7 +82,7 @@ func buildToolRegistry(services []app.HubServiceRegistration) []ToolRegistryItem
 			if !exists {
 				current = ToolRegistryItem{
 					ToolID:               toolID,
-					Streaming:            parseStreaming(descriptor.Streaming),
+					Streaming:            descriptor.Streaming,
 					DefaultTimeoutMS:     descriptor.TimeoutMSDefault,
 					CapabilitiesRequired: copyStrings(descriptor.CapabilitiesRequired),
 					AllowedCallerTypes:   uniqueStrings(descriptor.AllowedCallerTypes),
@@ -104,7 +104,7 @@ func buildToolRegistry(services []app.HubServiceRegistration) []ToolRegistryItem
 			if current.DefaultTimeoutMS <= 0 && descriptor.TimeoutMSDefault > 0 {
 				current.DefaultTimeoutMS = descriptor.TimeoutMSDefault
 			}
-			if !current.Streaming && parseStreaming(descriptor.Streaming) {
+			if !current.Streaming && descriptor.Streaming {
 				current.Streaming = true
 			}
 			if len(current.CapabilitiesRequired) == 0 && len(descriptor.CapabilitiesRequired) > 0 {
@@ -234,16 +234,6 @@ func buildInstanceRegistry(instances []supervisor.Instance) []InstanceRegistryIt
 		return out[i].ServiceID < out[j].ServiceID
 	})
 	return out
-}
-
-func parseStreaming(raw string) bool {
-	value := strings.ToLower(strings.TrimSpace(raw))
-	switch value {
-	case "", "none", "false", "off", "0":
-		return false
-	default:
-		return true
-	}
 }
 
 func inlineSchemaRef(serviceID string, toolID string, direction string, schema map[string]any) string {

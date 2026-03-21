@@ -134,6 +134,24 @@ func (h *SupervisorHandler) handleRegisterTool(ctx context.Context, req toolprot
 			InverseHeartbeatIntervalSec:    3,
 			InverseHeartbeatFailuresToExit: 2,
 			DrainGracePeriodSec:            30,
+			RegisteredService: &toolproto.RegisteredServiceInfo{
+				ServiceID:          res.Service.ServiceID,
+				ServiceName:        res.Service.ServiceName,
+				Version:            res.Service.Version,
+				BuildHash:          res.Service.BuildHash,
+				Reliability:        res.Service.Reliability,
+				Visibility:         res.Service.Visibility,
+				InstanceID:         res.Service.InstanceID,
+				PID:                res.Service.PID,
+				Endpoint:           res.Service.Endpoint,
+				Status:             res.Service.Status,
+				Healthy:            res.Service.Healthy,
+				ManifestHash:       res.Service.ManifestHash,
+				ToolCount:          res.Service.ToolCount,
+				RegisteredAtMS:     res.Service.RegisteredAtMS,
+				LastSeenAtMS:       res.Service.LastSeenAtMS,
+				RegisteredManifest: res.Service.Manifest,
+			},
 		},
 		Meta: toolproto.Meta{
 			ServiceID:  res.Service.ServiceID,
@@ -267,37 +285,11 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 	}
 	tools := make([]app.ServiceToolDescriptor, 0, len(req.Tools))
 	for _, t := range req.Tools {
-		toolID := strings.TrimSpace(t.ToolID)
-		if toolID == "" {
+		normalized := toolproto.NormalizeServiceTool(t)
+		if strings.TrimSpace(normalized.ToolID) == "" {
 			continue
 		}
-		category := ""
-		typ := ""
-		tool := ""
-		parts := strings.Split(toolID, ".")
-		if len(parts) >= 3 {
-			category = parts[0]
-			typ = parts[1]
-			tool = strings.Join(parts[2:], ".")
-		}
-		streaming := ""
-		if t.Streaming {
-			streaming = "stream"
-		}
-		tools = append(tools, app.ServiceToolDescriptor{
-			ToolID:               toolID,
-			Category:             category,
-			Type:                 typ,
-			Tool:                 tool,
-			Description:          strings.TrimSpace(t.Description),
-			InputSchema:          t.InputSchema,
-			OutputSchema:         t.OutputSchema,
-			CapabilitiesRequired: t.CapabilitiesRequired,
-			AllowedCallerTypes:   t.AllowedCallerTypes,
-			TimeoutMSDefault:     t.TimeoutMS,
-			Streaming:            streaming,
-			WSPath:               strings.TrimSpace(t.WSPath),
-		})
+		tools = append(tools, normalized)
 	}
 
 	transportName := strings.ToLower(strings.TrimSpace(req.Transport))
@@ -331,7 +323,6 @@ func decodeInternalRegister(req toolproto.SupervisorRegisterRequest) (app.HubSer
 			ServiceID:   serviceID,
 			ServiceName: serviceID,
 			Version:     strings.TrimSpace(req.Version),
-			Reliability: "untrusted",
 			Visibility:  "internal",
 			Provides:    tools,
 		},
@@ -365,7 +356,7 @@ func verifyServiceInternalAuth(hubPlatform *app.HubPlatform, r *http.Request, ex
 
 func instanceStatusFromHealth(healthy bool) string {
 	if healthy {
-		return InstanceStatusRegistered
+		return InstanceStatusReady
 	}
 	return InstanceStatusUnhealthy
 }

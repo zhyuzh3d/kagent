@@ -1,5 +1,6 @@
 {
   "service_id": "ai_doubao",
+  "description": "AI provider service for speech recognition, text generation, and text-to-speech synthesis.",
   "service_name": "ai_doubao",
   "version": "1.0.0",
   "visibility": "public",
@@ -18,7 +19,6 @@
     "register_timeout_ms": 5000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
-    "restart_times": 3,
-    "kill_old": true
+    "restart_times": 3
   }
 }

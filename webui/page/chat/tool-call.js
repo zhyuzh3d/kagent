@@ -1,12 +1,12 @@
 export async function callTool(toolID, args = {}, context = null) {
+  const normalizedToolID = String(toolID || "").trim();
   const payload = {
-    tool_id: String(toolID || "").trim(),
     args: args && typeof args === "object" ? args : {},
   };
   if (context && typeof context === "object") {
     payload.context = context;
   }
-  const resp = await fetch("/api/tool/call", {
+  const resp = await fetch(`/api/tool/call?tool_id=${encodeURIComponent(normalizedToolID)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

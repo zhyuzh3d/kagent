@@ -14,6 +14,7 @@ const (
 	InstanceStatusRegistered   = "registered"
 	InstanceStatusInitializing = "initializing"
 	InstanceStatusReady        = "ready"
+	InstanceStatusSkipped      = "skipped"
 	InstanceStatusFailed       = "failed"
 	InstanceStatusDraining     = "draining"
 	InstanceStatusUnhealthy    = "unhealthy"
@@ -332,6 +333,8 @@ func normalizeStatus(status string) string {
 		return InstanceStatusInitializing
 	case InstanceStatusReady, "active":
 		return InstanceStatusReady
+	case InstanceStatusSkipped:
+		return InstanceStatusSkipped
 	case InstanceStatusFailed:
 		return InstanceStatusFailed
 	case InstanceStatusDraining:
@@ -357,14 +360,16 @@ func statusRank(status string) int {
 		return 3
 	case InstanceStatusDraining:
 		return 4
-	case InstanceStatusFailed:
+	case InstanceStatusSkipped:
 		return 5
-	case InstanceStatusUnhealthy:
+	case InstanceStatusFailed:
 		return 6
-	case InstanceStatusDead:
+	case InstanceStatusUnhealthy:
 		return 7
-	default:
+	case InstanceStatusDead:
 		return 8
+	default:
+		return 9
 	}
 }
 

@@ -1,8 +1,10 @@
 export async function callTool(toolID, args = {}) {
-  const resp = await fetch("/api/tool/call", {
+  const normalizedToolID = String(toolID || "").trim();
+  const resp = await fetch(`/api/tool/call?tool_id=${encodeURIComponent(normalizedToolID)}`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tool_id: toolID, args }),
+    body: JSON.stringify({ args }),
   });
   const raw = await resp.text();
   let data = null;

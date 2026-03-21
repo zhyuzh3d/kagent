@@ -22,6 +22,44 @@ else
   hash_cmd=()
 fi
 
+terminate_listener_port() {
+  local addr="${1:-}"
+  local label="${2:-port}"
+  local port=""
+  local pids=""
+  local pid=""
+
+  [[ -n "${addr}" ]] || return 0
+  port="${addr##*:}"
+  [[ -n "${port}" ]] || return 0
+  if ! [[ "${port}" =~ ^[0-9]+$ ]]; then
+    return 0
+  fi
+  if ! command -v lsof >/dev/null 2>&1; then
+    return 0
+  fi
+
+  pids="$(lsof -t -iTCP:"${port}" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ' | xargs 2>/dev/null || true)"
+  [[ -n "${pids}" ]] || return 0
+
+  log_deploy "WARN" "Stopping existing ${label} listener(s) on ${addr}: ${pids}"
+  for pid in ${pids}; do
+    kill -TERM "${pid}" 2>/dev/null || true
+  done
+  sleep 1
+  for pid in ${pids}; do
+    if kill -0 "${pid}" 2>/dev/null; then
+      kill -KILL "${pid}" 2>/dev/null || true
+    fi
+  done
+}
+
+manifest_addr() {
+  local manifest_path="${1:-}"
+  [[ -f "${manifest_path}" ]] || return 0
+  jq -r '.entry.args as $args | ($args | index("-addr")) as $idx | if $idx == null then "" else $args[$idx + 1] // "" end' "${manifest_path}"
+}
+
 
 log_deploy() {
   local level="${1:-INFO}"
@@ -127,7 +165,7 @@ if [[ ${#hash_cmd[@]} -eq 0 ]]; then
 fi
 
 # 1. Build Phase
-hub_fingerprint="$(calc_build_fingerprint "hub" "pkg" "go.mod" "go.sum")"
+hub_fingerprint="$(calc_build_fingerprint "hub" "pkg" "go.mod" "go.sum" "hub/manifest.json")"
 hub_stamp="${build_state_dir}/hub.sha256"
 if should_rebuild "./kagent" "${hub_stamp}" "${hub_fingerprint}"; then
   log_deploy "INFO" "Building Hub binary..."
@@ -137,6 +175,10 @@ if should_rebuild "./kagent" "${hub_stamp}" "${hub_fingerprint}"; then
 else
   log_deploy "INFO" "Skipping Hub build; no source changes detected."
 fi
+
+log_deploy "INFO" "Syncing manifest for hub..."
+mkdir -p hub/run
+cp hub/manifest.json hub/run/manifest.json
 
 # Build all managed services defined in hub lifecycle config
 service_entries=$(jq -r '.service.services[] | "\(.service_id):\(.dir)"' hub/config/services.json)
@@ -167,6 +209,14 @@ if [[ -f "${hub_log}" && -s "${hub_log}" ]]; then
   printf '\n' >> "${hub_log_backup}"
 fi
 : > "${hub_log}"
+
+terminate_listener_port "${hub_addr}" "hub"
+for entry in ${service_entries}; do
+  sid="${entry%%:*}"
+  sdir="${entry#*:}"
+  service_addr="$(manifest_addr "${sdir}/run/manifest.json")"
+  terminate_listener_port "${service_addr}" "${sid}"
+done
 
 log_deploy "INFO" "Starting Hub (kagent)..."
 nohup ./kagent -addr "${hub_addr}" >> "${hub_log}" 2>&1 &

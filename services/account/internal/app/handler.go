@@ -106,8 +106,6 @@ func (h *Handler) HandleTool(ctx context.Context, req toolproto.CallRequest) (to
 		resp = h.handleHealth(req)
 	case "service.lifecycle.state.get":
 		resp = h.handleStateGet(req)
-	case "service.lifecycle.init":
-		resp = h.handleInit(ctx, req)
 	case "service.lifecycle.shutdown":
 		resp = h.handleShutdown(req)
 	case "account.system.keys.get":
@@ -354,25 +352,15 @@ func (h *Handler) handleStateGet(req toolproto.CallRequest) toolproto.CallRespon
 	return resp
 }
 
-func (h *Handler) handleInit(ctx context.Context, req toolproto.CallRequest) toolproto.CallResponse {
-	resp := baseResponse(req, h)
-	if !isSelfServiceCaller(req.Context.Caller) {
-		return forbidden(resp, "forbidden")
-	}
+func (h *Handler) Initialize(ctx context.Context) error {
 	h.mu.Lock()
 	if h.ready {
 		h.mu.Unlock()
-		resp.Ok = true
-		resp.Error = nil
-		resp.Result = map[string]any{"ok": true, "status": "ready"}
-		return resp
+		return nil
 	}
 	if h.initing {
 		h.mu.Unlock()
-		resp.Ok = true
-		resp.Error = nil
-		resp.Result = map[string]any{"ok": true, "status": "initializing"}
-		return resp
+		return nil
 	}
 	h.initing = true
 	h.lastInitErr = ""
@@ -386,15 +374,12 @@ func (h *Handler) handleInit(ctx context.Context, req toolproto.CallRequest) too
 	h.initing = false
 	if err != nil {
 		h.lastInitErr = err.Error()
-		return serviceUnavailable(resp, err.Error())
+		return err
 	}
 	h.signing = signingKey
 	h.ready = true
 	h.lastInitErr = ""
-	resp.Ok = true
-	resp.Error = nil
-	resp.Result = map[string]any{"ok": true, "status": "ready"}
-	return resp
+	return nil
 }
 
 func (h *Handler) handleShutdown(req toolproto.CallRequest) toolproto.CallResponse {

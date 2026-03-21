@@ -1,5 +1,6 @@
 {
   "service_id": "chat_server",
+  "description": "Chat orchestration service for project and thread management, runtime chat configuration, and streaming conversation execution.",
   "service_name": "chat_server",
   "version": "1.0.0",
   "visibility": "public",
@@ -11,8 +12,6 @@
       "services/chat_server/config/configx.json",
       "-public-config",
       "services/chat_server/config/config.json",
-      "-user-config",
-      "services/chat_server/run/user_custom_config.json",
       "-model",
       "doubao"
     ],
@@ -22,7 +21,6 @@
     "register_timeout_ms": 5000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
-    "restart_times": 3,
-    "kill_old": true
+    "restart_times": 3
   }
 }

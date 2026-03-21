@@ -1,39 +1,91 @@
 import { callTool } from "./api.js";
-import { state, getSelectedService } from "./state.js";
-import { pretty, parseJSON, setStatus, encodeBase64, decodeBase64 } from "./utils.js";
+import { state } from "./state.js";
+import { decodeBase64, encodeBase64, setStatus } from "./utils.js";
+
+function normalizeServiceRecord(record, toolsByServiceID) {
+  const serviceID = String(record?.service_id || "").trim();
+  const startup = record?.startup || null;
+  const registeredManifest = record?.registered_manifest || null;
+  const serviceTools = toolsByServiceID.get(serviceID) || [];
+  const description = record?.description || (serviceTools[0] && serviceTools[0].spec?.description) || "";
+  const startupStatus = String(startup?.status || "").trim();
+  return {
+    ...record,
+    service_id: serviceID,
+    startup,
+    is_managed: Boolean(record?.dir),
+    description,
+    tool_count: serviceTools.length || (Array.isArray(registeredManifest?.provides) ? registeredManifest.provides.length : 0),
+    registered: Boolean(record?.registered),
+    active: Boolean(record?.active),
+    healthy: Boolean(record?.healthy),
+    status: String(record?.status || "").trim() || startupStatus,
+    instance_id: String(record?.instance_id || "").trim(),
+    endpoint: String(record?.endpoint || "").trim(),
+    pid: Number(record?.pid || 0) || 0,
+    registered_manifest: registeredManifest,
+    tools: serviceTools,
+  };
+}
+
+function mergeServiceData(result) {
+  const services = Array.isArray(result?.services) ? result.services : [];
+  const tools = Array.isArray(result?.tools) ? result.tools : [];
+  const toolsByServiceID = new Map();
+
+  for (const tool of tools) {
+    const serviceID = String(tool?.service_id || tool?.governance?.bound_service_id || "").trim();
+    if (!serviceID) continue;
+    if (!toolsByServiceID.has(serviceID)) toolsByServiceID.set(serviceID, []);
+    toolsByServiceID.get(serviceID).push(tool);
+  }
+
+  const merged = services.map((item) => normalizeServiceRecord(item, toolsByServiceID));
+  merged.sort((a, b) => a.service_id.localeCompare(b.service_id));
+  tools.sort((a, b) => String(a?.tool_id || "").localeCompare(String(b?.tool_id || "")));
+  return { managed: merged, registered: services, tools };
+}
 
 export async function refreshList(onDone) {
-  const badge = document.getElementById("statusBadge");
-  if (badge) { badge.textContent = "REFRESHING..."; badge.className = "status-badge"; }
-  
+  setStatus({ statusBadge: document.getElementById("statusBadge") }, "同步中");
   try {
     const result = await callTool("hub.admin.services.list", {});
-    state.managed = Array.isArray(result.managed) ? result.managed : [];
-    if (onDone) onDone();
-    if (badge) { badge.textContent = "READY"; badge.className = "status-badge running"; }
+    state.appRoot = result.app_root || "";
+    const merged = mergeServiceData(result);
+    state.managed = merged.managed;
+    state.registered = merged.registered;
+    state.tools = merged.tools;
+    if (state.selectedID && !state.managed.some((item) => item.service_id === state.selectedID)) {
+      state.selectedID = "";
+    }
+    if (onDone) onDone(result);
+    setStatus({ statusBadge: document.getElementById("statusBadge") }, "已同步", "running");
   } catch (err) {
-    if (badge) { badge.textContent = "ERROR"; badge.className = "status-badge stopped"; }
+    setStatus({ statusBadge: document.getElementById("statusBadge") }, "同步失败", "stopped");
     console.error("List refresh failed:", err);
   }
 }
 
 export async function executeLifecycleAction(serviceID, action, onDone) {
   const toolID = `hub.admin.service.${action}`;
-  try {
-    await callTool(toolID, { service_id: serviceID });
-    await refreshList(onDone);
-  } catch (err) {
-    alert(`Action ${action} failed: ${err.message}`);
-  }
+  await callTool(toolID, { service_id: serviceID });
+  await refreshList(onDone);
 }
 
-// Data fetching for modals
 export async function getServiceDetail(serviceID) {
   return await callTool("hub.admin.service.get", { service_id: serviceID });
 }
 
-export async function updateConfig(serviceID, configJson) {
-  await callTool("hub.admin.service.config.update", { service_id: serviceID, config_json: configJson });
+export async function updateGovernance(serviceID, governance) {
+  await callTool("hub.admin.service.governance.update", {
+    service_id: serviceID,
+    enabled: !!governance?.enabled,
+    reliability: String(governance?.reliability || "unverified"),
+  });
+}
+
+export async function updateConfig(serviceID, configJson, type) {
+  await callTool("hub.admin.service.config.update", { service_id: serviceID, config_json: configJson, type });
 }
 
 export async function updateManifest(serviceID, manifestJson) {

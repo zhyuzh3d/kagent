@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"kagent/pkg/hubsvc"
 )
 
 type UserCustomConfigFile struct {
@@ -115,6 +117,9 @@ func loadUserCustomConfigFile(path string) (*UserCustomConfigFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	if hubsvc.JSONBytesBlank(b) {
+		return &UserCustomConfigFile{SchemaVersion: 1, UserID: "default", Overrides: map[string]any{}}, nil
+	}
 	var cfg UserCustomConfigFile
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return nil, err
@@ -145,7 +150,7 @@ func loadOptionalConfigMap(path string, missingOK bool) (map[string]any, error) 
 	if len(b) == 0 {
 		return map[string]any{}, nil
 	}
-	m, err := unmarshalMap(b)
+	m, err := hubsvc.DecodeJSONMapAllowEmpty(b)
 	if err != nil {
 		return nil, err
 	}

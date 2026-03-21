@@ -36,10 +36,13 @@ function toCanonicalActionName(rawName) {
     ["surface.close", "close_surface"],
     ["surface.get_state", "surface.get_state"],
     ["get_state", "surface.get_state"],
+    ["surface.show", "open_surface"],
+    ["surface.hide", "close_surface"],
   ]);
   const lower = name.toLowerCase();
   if (aliases.has(lower)) return aliases.get(lower);
   if (lower.startsWith("surface.call.")) return name;
+  if (lower.startsWith("surface.action.")) return `surface.call.${name.slice("surface.action.".length)}`;
   if (lower.startsWith("tool.call.")) return name;
   return "";
 }
@@ -68,7 +71,7 @@ function escapeHTML(text) {
 function parseSurfaceCallName(name) {
   const parts = String(name || "").split(".");
   if (parts.length < 4) return null;
-  if (parts[0] !== "surface" || parts[1] !== "call") return null;
+  if (parts[0] !== "surface" || (parts[1] !== "call" && parts[1] !== "action")) return null;
   return {
     surfaceID: parts[2],
     actionName: parts.slice(3).join("."),
@@ -493,19 +496,41 @@ export function createSurfaceBridge(options) {
       if (runtime.capabilities.get_state && !runtime.actions.has("get_state")) {
         runtime.actions.set("get_state", { name: "get_state", description: "读取当前状态", args_schema: {} });
       }
-      if (msg.state && typeof msg.state === "object") {
-        runtime.state = { ...msg.state };
-        emitSurfaceState("surface_open", runtime.surfaceID, {
-          ...runtime.state,
-          event_type: "surface_open",
-        });
-      }
+      runtime.state = msg.state && typeof msg.state === "object"
+        ? { ...msg.state }
+        : {
+            surface_id: runtime.surfaceID,
+            surface_type: runtime.surfaceType,
+            surface_version: runtime.surfaceVersion,
+            event_type: "surface_open",
+            business_state: {},
+            visible_text: "",
+            status: "ready",
+            state_version: 1,
+            updated_at_ms: Date.now(),
+          };
+      emitSurfaceState("surface_open", runtime.surfaceID, {
+        ...runtime.state,
+        event_type: "surface_open",
+      });
       setStatus(`${runtime.surfaceID} ready`);
       return;
     }
 
     if (msg.type === "surface_register_actions") {
       registerRuntimeActions(runtime, msg.actions);
+      emitSurfaceState("state_change", runtime.surfaceID, {
+        surface_id: runtime.surfaceID,
+        surface_type: runtime.surfaceType,
+        surface_version: runtime.surfaceVersion,
+        event_type: "surface_actions_registered",
+        business_state: runtime.state && runtime.state.business_state ? runtime.state.business_state : {},
+        visible_text: runtime.state && typeof runtime.state.visible_text === "string" ? runtime.state.visible_text : "",
+        status: runtime.state && typeof runtime.state.status === "string" ? runtime.state.status : "ready",
+        state_version: runtime.state && Number.isFinite(runtime.state.state_version) ? runtime.state.state_version : 0,
+        updated_at_ms: Date.now(),
+        actions: Array.from(runtime.actions.keys()),
+      });
       return;
     }
 
@@ -790,7 +815,10 @@ export function createSurfaceBridge(options) {
     if (action.name.startsWith("surface.call.")) {
       const parsed = parseSurfaceCallName(action.name);
       if (!parsed) return { ok: false, reason: "invalid_surface_call_name" };
-      const runtime = runtimeFromSurfaceID(parsed.surfaceID);
+      let runtime = runtimeFromSurfaceID(parsed.surfaceID);
+      if ((!runtime || !runtime.open) && registry.has(parsed.surfaceID)) {
+        runtime = await ensureSurfaceOpen(parsed.surfaceID);
+      }
       if (!runtime || !runtime.open) return { ok: false, reason: "surface_closed" };
       if (!runtime.ready || !runtime.port) return { ok: false, reason: "surface_not_ready" };
       if (!runtime.actions.has(parsed.actionName)) {

@@ -25,35 +25,9 @@ const (
 	originCallerSecretFile = ".origin_caller_secret"
 )
 
-type ServiceToolDescriptor struct {
-	ToolID               string         `json:"tool_id"`
-	Category             string         `json:"category"`
-	Type                 string         `json:"type"`
-	Tool                 string         `json:"tool"`
-	Description          string         `json:"description"`
-	InputSchema          map[string]any `json:"input_schema,omitempty"`
-	OutputSchema         map[string]any `json:"output_schema,omitempty"`
-	SideEffect           string         `json:"side_effect,omitempty"`
-	CapabilitiesRequired []string       `json:"capabilities_required,omitempty"`
-	AllowedCallerTypes   []string       `json:"allowed_caller_types,omitempty"`
-	TimeoutMSDefault     int            `json:"timeout_ms_default,omitempty"`
-	Streaming            string         `json:"streaming,omitempty"`
-	WSPath               string         `json:"ws_path,omitempty"`
-	ScopeSupport         []string       `json:"scope_support,omitempty"`
-}
+type ServiceToolDescriptor = toolproto.ServiceTool
 
-type ServiceManifest struct {
-	ServiceID           string                  `json:"service_id"`
-	ServiceName         string                  `json:"service_name"`
-	Version             string                  `json:"version,omitempty"`
-	BuildHash           string                  `json:"build_hash,omitempty"`
-	Reliability         string                  `json:"reliability,omitempty"`
-	Visibility          string                  `json:"visibility,omitempty"`
-	Entry               string                  `json:"entry,omitempty"`
-	ConfigSchemaVersion int                     `json:"config_schema_version,omitempty"`
-	Provides            []ServiceToolDescriptor `json:"provides,omitempty"`
-	Requires            []string                `json:"requires,omitempty"`
-}
+type ServiceManifest = toolproto.ServiceManifest
 
 type HubServiceRegisterRequest struct {
 	Manifest   ServiceManifest `json:"manifest"`
@@ -115,16 +89,7 @@ type HubToolProviderStat struct {
 	RecentErrorRate int    `json:"recent_error_rate,omitempty"`
 }
 
-type HubToolProviderView struct {
-	ServiceID     string  `json:"service_id"`
-	ServiceName   string  `json:"service_name"`
-	Reliability   string  `json:"reliability"`
-	Enabled       bool    `json:"enabled"`
-	SuccessRate   float64 `json:"success_rate"`
-	P95LatencyMS  int64   `json:"p95_latency_ms"`
-	ManualWeight  int     `json:"manual_weight"`
-	LastErrorRate int     `json:"last_error_rate"`
-}
+type HubToolProviderView = toolproto.ToolCandidate
 
 type HubToolBinding struct {
 	ToolID      string `json:"tool_id"`
@@ -133,15 +98,7 @@ type HubToolBinding struct {
 	UpdatedAtMS int64  `json:"updated_at_ms"`
 }
 
-type HubToolView struct {
-	ToolID      string                `json:"tool_id"`
-	Category    string                `json:"category"`
-	Type        string                `json:"type"`
-	Tool        string                `json:"tool"`
-	Description string                `json:"description"`
-	Binding     HubToolBinding        `json:"binding"`
-	Candidates  []HubToolProviderView `json:"candidates"`
-}
+type HubToolView = toolproto.ToolView
 
 type HubToolRoute struct {
 	Binding HubToolBinding         `json:"binding"`
@@ -163,6 +120,7 @@ type HubPlatform struct {
 	manualBind    map[string]string
 	stats         map[string]map[string]*HubToolProviderStat
 	builtinTools  []ServiceToolDescriptor
+	governance    map[string]string
 }
 
 var hubBuiltinTools = []ServiceToolDescriptor{
@@ -200,6 +158,7 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 		manualBind:     map[string]string{},
 		stats:          map[string]map[string]*HubToolProviderStat{},
 		builtinTools:   hubBuiltinTools,
+		governance:     map[string]string{},
 	}
 	secretPath := filepath.Join(root, originCallerSecretFile)
 	secret, err := loadOrCreateSecret(secretPath)
@@ -209,6 +168,31 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 	hub.originSecret = secret
 	hub.loadPersistedStateLocked()
 	return hub, nil
+}
+
+func (h *HubPlatform) SetBuiltinTools(tools []toolproto.ServiceTool) {
+	if h == nil {
+		return
+	}
+	out := make([]ServiceToolDescriptor, 0, len(tools))
+	seen := map[string]struct{}{}
+	for _, tool := range tools {
+		normalized := toolproto.NormalizeServiceTool(tool)
+		if normalized.ToolID == "" {
+			continue
+		}
+		if _, ok := seen[normalized.ToolID]; ok {
+			continue
+		}
+		seen[normalized.ToolID] = struct{}{}
+		out = append(out, normalized)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].ToolID < out[j].ToolID
+	})
+	h.mu.Lock()
+	h.builtinTools = out
+	h.mu.Unlock()
 }
 
 type hubPersistState struct {
@@ -322,7 +306,7 @@ func (h *HubPlatform) RegisterService(req HubServiceRegisterRequest) (HubService
 		Endpoint:       strings.TrimSpace(req.Endpoint),
 		Version:        manifest.Version,
 		BuildHash:      manifest.BuildHash,
-		Reliability:    manifest.Reliability,
+		Reliability:    "unverified",
 		Visibility:     manifest.Visibility,
 		ManifestHash:   mh,
 		ToolCount:      len(manifest.Provides),
@@ -339,6 +323,7 @@ func (h *HubPlatform) RegisterService(req HubServiceRegisterRequest) (HubService
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	reg.Reliability = h.governedReliabilityLocked(manifest.ServiceID)
 
 	if existing, ok := h.services[manifest.ServiceID]; ok && existing.InstanceID != instanceID && existing.Status == ServiceStatusActive {
 		reg.Status = ServiceStatusConflict
@@ -477,6 +462,29 @@ func (h *HubPlatform) MarkServiceActive(serviceID string) {
 	reg.LastSeenAtMS = nowMS()
 	h.services[sid] = reg
 	h.refreshBindingsLocked("service_up")
+	h.savePersistedStateLocked()
+}
+
+func (h *HubPlatform) SetServiceReliability(serviceID string, reliability string) {
+	if h == nil {
+		return
+	}
+	sid := strings.TrimSpace(serviceID)
+	if sid == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.governance == nil {
+		h.governance = map[string]string{}
+	}
+	reliability = normalizeReliability(reliability)
+	h.governance[sid] = reliability
+	if reg, ok := h.services[sid]; ok {
+		reg.Reliability = reliability
+		h.services[sid] = reg
+	}
+	h.refreshBindingsLocked("service_governance")
 	h.savePersistedStateLocked()
 }
 
@@ -871,7 +879,7 @@ func (h *HubPlatform) ListTools() []HubToolView {
 				continue
 			}
 			if _, ok := meta[toolID]; !ok {
-				meta[toolID] = t
+				meta[toolID] = toolproto.NormalizeServiceTool(t)
 			}
 		}
 	}
@@ -882,7 +890,7 @@ func (h *HubPlatform) ListTools() []HubToolView {
 			continue
 		}
 		if _, ok := meta[toolID]; !ok {
-			meta[toolID] = t
+			meta[toolID] = toolproto.NormalizeServiceTool(t)
 		}
 	}
 
@@ -900,60 +908,169 @@ func (h *HubPlatform) ListTools() []HubToolView {
 	out := make([]HubToolView, 0, len(toolIDs))
 	for _, tid := range toolIDs {
 		providers := h.toolProviders[tid]
-		cands := make([]HubToolProviderView, 0, len(providers))
-		for _, sid := range providers {
-			reg, ok := h.services[sid]
-			if !ok {
-				continue
-			}
-			stat := h.stats[tid][sid]
-			successRate := 0.5
-			lat := int64(0)
-			mw := 0
-			errRate := 0
-			enabled := reg.Status == ServiceStatusActive
-			if stat != nil {
-				total := stat.SuccessCount + stat.FailureCount
-				if total > 0 {
-					successRate = float64(stat.SuccessCount) / float64(total)
-				}
-				lat = stat.LastLatencyMS
-				mw = stat.ManualWeight
-				errRate = stat.RecentErrorRate
-				enabled = enabled && stat.Enabled
-			}
-			cands = append(cands, HubToolProviderView{
-				ServiceID:     sid,
-				ServiceName:   reg.ServiceName,
-				Reliability:   reg.Reliability,
-				Enabled:       enabled,
-				SuccessRate:   successRate,
-				P95LatencyMS:  lat,
-				ManualWeight:  mw,
-				LastErrorRate: errRate,
-			})
-		}
-		sort.Slice(cands, func(i, j int) bool {
-			if cands[i].Enabled != cands[j].Enabled {
-				return cands[i].Enabled
-			}
-			if cands[i].SuccessRate == cands[j].SuccessRate {
-				return cands[i].ServiceID < cands[j].ServiceID
-			}
-			return cands[i].SuccessRate > cands[j].SuccessRate
-		})
+		cands := h.buildToolCandidatesLocked(tid, providers)
 		toolMeta := meta[tid]
-		out = append(out, HubToolView{
-			ToolID:      tid,
-			Category:    toolMeta.Category,
-			Type:        toolMeta.Type,
-			Tool:        toolMeta.Tool,
-			Description: toolMeta.Description,
-			Binding:     h.bindings[tid],
-			Candidates:  cands,
-		})
+		out = append(out, h.buildToolViewLocked(tid, toolMeta, cands))
 	}
 	return out
+}
+
+func (h *HubPlatform) buildToolCandidatesLocked(toolID string, providers []string) []HubToolProviderView {
+	cands := make([]HubToolProviderView, 0, len(providers))
+	for _, sid := range providers {
+		reg, ok := h.services[sid]
+		if !ok {
+			continue
+		}
+		stat := h.stats[toolID][sid]
+		successRate := 0.0
+		callCount := int64(0)
+		lastLatency := int64(0)
+		manualWeight := 0
+		lastErrorRate := 0
+		enabled := reg.Status == ServiceStatusActive
+		if stat != nil {
+			callCount = stat.SuccessCount + stat.FailureCount
+			if callCount > 0 {
+				successRate = float64(stat.SuccessCount) / float64(callCount)
+			}
+			lastLatency = stat.LastLatencyMS
+			manualWeight = stat.ManualWeight
+			lastErrorRate = stat.RecentErrorRate
+			enabled = enabled && stat.Enabled
+		}
+		cands = append(cands, HubToolProviderView{
+			ServiceID:     sid,
+			ServiceName:   reg.ServiceName,
+			Reliability:   h.governedReliabilityLocked(sid),
+			Enabled:       enabled,
+			Healthy:       reg.Healthy,
+			Status:        reg.Status,
+			Transport:     inferTransportFromEndpoint(reg.Endpoint),
+			Endpoint:      reg.Endpoint,
+			LastSeenAtMS:  reg.LastSeenAtMS,
+			SuccessRate:   successRate,
+			CallCount:     callCount,
+			LastLatencyMS: lastLatency,
+			ManualWeight:  manualWeight,
+			LastErrorRate: lastErrorRate,
+		})
+	}
+	sort.Slice(cands, func(i, j int) bool {
+		if cands[i].Enabled != cands[j].Enabled {
+			return cands[i].Enabled
+		}
+		if cands[i].SuccessRate == cands[j].SuccessRate {
+			return cands[i].ServiceID < cands[j].ServiceID
+		}
+		return cands[i].SuccessRate > cands[j].SuccessRate
+	})
+	return cands
+}
+
+func (h *HubPlatform) buildToolViewLocked(toolID string, spec ServiceToolDescriptor, candidates []HubToolProviderView) HubToolView {
+	binding, hasBinding := h.bindings[toolID]
+	isBuiltinOnly := len(candidates) == 0 && h.hasBuiltinToolLocked(toolID)
+	observed := toolproto.ToolObserved{
+		Registered: len(candidates) > 0 || isBuiltinOnly,
+		Source:     "service_register",
+	}
+	if isBuiltinOnly {
+		observed.HealthyInstanceCount = 1
+		observed.Transport = "internal"
+		observed.Endpoint = "hub://builtin"
+		observed.Source = "hub_builtin"
+	} else {
+		activeCount := 0
+		lastSeenAtMS := int64(0)
+		for _, candidate := range candidates {
+			if candidate.Enabled && candidate.Healthy {
+				activeCount++
+			}
+			if candidate.LastSeenAtMS > lastSeenAtMS {
+				lastSeenAtMS = candidate.LastSeenAtMS
+			}
+		}
+		observed.HealthyInstanceCount = activeCount
+		observed.LastSeenAtMS = lastSeenAtMS
+		if hasBinding {
+			for _, candidate := range candidates {
+				if candidate.ServiceID == binding.ServiceID {
+					observed.Transport = candidate.Transport
+					observed.Endpoint = candidate.Endpoint
+					break
+				}
+			}
+		}
+		if observed.Endpoint == "" && len(candidates) > 0 {
+			observed.Transport = candidates[0].Transport
+			observed.Endpoint = candidates[0].Endpoint
+		}
+	}
+
+	governance := toolproto.ToolGovernance{
+		Enabled: observed.Registered,
+	}
+	serviceID := ""
+	if isBuiltinOnly {
+		serviceID = "hub"
+		governance.BoundServiceID = "hub"
+		governance.BindingReason = "hub_builtin"
+		governance.Reliability = "trusted"
+	} else if hasBinding {
+		serviceID = binding.ServiceID
+		governance.BoundServiceID = binding.ServiceID
+		governance.BindingReason = binding.Reason
+		governance.ManualOverride = strings.TrimSpace(h.manualBind[toolID]) == binding.ServiceID
+	}
+	if serviceID == "" && len(candidates) > 0 {
+		serviceID = candidates[0].ServiceID
+	}
+	if serviceID != "" && serviceID != "hub" {
+		if reg, ok := h.services[serviceID]; ok {
+			governance.Reliability = reg.Reliability
+		}
+		if stat := h.toolStatLocked(toolID, serviceID); stat != nil {
+			callCount := stat.SuccessCount + stat.FailureCount
+			governance.CallCount = callCount
+			if callCount > 0 {
+				governance.SuccessRate = float64(stat.SuccessCount) / float64(callCount)
+			}
+		}
+	}
+	if !isBuiltinOnly && len(candidates) == 0 {
+		governance.Enabled = false
+		governance.ConflictReason = "no_registered_provider"
+	}
+	if !isBuiltinOnly && len(candidates) > 0 && observed.HealthyInstanceCount == 0 {
+		governance.Enabled = false
+		governance.ConflictReason = "no_healthy_provider"
+	}
+
+	return HubToolView{
+		ToolID:     toolID,
+		ServiceID:  serviceID,
+		Spec:       spec,
+		Observed:   observed,
+		Governance: governance,
+		Candidates: candidates,
+	}
+}
+
+func (h *HubPlatform) hasBuiltinToolLocked(toolID string) bool {
+	for _, tool := range h.builtinTools {
+		if strings.TrimSpace(tool.ToolID) == strings.TrimSpace(toolID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *HubPlatform) toolStatLocked(toolID string, serviceID string) *HubToolProviderStat {
+	if statsByTool, ok := h.stats[toolID]; ok {
+		return statsByTool[serviceID]
+	}
+	return nil
 }
 
 func (h *HubPlatform) ResolveToolRoute(toolID string) (HubToolRoute, bool) {
@@ -1005,13 +1122,12 @@ func (h *HubPlatform) HasTool(toolID string) bool {
 }
 
 func normalizeServiceManifest(in ServiceManifest) (ServiceManifest, error) {
-	m := in
+	m := toolproto.NormalizeServiceManifest(in)
 	m.ServiceID = strings.TrimSpace(m.ServiceID)
 	if m.ServiceID == "" {
 		return ServiceManifest{}, fmt.Errorf("service_id is required")
 	}
 	m.ServiceName = firstNonEmpty(m.ServiceName, m.ServiceID)
-	m.Reliability = normalizeReliability(m.Reliability)
 	m.Visibility = normalizeVisibility(m.Visibility)
 	if len(m.Provides) > 0 {
 		out := make([]ServiceToolDescriptor, 0, len(m.Provides))
@@ -1036,28 +1152,22 @@ func normalizeServiceManifest(in ServiceManifest) (ServiceManifest, error) {
 	return m, nil
 }
 
+func (h *HubPlatform) governedReliabilityLocked(serviceID string) string {
+	sid := strings.TrimSpace(serviceID)
+	if sid == "" {
+		return "unverified"
+	}
+	if value, ok := h.governance[sid]; ok {
+		return normalizeReliability(value)
+	}
+	if reg, ok := h.services[sid]; ok {
+		return normalizeReliability(reg.Reliability)
+	}
+	return "unverified"
+}
+
 func normalizeToolDescriptor(in ServiceToolDescriptor) ServiceToolDescriptor {
-	t := in
-	t.ToolID = strings.TrimSpace(t.ToolID)
-	t.Category = strings.TrimSpace(t.Category)
-	t.Type = strings.TrimSpace(t.Type)
-	t.Tool = strings.TrimSpace(t.Tool)
-	t.Description = strings.TrimSpace(t.Description)
-	t.SideEffect = strings.TrimSpace(t.SideEffect)
-	t.Streaming = strings.TrimSpace(t.Streaming)
-	t.WSPath = strings.TrimSpace(t.WSPath)
-	if t.WSPath != "" && !strings.HasPrefix(t.WSPath, "/") {
-		t.WSPath = "/" + t.WSPath
-	}
-	if t.ToolID == "" {
-		if t.Category != "" && t.Type != "" && t.Tool != "" {
-			t.ToolID = t.Category + "." + t.Type + "." + t.Tool
-		}
-	}
-	t.CapabilitiesRequired = uniqueNonEmpty(t.CapabilitiesRequired)
-	t.AllowedCallerTypes = uniqueNonEmpty(t.AllowedCallerTypes)
-	t.ScopeSupport = uniqueNonEmpty(t.ScopeSupport)
-	return t
+	return toolproto.NormalizeServiceTool(in)
 }
 
 func manifestHash(manifest ServiceManifest) (string, error) {
@@ -1107,6 +1217,18 @@ func normalizeVisibility(v string) string {
 	}
 }
 
+func inferTransportFromEndpoint(endpoint string) string {
+	value := strings.TrimSpace(endpoint)
+	switch {
+	case value == "":
+		return ""
+	case strings.HasPrefix(value, "http://"), strings.HasPrefix(value, "https://"):
+		return "tcp"
+	default:
+		return "uds"
+	}
+}
+
 func reliabilityWeight(v string) float64 {
 	switch normalizeReliability(v) {
 	case "trusted":
@@ -1142,27 +1264,8 @@ func boolOrDefault(v *bool, fallback bool) bool {
 }
 
 func EnsureServiceConfigFiles(serviceRoot string) error {
-	root := strings.TrimSpace(serviceRoot)
-	if root == "" {
-		return fmt.Errorf("service root is empty")
-	}
-	configDir := filepath.Join(root, "config")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return fmt.Errorf("create service config dir: %w", err)
-	}
-	sampleFiles := map[string]string{
-		filepath.Join(configDir, "config.json"):          "{\n  \"service\": {}\n}\n",
-		filepath.Join(configDir, "configx.json.example"): "{\n  \"secrets\": {\n    \"token\": \"\"\n  }\n}\n",
-	}
-	for path, content := range sampleFiles {
-		if _, err := os.Stat(path); err == nil {
-			continue
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write service config sample %s: %w", path, err)
-		}
-	}
-	return nil
+	_, err := hubsvc.EnsureProjectConfigFiles(serviceRoot)
+	return err
 }
 
 func (h *HubPlatform) IssueOriginCallerToken(origin toolproto.Caller, serviceID string, requestID string, traceID string) (string, error) {

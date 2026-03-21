@@ -31,16 +31,20 @@ func NewLoggingMiddleware(handler http.Handler, silentPrefixes []string) http.Ha
 
 		extra := ""
 		if path == "/api/tool/call" && r.Method == http.MethodPost {
-			// Peek at body to extract tool_id
-			bodyBytes, _ := io.ReadAll(r.Body)
-			r.Body.Close()
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			if queryToolID := strings.TrimSpace(r.URL.Query().Get("tool_id")); queryToolID != "" {
+				extra = fmt.Sprintf(" [%s]", queryToolID)
+			} else {
+				// Peek at body to extract tool_id for legacy callers.
+				bodyBytes, _ := io.ReadAll(r.Body)
+				r.Body.Close()
+				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-			var payload struct {
-				ToolID string `json:"tool_id"`
-			}
-			if err := json.Unmarshal(bodyBytes, &payload); err == nil && payload.ToolID != "" {
-				extra = fmt.Sprintf(" [%s]", payload.ToolID)
+				var payload struct {
+					ToolID string `json:"tool_id"`
+				}
+				if err := json.Unmarshal(bodyBytes, &payload); err == nil && payload.ToolID != "" {
+					extra = fmt.Sprintf(" [%s]", payload.ToolID)
+				}
 			}
 		}
 

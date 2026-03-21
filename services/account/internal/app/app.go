@@ -25,14 +25,17 @@ type Config struct {
 }
 
 type App struct {
-	Addr           string
-	ServiceID      string
-	ServiceVersion string
-	InstanceID     string
-	Bootstrap      hubsvc.BootstrapSecret
-	RegisterURL    string
-	HeartbeatEvery time.Duration
-	Shutdown       func(reason string)
+	Addr                string
+	ServiceID           string
+	ServiceVersion      string
+	InstanceID          string
+	Bootstrap           hubsvc.BootstrapSecret
+	RegisterURL         string
+	HeartbeatEvery      time.Duration
+	Shutdown            func(reason string)
+	BootstrapPath       string
+	ProcessStore        string
+	RuntimeManifestPath string
 
 	server   *http.Server
 	executor *Handler
@@ -47,6 +50,9 @@ func New(cfg Config) (*App, error) {
 	appRoot, err := detectRepoRoot()
 	if err != nil {
 		Warnf("detect app root fallback: %v", err)
+	}
+	if _, err := hubsvc.LoadProjectConfig(filepath.Join(appRoot, "services", serviceID)); err != nil {
+		return nil, fmt.Errorf("load service config failed: %w", err)
 	}
 	serviceSecretPath := filepath.Join(appRoot, "services", serviceID, "run", ".service_secret")
 	bootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
@@ -79,31 +85,34 @@ func New(cfg Config) (*App, error) {
 		return signingKey, nil
 	})
 	app := &App{
-		Addr:           addr,
-		ServiceID:      serviceID,
-		ServiceVersion: serviceVersion,
-		InstanceID:     instance,
-		Bootstrap:      bootstrap,
-		RegisterURL:    registerURL,
-		HeartbeatEvery: 3 * time.Second,
-		executor:       executor,
+		Addr:                addr,
+		ServiceID:           serviceID,
+		ServiceVersion:      serviceVersion,
+		InstanceID:          instance,
+		Bootstrap:           bootstrap,
+		RegisterURL:         registerURL,
+		HeartbeatEvery:      3 * time.Second,
+		BootstrapPath:       serviceSecretPath,
+		ProcessStore:        filepath.Join(appRoot, "services", serviceID, "run", ".service_pid"),
+		RuntimeManifestPath: filepath.Join(appRoot, "services", serviceID, "run", "manifest_runtime.json"),
+		executor:            executor,
 	}
 	app.adapter = NewHTTPHandler(serviceID, instance, bootstrap, executor)
 	app.Shutdown = app.shutdownNow
 	executor.SetShutdown(app.shutdownNow)
-	if registerURL != "" {
-		result, err := app.registerToHub()
-		if err != nil {
-			return nil, err
-		}
-		if result.HeartbeatIntervalSec > 0 {
-			app.HeartbeatEvery = time.Duration(result.HeartbeatIntervalSec) * time.Second
-		}
-	}
 	return app, nil
 }
 
 func (a *App) Run() error {
+	if err := hubsvc.CleanupPreviousServiceProcess(a.ProcessStore, a.ServiceID); err != nil {
+		return fmt.Errorf("cleanup previous process failed: %w", err)
+	}
+	initCtx, initCancel := context.WithTimeout(context.Background(), 8*time.Second)
+	err := a.executor.Initialize(initCtx)
+	initCancel()
+	if err != nil {
+		return fmt.Errorf("initialize account service failed: %w", err)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/service/tool/exec", a.adapter.HandleToolExec)
 	server := &http.Server{
@@ -112,11 +121,37 @@ func (a *App) Run() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	a.server = server
+	ln, err := hubsvc.Listen(a.Addr)
+	if err != nil {
+		return err
+	}
+	startedAtMS := time.Now().UnixMilli()
+	if err := hubsvc.RecordCurrentServiceProcess(a.ProcessStore, a.ServiceID, startedAtMS); err != nil {
+		return fmt.Errorf("record current process failed: %w", err)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- server.Serve(ln)
+	}()
 	if a.RegisterURL != "" {
+		result, err := a.registerToHub()
+		if err != nil {
+			a.shutdownNow("register to hub failed: " + err.Error())
+			return err
+		}
+		if err := hubsvc.WriteServiceRuntimeManifest(a.RuntimeManifestPath, result); err != nil {
+			return fmt.Errorf("write runtime manifest failed: %w", err)
+		}
+		if result.HeartbeatIntervalSec > 0 {
+			a.HeartbeatEvery = time.Duration(result.HeartbeatIntervalSec) * time.Second
+		}
+		if err := hubsvc.DeleteBootstrapSecret(a.BootstrapPath); err != nil {
+			Warnf("delete bootstrap secret failed: %v", err)
+		}
 		a.startHubHeartbeatGuard()
 	}
 	Infof("account service listening=http://%s", a.Addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := <-serveErrCh; err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
@@ -239,13 +274,6 @@ func supervisorTools(version string) []toolproto.ServiceTool {
 			Version:            version,
 			Description:        "获取服务运行时生命周期状态快照",
 			TimeoutMS:          3000,
-			AllowedCallerTypes: []string{"service"},
-		},
-		{
-			ToolID:             "service.lifecycle.init",
-			Version:            version,
-			Description:        "执行服务依赖初始化并切换为 ready",
-			TimeoutMS:          8000,
 			AllowedCallerTypes: []string{"service"},
 		},
 		{

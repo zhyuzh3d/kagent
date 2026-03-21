@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -30,13 +31,33 @@ func main() {
 	flag.Parse()
 
 	serviceID := "autogui"
+	projectRoot := filepath.Join("services", serviceID)
+	if fi, err := os.Stat(projectRoot); err != nil || !fi.IsDir() {
+		projectRoot = "."
+	}
+	if _, err := hubsvc.LoadProjectConfig(projectRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "load service config failed: %v\n", err)
+		os.Exit(1)
+	}
 	secretPath := filepath.Join("services", "autogui", "run", ".service_secret")
 	if _, err := os.Stat(secretPath); err != nil {
 		secretPath = filepath.Join("run", ".service_secret")
 	}
+	processStorePath := filepath.Join("services", "autogui", "run", ".service_pid")
+	if projectRoot == "." {
+		processStorePath = filepath.Join("run", ".service_pid")
+	}
+	runtimeManifestPath := filepath.Join("services", "autogui", "run", "manifest_runtime.json")
+	if projectRoot == "." {
+		runtimeManifestPath = filepath.Join("run", "manifest_runtime.json")
+	}
 	bootstrap, err := hubsvc.LoadBootstrapSecret(secretPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "load bootstrap secret failed: %v\n", err)
+		os.Exit(1)
+	}
+	if err := hubsvc.CleanupPreviousServiceProcess(processStorePath, serviceID); err != nil {
+		fmt.Fprintf(os.Stderr, "cleanup previous process failed: %v\n", err)
 		os.Exit(1)
 	}
 	registerURL := strings.TrimSpace(bootstrap.HubRegisterURL)
@@ -56,7 +77,6 @@ func main() {
 		ServiceID:   serviceID,
 		ServiceName: serviceID,
 		Version:     "1.0.0",
-		Reliability: "unverified",
 		Visibility:  "public",
 		Provides: []toolproto.ServiceTool{
 			{
@@ -129,14 +149,6 @@ func main() {
 		},
 	})
 
-	if registerURL != "" {
-		if err := register(registerURL, bootstrap, manifest, instance, *addr); err != nil {
-			fmt.Fprintf(os.Stderr, "register failed: %v\n", err)
-			os.Exit(1)
-		}
-		_ = hubsvc.DeleteBootstrapSecret(secretPath)
-	}
-
 	var shutdownOnce sync.Once
 	var server *http.Server
 	stop := func() {
@@ -179,11 +191,37 @@ func main() {
 	})
 
 	server = &http.Server{Addr: *addr, Handler: mux}
+	ln, err := hubsvc.Listen(*addr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "listen failed: %v\n", err)
+		os.Exit(1)
+	}
+	startedAtMS := time.Now().UnixMilli()
+	if err := hubsvc.RecordCurrentServiceProcess(processStorePath, serviceID, startedAtMS); err != nil {
+		fmt.Fprintf(os.Stderr, "record current process failed: %v\n", err)
+		os.Exit(1)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- server.Serve(ln)
+	}()
+	if registerURL != "" {
+		registerResp, err := register(registerURL, bootstrap, manifest, instance, *addr)
+		if err != nil {
+			shutdownNow("register failed: " + err.Error())
+			return
+		}
+		if err := hubsvc.WriteServiceRuntimeManifest(runtimeManifestPath, registerResp); err != nil {
+			shutdownNow("write runtime manifest failed: " + err.Error())
+			return
+		}
+		_ = hubsvc.DeleteBootstrapSecret(secretPath)
+	}
 	if hubToolCallURL != "" {
 		startHubToolHeartbeatGuard(hubToolCallURL, serviceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), bootstrap, shutdownNow)
 	}
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Fprintf(os.Stderr, "listen failed: %v\n", err)
+	if err := <-serveErrCh; err != nil && err != http.ErrServerClosed {
+		fmt.Fprintf(os.Stderr, "serve failed: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -273,7 +311,7 @@ func captureRegion(x, y, width, height int) (map[string]any, error) {
 	}, nil
 }
 
-func register(registerURL string, bootstrap hubsvc.BootstrapSecret, manifest toolproto.ServiceManifest, instance string, addr string) error {
+func register(registerURL string, bootstrap hubsvc.BootstrapSecret, manifest toolproto.ServiceManifest, instance string, addr string) (toolproto.SupervisorRegisterResult, error) {
 	healthy := true
 	req := toolproto.CallRequest{
 		ToolID: "hub.governance.service.register",
@@ -301,19 +339,23 @@ func register(registerURL string, bootstrap hubsvc.BootstrapSecret, manifest too
 	raw, _ := json.Marshal(req)
 	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, registerURL, bytes.NewReader(raw))
 	if err != nil {
-		return err
+		return toolproto.SupervisorRegisterResult{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	hubsvc.ApplyServiceAuthHeaders(httpReq.Header, bootstrap)
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
-		return err
+		return toolproto.SupervisorRegisterResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("status %d", resp.StatusCode)
+		return toolproto.SupervisorRegisterResult{}, fmt.Errorf("status %d", resp.StatusCode)
 	}
-	return nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return toolproto.SupervisorRegisterResult{}, err
+	}
+	return hubsvc.DecodeSupervisorRegisterResult(body)
 }
 
 func startHubToolHeartbeatGuard(hubToolCallURL string, serviceID string, instanceID string, pid int, endpoint string, serviceAuth hubsvc.BootstrapSecret, onFailure func(reason string)) {

@@ -44,6 +44,8 @@
 2. 内部配置应优先收敛到各自项目内的 `config/`；密钥、密码等敏感字段统一存放在 `configx.json`，并配套 `configx.json.example` 作为样例。
 3. Hub 可读写的 service 运行态文件统一落在各自 `run/`，不再共享仓库根 `config/`。
 4. 配置读取必须局部封装：`hub` 只读 `hub/` 自己的配置，各 `service` 只读各自项目目录内的配置，不向上层目录或其他 `service` 目录跨边界读取配置。
+5. 平台级标准配置只保留 service / hub 进程级统一配置，不再定义通用的用户级 config 覆盖机制。
+6. 若某个 `service` 需要按用户差异化行为处理，应在其内部业务数据或业务逻辑中自行实现，而不是改变该 `service` 的项目级 `config.json` / `configx.json` 语义。
 
 ### 2.4 数据库存储边界
 
@@ -98,9 +100,26 @@
 
 如存在排空语义，还应补充 `service.lifecycle.drain`。`Hub` 同时维护 `service session`、路由覆盖层和治理统计；`reliability`、`success_rate`、`call_count` 等字段属于 `Hub` 的治理产物，不是 `service` 的最终自声明事实。
 
-### 2.9 副作用与身份卫生
+### 2.9 服务描述与清单规范 (Single Source of Description)
+
+服务的人类可读描述 (`description`) 必须具有唯一权威来源：
+
+1. **唯一来源**：描述必须且仅能从该服务本地项目目录下的 `run/manifest.json` 文件中读取。
+2. **禁止传输**：禁止通过 `hub.governance.service.register` 接口动态传输顶级描述字段。这确保了管辖权在本地配置中，而不是在运行时的心跳数据中。
+3. **Hub 自身对齐**：Hub 自身的描述也必须遵循此原则，通过其根目录下的 `manifest.json` 定义并展示。
+
+### 2.10 副作用与身份卫生
 
 `service` 不应直接改写浏览器响应或外部上下文。cookie、header 等副作用应通过 `effects` 返回，再由 `Hub` 统一写回调用方。内部身份也不能靠端口或来源地址猜测，必须依赖互信 header 与显式校验；转发前应清洗 protected headers，避免外部伪造内部身份字段。
+
+### 2.11 增强的端口自愈与重用规范
+ 
+ 为了解决本地开发与频繁重启场景下的“Address already in use”问题，项目实施了统一的监听优化：
+ 
+ 1. **统一 Listen 入口**：所有 `service` 与 `Hub` 必须放弃直接使用 `net.Listen` 或 `http.ListenAndServe`。
+ 2. **强制开启重用选项**：必须统一调用 `pkg/hubsvc.Listen(addr)` 助手函数。该助手在所有支持的平台上强制开启 `SO_REUSEADDR`，并在 POSIX 系统（macOS/Linux）上额外开启 `SO_REUSEPORT`。
+ 3. **抢占与自愈**：通过双重重用选项，允许新进程在旧进程尚未完全释放 Socket 时强势抢占端口，显著提升了生命周期编排（如 `deploy.sh` 快速重启）的成功率。
+ 4. **跨平台屏蔽**：具体系统调用差异（如 Windows 的 Handle 转换与 POSIX 的整型 FD 转换）由 `pkg/hubsvc` 内部屏蔽，对外提供一致的 `net.Listener` 契约。
 
 ## 3. 开发规范
 
@@ -179,10 +198,11 @@ Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这
 
 当前代码已可见的正式生命周期事实包括：
 
-1. Hub 优先调用 `service.lifecycle.health`
-2. Hub 停机时优先调用 `service.lifecycle.shutdown`
-3. `/healthz` 与部分 `/admin/shutdown` 仍作为兼容 fallback 保留
-4. `ai_doubao` 仍保留 `ai_doubao.system.health`、`ai_doubao.system.shutdown` 兼容别名
+1. Hub 当前以各 service `run/manifest.json` 中的 `depends_on` 为唯一依赖事实源，先做环检测，再按 DAG 分批启动。
+2. Hub 当前只等待 service 完成 `hub.governance.service.register`；一旦注册成功，Hub 直接把该实例视为 `ready`，不再维护 Hub 侧后置 `init` 阶段。
+3. 各 service 当前必须在自己进程内先完成旧实例自清理、内部初始化与监听，再对 Hub 发起 register；Hub 不再统一执行 `kill_old` 或反向调用 `service.lifecycle.init`。
+4. Hub 停机或治理停机时仍优先调用 `service.lifecycle.shutdown`；`/healthz` 与部分 `/admin/shutdown` 只作为兼容 fallback 保留。
+5. `ai_doubao` 仍保留 `ai_doubao.system.health`、`ai_doubao.system.shutdown` 兼容别名。
 
 ### 4.5 当前已落地的工具字段事实
 
@@ -221,8 +241,8 @@ Hub 识别后会在转发前注入统一 `X-Caller-*` 与 `X-Hub-*` header。这
 
 ---
 
-**文档更新时间**：2026-03-20 16:42:00 CST
+**文档更新时间**：2026-03-21 12:29:00 CST
 
-**本轮修改范围**：补充 `sql_db` 已成为正式数据库工具面、`surface_manager` 已迁离本地 sqlite、Hub 已支持 `origin_caller` / `origin_caller_token` 委托恢复，以及“首选 Web 直达 service，二次 service 调用仅支持不推荐”的当前边界。
+**本轮修改范围**：补充平台级配置边界，明确 `config.json` / `configx.json` / `configx.json.example` 的职责，统一 service 级配置读取标准，并移除平台级用户覆盖配置作为默认模式。
 
-**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_instruction/structure.md`、`pkg/toolproto/v1.go`、`pkg/hubsvc/session.go`、`hub/internal/app/hub_platform.go`、`hub/internal/gateway/tool_handler.go`、`hub/internal/security/headers.go`、`services/sql_db/cmd/sql_db/main.go`、`services/chat_server/internal/app/hub_database_store.go`、`services/chat_server/internal/app/hub_tool_client.go`、`services/surface_manager/internal/app/hub_store.go`、`services/surface_manager/cmd/surface_manager/main.go`。
+**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/pkg/hubsvc/project_config.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/hub/cmd/hub/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/account/internal/app/app.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/ai_doubao/cmd/ai_doubao/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/cmd/chat_server/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/internal/app/runtime_config.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/file_storage/cmd/file_storage/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/sql_db/cmd/sql_db/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/surface_manager/cmd/surface_manager/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/autogui/cmd/autogui/main.go`。

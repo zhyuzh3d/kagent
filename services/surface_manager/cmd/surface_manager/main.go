@@ -33,13 +33,23 @@ func main() {
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
+	if _, err := hubsvc.LoadProjectConfig(filepath.Join(appRoot, "services", "surface_manager")); err != nil {
+		app.Errorf("load service config failed: %v", err)
+		os.Exit(1)
+	}
 	dataRoot := filepath.Join(appRoot, "data")
 	webuiRoot := filepath.Join(appRoot, "webui")
 	surfaceRoot := filepath.Join(webuiRoot, "surface")
 	serviceSecretPath := filepath.Join(appRoot, "services", "surface_manager", "run", ".service_secret")
+	processStorePath := filepath.Join(appRoot, "services", "surface_manager", "run", ".service_pid")
+	runtimeManifestPath := filepath.Join(appRoot, "services", "surface_manager", "run", "manifest_runtime.json")
 	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
 		app.Errorf("load bootstrap secret failed: %v", err)
+		os.Exit(1)
+	}
+	if err := hubsvc.CleanupPreviousServiceProcess(processStorePath, "surface_manager"); err != nil {
+		app.Errorf("cleanup previous process failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -128,49 +138,6 @@ func main() {
 		}
 		return nil
 	}
-	if registerURL != "" {
-		healthy := true
-		registerCall := toolproto.CallRequest{
-			ToolID: "hub.governance.service.register",
-			Args: map[string]any{
-				"service_id":  strings.TrimSpace(manifest.ServiceID),
-				"instance_id": strings.TrimSpace(instance),
-				"version":     strings.TrimSpace(manifest.Version),
-				"transport":   "tcp",
-				"endpoint": map[string]any{
-					"tcp_url": "http://" + strings.TrimSpace(*addr),
-				},
-				"tools":   toSupervisorTools(manifest),
-				"healthy": &healthy,
-			},
-			Context: &toolproto.Context{
-				RequestID: "reg-" + app.NewRequestID(),
-				TraceID:   "tr-" + app.NewRequestID(),
-				Caller: toolproto.Caller{
-					Type:      "service",
-					ServiceID: manifest.ServiceID,
-				},
-			},
-		}
-		rawResp, statusCode, err := postHubToolCall(registerURL, serviceBootstrap, registerCall)
-		if err != nil {
-			app.Errorf("register surface_manager to hub failed: %v", err)
-			os.Exit(1)
-		}
-		if statusCode >= 300 {
-			app.Errorf("register surface_manager to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
-			os.Exit(1)
-		}
-		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
-			app.Errorf("decode register response failed: %v", err)
-			os.Exit(1)
-		}
-		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
-			app.Warnf("delete bootstrap secret failed: %v", err)
-		}
-		app.Infof("register surface_manager to hub status=%d", statusCode)
-	}
-
 	mux := http.NewServeMux()
 	var server *http.Server
 	var shutdownOnce sync.Once
@@ -317,20 +284,6 @@ func main() {
 				}()),
 				"timestamp_ms": time.Now().UnixMilli(),
 			}
-			writeToolResponse(w, http.StatusOK, resp)
-			return
-		}
-		if req.ToolID == "service.lifecycle.init" {
-			if !strings.EqualFold(strings.TrimSpace(caller.Type), "service") || strings.TrimSpace(caller.ServiceID) != strings.TrimSpace(manifest.ServiceID) {
-				writeToolResponse(w, http.StatusForbidden, toErrResp(toolproto.ErrorCodeForbidden, "forbidden", false))
-				return
-			}
-			if err := runInit(reqCtx); err != nil {
-				writeToolResponse(w, http.StatusServiceUnavailable, toErrResp(toolproto.ErrorCodeServiceUnavailable, err.Error(), true))
-				return
-			}
-			resp.Ok = true
-			resp.Result = map[string]any{"ok": true, "status": currentStatus()}
 			writeToolResponse(w, http.StatusOK, resp)
 			return
 		}
@@ -1007,11 +960,83 @@ func main() {
 	})
 
 	server = &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	initCtx, initCancel := context.WithTimeout(context.Background(), 8*time.Second)
+	if err := runInit(initCtx); err != nil {
+		initCancel()
+		app.Errorf("surface_manager init failed: %v", err)
+		os.Exit(1)
+	}
+	initCancel()
+	app.Infof("surface_manager listening=http://%s", *addr)
+	ln, err := hubsvc.Listen(*addr)
+	if err != nil {
+		app.Errorf("server listen failed: %v", err)
+		os.Exit(1)
+	}
+	startedAtMS := time.Now().UnixMilli()
+	if err := hubsvc.RecordCurrentServiceProcess(processStorePath, manifest.ServiceID, startedAtMS); err != nil {
+		app.Errorf("record current process failed: %v", err)
+		os.Exit(1)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- server.Serve(ln)
+	}()
+	if registerURL != "" {
+		healthy := true
+		registerCall := toolproto.CallRequest{
+			ToolID: "hub.governance.service.register",
+			Args: map[string]any{
+				"service_id":  strings.TrimSpace(manifest.ServiceID),
+				"instance_id": strings.TrimSpace(instance),
+				"version":     strings.TrimSpace(manifest.Version),
+				"transport":   "tcp",
+				"endpoint": map[string]any{
+					"tcp_url": "http://" + strings.TrimSpace(*addr),
+				},
+				"tools":   toSupervisorTools(manifest),
+				"healthy": &healthy,
+			},
+			Context: &toolproto.Context{
+				RequestID: "reg-" + app.NewRequestID(),
+				TraceID:   "tr-" + app.NewRequestID(),
+				Caller: toolproto.Caller{
+					Type:      "service",
+					ServiceID: manifest.ServiceID,
+				},
+			},
+		}
+		rawResp, statusCode, err := postHubToolCall(registerURL, serviceBootstrap, registerCall)
+		if err != nil {
+			app.Errorf("register surface_manager to hub failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if statusCode >= 300 {
+			app.Errorf("register surface_manager to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+			shutdownNow("register to hub failed")
+			return
+		}
+		registerResp, err := hubsvc.DecodeSupervisorRegisterResult(rawResp)
+		if err != nil {
+			app.Errorf("decode register response failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.WriteServiceRuntimeManifest(runtimeManifestPath, registerResp); err != nil {
+			app.Errorf("write runtime manifest failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
+			app.Warnf("delete bootstrap secret failed: %v", err)
+		}
+		app.Infof("register surface_manager to hub status=%d", statusCode)
+	}
 	if hubToolCallURL := buildHubToolCallURL(registerURL); hubToolCallURL != "" {
 		startHubToolHeartbeatGuard(hubToolCallURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow, currentStatus, currentHealthy)
 	}
-	app.Infof("surface_manager listening=http://%s", *addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := <-serveErrCh; err != nil && err != http.ErrServerClosed {
 		app.Errorf("server failed: %v", err)
 		os.Exit(1)
 	}
@@ -1053,6 +1078,10 @@ func builtinManifest(serviceID string) app.ServiceManifest {
 func manifestTools(manifest app.ServiceManifest) []app.AIServiceToolDescriptor {
 	tools := make([]app.AIServiceToolDescriptor, 0, len(manifest.Provides))
 	for _, p := range manifest.Provides {
+		streamingMode := "none"
+		if p.Streaming {
+			streamingMode = "ws"
+		}
 		tools = append(tools, app.AIServiceToolDescriptor{
 			Name:             p.ToolID,
 			Description:      p.Description,
@@ -1060,7 +1089,7 @@ func manifestTools(manifest app.ServiceManifest) []app.AIServiceToolDescriptor {
 			OutputSchema:     p.OutputSchema,
 			SideEffect:       p.SideEffect,
 			TimeoutMSDefault: p.TimeoutMSDefault,
-			Streaming:        p.Streaming,
+			Streaming:        streamingMode,
 		})
 	}
 	return tools
@@ -1073,12 +1102,17 @@ func toSupervisorTools(manifest app.ServiceManifest) []toolproto.ServiceTool {
 		if toolID == "" {
 			continue
 		}
+		protocol := strings.TrimSpace(descriptor.Protocol)
+		if protocol == "" {
+			protocol = "http"
+		}
 		tools = append(tools, toolproto.ServiceTool{
 			ToolID:               toolID,
 			Description:          strings.TrimSpace(descriptor.Description),
-			Protocol:             "http",
+			Protocol:             protocol,
 			Version:              strings.TrimSpace(manifest.Version),
-			Streaming:            strings.EqualFold(strings.TrimSpace(descriptor.Streaming), "stream"),
+			Streaming:            descriptor.Streaming,
+			StreamingMode:        strings.TrimSpace(descriptor.StreamingMode),
 			TimeoutMS:            descriptor.TimeoutMSDefault,
 			TimeoutMSDefault:     descriptor.TimeoutMSDefault,
 			InputSchema:          descriptor.InputSchema,

@@ -13,27 +13,48 @@ import (
 	"time"
 
 	app "kagent/hub/internal/app"
+	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 )
 
 type ManagedServiceInfo struct {
-	ServiceID           string `json:"service_id"`
-	Dir                 string `json:"dir"`
-	DirAbs              string `json:"dir_abs"`
-	ExecPath            string `json:"exec_path"`
-	RuntimeManifestPath string `json:"runtime_manifest_path"`
-	ConfigPath          string `json:"config_path"`
-	HasSourceConfig     bool   `json:"has_source_config"`
-	HasRuntimeManifest  bool   `json:"has_runtime_manifest"`
-	HasExec             bool   `json:"has_exec"`
-	HasGoMod            bool   `json:"has_go_mod"`
-	Registered          bool   `json:"registered"`
-	Active              bool   `json:"active"`
-	Healthy             bool   `json:"healthy"`
-	Status              string `json:"status,omitempty"`
-	InstanceID          string               `json:"instance_id,omitempty"`
-	Endpoint            string               `json:"endpoint,omitempty"`
-	PID                 int                  `json:"pid,omitempty"`
-	Manifest            *app.ServiceManifest `json:"manifest,omitempty"`
+	ServiceID           string                 `json:"service_id"`
+	Description         string                 `json:"description,omitempty"`
+	Dir                 string                 `json:"dir"`
+	Enabled             bool                   `json:"enabled"`
+	Reliability         string                 `json:"reliability,omitempty"`
+	DirAbs              string                 `json:"dir_abs"`
+	ExecPath            string                 `json:"exec_path"`
+	StartupManifestPath string                 `json:"startup_manifest_path"`
+	RuntimeManifestPath string                 `json:"runtime_manifest_path"`
+	ConfigPath          string                 `json:"config_path"`
+	HasSourceConfig     bool                   `json:"has_source_config"`
+	HasStartupManifest  bool                   `json:"has_startup_manifest"`
+	HasRuntimeManifest  bool                   `json:"has_runtime_manifest"`
+	HasExec             bool                   `json:"has_exec"`
+	HasGoMod            bool                   `json:"has_go_mod"`
+	Registered          bool                   `json:"registered"`
+	Active              bool                   `json:"active"`
+	Healthy             bool                   `json:"healthy"`
+	Status              string                 `json:"status,omitempty"`
+	InstanceID          string                 `json:"instance_id,omitempty"`
+	Endpoint            string                 `json:"endpoint,omitempty"`
+	PID                 int                    `json:"pid,omitempty"`
+	RegisteredManifest  *app.ServiceManifest   `json:"registered_manifest,omitempty"`
+	Startup             *ManagedServiceStartup `json:"startup,omitempty"`
+}
+
+type ManagedServiceStartup struct {
+	StartedAtMS   int64  `json:"started_at_ms,omitempty"`
+	CompletedAtMS int64  `json:"completed_at_ms,omitempty"`
+	Ready         bool   `json:"ready"`
+	Registered    bool   `json:"registered,omitempty"`
+	Status        string `json:"status,omitempty"`
+	Attempts      int    `json:"attempts,omitempty"`
+	PID           int    `json:"pid,omitempty"`
+	InstanceID    string `json:"instance_id,omitempty"`
+	Endpoint      string `json:"endpoint,omitempty"`
+	ErrorText     string `json:"error,omitempty"`
 }
 
 type BuildResult struct {
@@ -56,10 +77,11 @@ func (m *LifecycleManager) ListManagedServices() []ManagedServiceInfo {
 		return nil
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	out := make([]ManagedServiceInfo, 0, len(m.services))
-	for _, svc := range m.services {
-		out = append(out, m.describeManagedServiceLocked(svc))
+	services := append([]managedService(nil), m.services...)
+	m.mu.Unlock()
+	out := make([]ManagedServiceInfo, 0, len(services))
+	for _, svc := range services {
+		out = append(out, m.describeManagedService(svc))
 	}
 	slices.SortFunc(out, func(a ManagedServiceInfo, b ManagedServiceInfo) int {
 		return strings.Compare(a.ServiceID, b.ServiceID)
@@ -72,12 +94,12 @@ func (m *LifecycleManager) ManagedServiceInfo(serviceID string) (ManagedServiceI
 		return ManagedServiceInfo{}, false
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	svc, ok := m.managedServiceLocked(serviceID)
+	m.mu.Unlock()
 	if !ok {
 		return ManagedServiceInfo{}, false
 	}
-	return m.describeManagedServiceLocked(svc), true
+	return m.describeManagedService(svc), true
 }
 
 func (m *LifecycleManager) StartService(ctx context.Context, serviceID string) (StartupServiceOutcome, error) {
@@ -114,6 +136,48 @@ func (m *LifecycleManager) StopService(serviceID string, timeout time.Duration) 
 	return nil
 }
 
+func (m *LifecycleManager) SetServiceEnabled(serviceID string, enabled bool) error {
+	if m == nil {
+		return fmt.Errorf("lifecycle manager is nil")
+	}
+	sid := strings.TrimSpace(serviceID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.services {
+		if strings.TrimSpace(m.services[i].entry.ServiceID) != sid {
+			continue
+		}
+		m.services[i].enabled = enabled
+		m.services[i].entry.Enabled = enabled
+		return m.persistConfigLocked()
+	}
+	return fmt.Errorf("managed service not found: %s", sid)
+}
+
+func (m *LifecycleManager) UpdateServiceGovernance(serviceID string, enabled bool, reliability string) error {
+	if m == nil {
+		return fmt.Errorf("lifecycle manager is nil")
+	}
+	sid := strings.TrimSpace(serviceID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.services {
+		if strings.TrimSpace(m.services[i].entry.ServiceID) != sid {
+			continue
+		}
+		nextReliability := normalizeLifecycleReliability(reliability)
+		m.services[i].enabled = enabled
+		m.services[i].reliability = nextReliability
+		m.services[i].entry.Enabled = enabled
+		m.services[i].entry.Reliability = nextReliability
+		if m.hubPlatform != nil {
+			m.hubPlatform.SetServiceReliability(sid, nextReliability)
+		}
+		return m.persistConfigLocked()
+	}
+	return fmt.Errorf("managed service not found: %s", sid)
+}
+
 func (m *LifecycleManager) RestartService(ctx context.Context, serviceID string, timeout time.Duration) (StartupServiceOutcome, error) {
 	if err := m.StopService(serviceID, timeout); err != nil {
 		return StartupServiceOutcome{}, err
@@ -143,20 +207,28 @@ func (m *LifecycleManager) DrainService(serviceID string, timeout time.Duration)
 	return nil
 }
 
-func (m *LifecycleManager) ReadRuntimeManifest(serviceID string) (RuntimeManifest, error) {
+func (m *LifecycleManager) ReadRuntimeManifest(serviceID string) (StartupManifest, error) {
+	return m.ReadStartupManifest(serviceID)
+}
+
+func (m *LifecycleManager) ReadStartupManifest(serviceID string) (StartupManifest, error) {
 	if m == nil {
-		return RuntimeManifest{}, fmt.Errorf("lifecycle manager is nil")
+		return StartupManifest{}, fmt.Errorf("lifecycle manager is nil")
 	}
 	m.mu.Lock()
 	svc, ok := m.managedServiceLocked(serviceID)
 	m.mu.Unlock()
 	if !ok {
-		return RuntimeManifest{}, fmt.Errorf("managed service not found: %s", strings.TrimSpace(serviceID))
+		return StartupManifest{}, fmt.Errorf("managed service not found: %s", strings.TrimSpace(serviceID))
 	}
-	return loadRuntimeManifest(svc.manifest, strings.TrimSpace(serviceID))
+	return loadStartupManifest(svc.startupManifest, strings.TrimSpace(serviceID))
 }
 
-func (m *LifecycleManager) WriteRuntimeManifest(serviceID string, manifest RuntimeManifest) error {
+func (m *LifecycleManager) WriteRuntimeManifest(serviceID string, manifest StartupManifest) error {
+	return m.WriteStartupManifest(serviceID, manifest)
+}
+
+func (m *LifecycleManager) WriteStartupManifest(serviceID string, manifest StartupManifest) error {
 	if m == nil {
 		return fmt.Errorf("lifecycle manager is nil")
 	}
@@ -170,12 +242,59 @@ func (m *LifecycleManager) WriteRuntimeManifest(serviceID string, manifest Runti
 		manifest.ServiceID = strings.TrimSpace(serviceID)
 	}
 	if strings.TrimSpace(manifest.ServiceID) != strings.TrimSpace(serviceID) {
-		return fmt.Errorf("runtime manifest service_id mismatch")
+		return fmt.Errorf("startup manifest service_id mismatch")
 	}
 	if len(manifest.Entry.Args) == 0 {
-		return fmt.Errorf("runtime manifest entry.args is required")
+		return fmt.Errorf("startup manifest entry.args is required")
 	}
-	return writeJSONFileAtomic(svc.manifest, manifest)
+	return writeJSONFileAtomic(svc.startupManifest, manifest)
+}
+
+func (m *LifecycleManager) ReadServiceRuntimeManifest(serviceID string) (toolproto.ServiceRuntimeManifest, string, error) {
+	if m == nil {
+		return toolproto.ServiceRuntimeManifest{}, "", fmt.Errorf("lifecycle manager is nil")
+	}
+	m.mu.Lock()
+	svc, ok := m.managedServiceLocked(serviceID)
+	m.mu.Unlock()
+	if !ok {
+		return toolproto.ServiceRuntimeManifest{}, "", fmt.Errorf("managed service not found: %s", strings.TrimSpace(serviceID))
+	}
+	raw, err := os.ReadFile(svc.runtimeManifest)
+	if err != nil {
+		return toolproto.ServiceRuntimeManifest{}, svc.runtimeManifest, err
+	}
+	var out toolproto.ServiceRuntimeManifest
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return toolproto.ServiceRuntimeManifest{}, svc.runtimeManifest, fmt.Errorf("decode runtime manifest failed: %w", err)
+	}
+	return out, svc.runtimeManifest, nil
+}
+
+func (m *LifecycleManager) ReadConfigXJSON(serviceID string) (map[string]any, string, error) {
+	if m == nil {
+		return nil, "", fmt.Errorf("lifecycle manager is nil")
+	}
+	m.mu.Lock()
+	svc, ok := m.managedServiceLocked(serviceID)
+	m.mu.Unlock()
+	if !ok {
+		return nil, "", fmt.Errorf("managed service not found: %s", strings.TrimSpace(serviceID))
+	}
+	configPath := filepath.Join(svc.dirAbs, "config", "configx.json")
+	if !isFile(configPath) {
+		// Fallback to run/config/configx.json if source doesn't exist yet but run one might
+		configPath = filepath.Join(svc.dirAbs, "run", "config", "configx.json")
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, configPath, err
+	}
+	out, err := hubsvc.DecodeJSONMapAllowEmpty(raw)
+	if err != nil {
+		return nil, configPath, err
+	}
+	return out, configPath, nil
 }
 
 func (m *LifecycleManager) ReadConfigJSON(serviceID string) (map[string]any, string, error) {
@@ -193,16 +312,20 @@ func (m *LifecycleManager) ReadConfigJSON(serviceID string) (map[string]any, str
 	if err != nil {
 		return nil, configPath, err
 	}
-	var out map[string]any
-	if err := json.Unmarshal(raw, &out); err != nil {
+	out, err := hubsvc.DecodeJSONMapAllowEmpty(raw)
+	if err != nil {
 		return nil, configPath, err
 	}
 	return out, configPath, nil
 }
 
-func (m *LifecycleManager) WriteConfigJSON(serviceID string, value map[string]any) (string, error) {
+func (m *LifecycleManager) WriteConfigJSON(serviceID string, value map[string]any, configFileName ...string) (string, error) {
 	if m == nil {
 		return "", fmt.Errorf("lifecycle manager is nil")
+	}
+	fileName := "config.json"
+	if len(configFileName) > 0 && configFileName[0] != "" {
+		fileName = configFileName[0]
 	}
 	m.mu.Lock()
 	svc, ok := m.managedServiceLocked(serviceID)
@@ -210,11 +333,18 @@ func (m *LifecycleManager) WriteConfigJSON(serviceID string, value map[string]an
 	if !ok {
 		return "", fmt.Errorf("managed service not found: %s", strings.TrimSpace(serviceID))
 	}
-	configPath := filepath.Join(svc.dirAbs, "config", "config.json")
+	configPath := filepath.Join(svc.dirAbs, "config", fileName)
 	if value == nil {
 		value = map[string]any{}
 	}
-	return configPath, writeJSONFileAtomic(configPath, value)
+	runConfigPath := filepath.Join(svc.dirAbs, "run", "config", fileName)
+	if err := writeJSONFileAtomic(configPath, value); err != nil {
+		return configPath, err
+	}
+	if err := writeJSONFileAtomic(runConfigPath, value); err != nil {
+		return configPath, err
+	}
+	return configPath, nil
 }
 
 func (m *LifecycleManager) UpsertManagedService(entry LifecycleServiceEntry) error {
@@ -222,8 +352,10 @@ func (m *LifecycleManager) UpsertManagedService(entry LifecycleServiceEntry) err
 		return fmt.Errorf("lifecycle manager is nil")
 	}
 	clean := LifecycleServiceEntry{
-		ServiceID: strings.TrimSpace(entry.ServiceID),
-		Dir:       strings.TrimSpace(entry.Dir),
+		ServiceID:   strings.TrimSpace(entry.ServiceID),
+		Dir:         strings.TrimSpace(entry.Dir),
+		Enabled:     entry.Enabled,
+		Reliability: normalizeLifecycleReliability(entry.Reliability),
 	}
 	if clean.ServiceID == "" || clean.Dir == "" {
 		return fmt.Errorf("service_id and dir are required")
@@ -245,6 +377,9 @@ func (m *LifecycleManager) UpsertManagedService(entry LifecycleServiceEntry) err
 	}
 	if !replaced {
 		m.services = append(m.services, managed)
+	}
+	if m.hubPlatform != nil {
+		m.hubPlatform.SetServiceReliability(clean.ServiceID, clean.Reliability)
 	}
 	return m.persistConfigLocked()
 }
@@ -276,13 +411,29 @@ func (m *LifecycleManager) BuildService(ctx context.Context, serviceID string) (
 		TargetPkg: targetPkg,
 		Output:    string(raw),
 	}
-	if err != nil {
-		return result, fmt.Errorf("go build failed: %w", err)
+	if err := os.MkdirAll(filepath.Dir(svc.startupManifest), 0o755); err != nil {
+		return result, err
 	}
 	srcManifest := filepath.Join(svc.dirAbs, "manifest.json")
 	if rawManifest, readErr := os.ReadFile(srcManifest); readErr == nil {
-		_ = os.MkdirAll(filepath.Dir(svc.manifest), 0o755)
-		_ = os.WriteFile(svc.manifest, rawManifest, 0o644)
+		_ = os.WriteFile(svc.startupManifest, rawManifest, 0o644)
+	}
+	_ = os.Remove(svc.runtimeManifest)
+
+	// Also copy config directory if exists
+	srcConfig := filepath.Join(svc.dirAbs, "config")
+	dstConfig := filepath.Join(svc.dirAbs, "run", "config")
+	if fi, err := os.Stat(srcConfig); err == nil && fi.IsDir() {
+		_ = os.MkdirAll(dstConfig, 0o755)
+		_ = filepath.WalkDir(srcConfig, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			rel, _ := filepath.Rel(srcConfig, path)
+			content, _ := os.ReadFile(path)
+			_ = os.WriteFile(filepath.Join(dstConfig, rel), content, 0o644)
+			return nil
+		})
 	}
 	return result, nil
 }
@@ -373,15 +524,19 @@ func (m *LifecycleManager) managedServiceLocked(serviceID string) (managedServic
 	return managedService{}, false
 }
 
-func (m *LifecycleManager) describeManagedServiceLocked(svc managedService) ManagedServiceInfo {
+func (m *LifecycleManager) describeManagedService(svc managedService) ManagedServiceInfo {
 	info := ManagedServiceInfo{
 		ServiceID:           strings.TrimSpace(svc.entry.ServiceID),
 		Dir:                 strings.TrimSpace(svc.entry.Dir),
+		Enabled:             svc.enabled,
+		Reliability:         svc.reliability,
 		DirAbs:              strings.TrimSpace(svc.dirAbs),
 		ExecPath:            strings.TrimSpace(svc.execPath),
-		RuntimeManifestPath: strings.TrimSpace(svc.manifest),
+		StartupManifestPath: strings.TrimSpace(svc.startupManifest),
+		RuntimeManifestPath: strings.TrimSpace(svc.runtimeManifest),
 		ConfigPath:          filepath.Join(svc.dirAbs, "config", "config.json"),
-		HasRuntimeManifest:  isFile(svc.manifest),
+		HasStartupManifest:  isFile(svc.startupManifest),
+		HasRuntimeManifest:  isFile(svc.runtimeManifest),
 		HasExec:             isFile(svc.execPath),
 		HasSourceConfig:     isFile(filepath.Join(svc.dirAbs, "config", "config.json")),
 		HasGoMod:            isFile(filepath.Join(svc.dirAbs, "go.mod")),
@@ -394,7 +549,12 @@ func (m *LifecycleManager) describeManagedServiceLocked(svc managedService) Mana
 		info.InstanceID = strings.TrimSpace(reg.InstanceID)
 		info.Endpoint = strings.TrimSpace(reg.Endpoint)
 		info.PID = reg.PID
-		info.Manifest = &reg.Manifest
+		info.RegisteredManifest = &reg.Manifest
+	}
+	startupManifest, _ := loadStartupManifest(svc.startupManifest, info.ServiceID)
+	info.Description = startupManifest.Description
+	if info.Description == "" {
+		info.Description = "Managed service (intent)"
 	}
 	return info
 }
@@ -414,6 +574,15 @@ func (m *LifecycleManager) persistConfigLocked() error {
 		cfg.Service.Services = append(cfg.Service.Services, svc.entry)
 	}
 	return writeJSONFileAtomic(m.configPath, cfg)
+}
+
+func (m *LifecycleManager) syncGovernanceToHubPlatform() {
+	if m == nil || m.hubPlatform == nil {
+		return
+	}
+	for _, svc := range m.services {
+		m.hubPlatform.SetServiceReliability(strings.TrimSpace(svc.entry.ServiceID), svc.reliability)
+	}
 }
 
 func writeJSONFileAtomic(path string, value any) error {
@@ -478,7 +647,7 @@ func (m *LifecycleManager) resolveServiceFile(serviceID string, relPath string) 
 		return "", fmt.Errorf("invalid or unsafe service file path")
 	}
 	target := filepath.Join(svc.dirAbs, clean)
-	
+
 	// Verify it is still within dirAbs
 	rel, err := filepath.Rel(svc.dirAbs, target)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -502,7 +671,7 @@ func NextSuggestedPort(existing []ManagedServiceInfo) int {
 		if err != nil {
 			continue
 		}
-		var manifest RuntimeManifest
+		var manifest StartupManifest
 		if err := json.Unmarshal(raw, &manifest); err != nil {
 			continue
 		}

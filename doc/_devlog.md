@@ -1,3 +1,90 @@
+## [2026-03-21 11:46 CST] Config 目录标准落地第一轮 (Config Directory Standard Round 1)
+- 核心变更：
+  - 在 `pkg/hubsvc/project_config.go` 新增统一配置基础设施，收敛 `config/`、`config.json`、`configx.json`、`configx.json.example` 的补齐逻辑，并把空文件按 `{}` 处理。
+  - 将 `hub`、`account`、`ai_doubao`、`chat_server`、`file_storage`、`sql_db`、`surface_manager`、`autogui` 的启动入口统一接到该配置加载路径，确保在注册与对外监听前完成配置读取。
+  - 调整 `chat_server` 的运行时配置管理：用户覆盖配置改为优先落在 `data/user/<user_id>/service/chat_server/config/user_custom_config.json`，同时保留对旧 `services/chat_server/run/user_custom_config.json` 的读取回退以避免现有配置丢失。
+  - 修正 Hub service 脚手架与配置补齐逻辑，生成真实 `configx.json`，并补入 `hub/config/configx.json.example`。
+- 关键文件：
+  - `pkg/hubsvc/project_config.go`
+  - `hub/cmd/hub/main.go`
+  - `hub/internal/app/hub_platform.go`
+  - `hub/internal/supervisor/admin_ops.go`
+  - `services/account/internal/app/app.go`
+  - `services/ai_doubao/cmd/ai_doubao/main.go`
+  - `services/ai_doubao/internal/app/config.go`
+  - `services/chat_server/cmd/chat_server/main.go`
+  - `services/chat_server/internal/app/config.go`
+  - `services/chat_server/internal/app/runtime_config.go`
+  - `services/file_storage/cmd/file_storage/main.go`
+  - `services/sql_db/cmd/sql_db/main.go`
+  - `services/surface_manager/cmd/surface_manager/main.go`
+  - `services/autogui/cmd/autogui/main.go`
+  - `hub/config/config.json`
+  - `hub/config/configx.json`
+  - `hub/config/configx.json.example`
+- 验证结果：`go test ./...` 已通过。依据：上述文件改动与本轮编译级验证结果。
+
+## [2026-03-21 11:48 CST] 服务监听优化与标准化 (Service Listen Optimization & Standardization)
+- 核心变更：
+  - **统一 Listen 入口**：在 `pkg/hubsvc` 中实现了通用的 `Listen` 函数，强制开启 `SO_REUSEADDR` 选项。
+  - **全服务推广**：更新了 `hub` 及所有 7 个标准服务 (`account`, `ai_doubao`, `chat_server`, `file_storage`, `sql_db`, `surface_manager`, `autogui`) 以使用 `hubsvc.Listen`，替换了原有的直接监听逻辑。
+  - **Hub 逻辑收敛**：移除了 Hub 内部私有的 `ListenWithReuse` 实现，将 Hub 的端口抢占与启动监听逻辑也统一收敛到 `hubsvc.Listen`。
+- 关键文件：
+  - `pkg/hubsvc/session.go`
+  - `hub/cmd/hub/main.go`
+  - `hub/internal/app/port_preempt.go`
+  - `services/*/cmd/*/main.go` (多个服务的入口文件)
+- 收益：消除了快速重启时的端口冲突报错，提升了整个系统的生命周期管理稳定性。
+
+## [2026-03-21 11:30 CST] 服务描述来源规范化与 Hub 启动鲁棒性优化 (Description Source & Startup Robustness)
+- 核心变更：
+  - **服务描述来源规范化**：
+    - **协议变更**：从 `ServiceManifest` 协议层彻底移除了 `Description` 字段，确保该字段不随服务注册动态传输。
+    - **单源读取**：修改后端逻辑，强制要求所有服务描述（包括 Hub 自身）必须从本地项目的 `run/manifest.json` 文件中读取。
+    - **Hub 清单化**：为 Hub 根目录增加了 `manifest.json`，并更新 `deploy.sh` 自动将其同步到运行目录，使 Hub 能像普通服务一样展示治理信息。
+  - **Hub 启动鲁棒性优化**：
+    - **端口重用**：在 Hub 启动及抢占检测中引入了 `SO_REUSEADDR` 套接字选项，解决了连续快速重启时由于内核 Socket 回收延迟导致的 `bind: address already in use` 报错。
+    - **抢占逻辑增强**：重构了 `EnsurePortReady`，将简单的“等待后杀”逻辑改为“请求 -> 杀进程 -> 循环重试监听”的闭环机制，大幅提升了部署脚本的成功率。
+- 关键文件：
+  - 后端：`hub/internal/app/port_preempt.go`, `hub/cmd/hub/main.go`, `hub/internal/gateway/admin_handler.go`, `pkg/toolproto/supervisor.go`
+  - 运维：`scripts/deploy.sh`, `hub/manifest.json`
+
+## [2026-03-21 10:25 CST] 服务列表统一与治理增强 (Unified Services & Governance State)
+- 核心变更：
+  - **服务列表统一**：重构了 `hub.admin.services.list` 接口，将“托管服务”与“运行时已注册服务”合并为统一的 `services` 列表返回。前端不再需要手动进行复杂的合并逻辑。
+  - **治理开关 (Enabled)**：在 `services.json` 中为每个托管服务增加了 `enabled` 字段。
+    - **后端约束**：`LifecycleManager.StartAll` 将跳过 `enabled: false` 的服务。
+    - **治理工具**：新增 `hub.admin.service.enable` 和 `hub.admin.service.disable` 接口。禁用服务时会同时停止运行进程并持久化状态。
+  - **UI 增强**：
+    - 表格中实时显示“已启用/已禁用”状态标签。
+    - 抽屉面板增加了“启用服务”和“禁用服务”的操作按钮。
+    - `status-badge` 增加了 `disabled` 灰色状态样式。
+- 关键文件：
+  - 后端：`hub/internal/supervisor/lifecycle.go`, `hub/internal/supervisor/admin_ops.go`, `hub/internal/gateway/admin_handler.go`, `hub/internal/gateway/admin_service_tools.go`
+  - 前端：`webui/page/service/components/logic.js`, `render.js`, `admin.css`, `admin.html`
+
+## [2026-03-21 10:15 CST] 服务详情页工具视图优化 (Tool Candidate Filtering)
+- 核心变更：在服务治理控制台的工具列表中，针对特定服务的详情页，过滤掉了候选者列表中服务自身。这样用户在查看某个服务提供的工具时，能够更清晰地关注到有哪些 **备选** 或 **冲突** 实例，而不是在每个工具下面都看到当前服务 ID。
+- 技术内幕：数据来源于 Hub 内存注册表（ اتھارಟಿ registry），完全可靠。后端接口 `hub.admin.service.get` 增加了针对 `serviceID` 的动态过滤逻辑。
+- 关键文件：`hub/internal/gateway/admin_service_tools.go`
+
+## [2026-03-21 09:55 CST] 服务配置管理标准增强 (Config Restore & Sync)
+- 核心变更：
+  - **配置同步自动化**：更新了 Hub 的 `BuildService` 流程，每次构建服务时会自动将项目 `config/` 目录同步到运行目录 `run/config/`，确保运行环境始终拥有最新的基础配置。
+  - **默认配置一键恢复**：在 Hub `LifecycleManager` 中实现了 `RestoreServiceDefaultConfig` 接口，并导出为 `hub.admin.service.config.restore_default` 工具。
+  - **UI 交互升级**：在服务控制台“配置管理”面板增加了“恢复默认”按钮与二次确认弹窗，支持一键将项目初始配置覆盖至运行环境。
+  - **敏感配置支持**：前端配置编辑器现在支持在 `config.json`、`configx.json` 与 `manifest.json` 之间快速切换并进行独立保存或恢复。
+- 关键文件：`hub/internal/supervisor/admin_ops.go`、`hub/internal/gateway/admin_service_tools.go`、`webui/page/service/admin.html`、`webui/page/service/admin.js`
+
+## [2026-03-21 09:30 CST] 实现服务运行路径动态裁切 (Path Trimming)
+- 核心变更：实现了管理界面中服务工作目录与运行文件路径的动态裁切功能。后端 `hub.admin.services.list` 现在会返回项目根目录 `app_root`，前端通过 `trimPath` 逻辑将其自动转换为以 `./` 开头的相对路径，显著提升了表格在固定布局下的可读性。
+- 关键文件：`hub/internal/gateway/admin_handler.go`、`webui/page/service/components/render.js`、`webui/page/service/components/state.js`、`webui/page/service/components/logic.js`
+
+## [2026-03-21 01:45 CST] 全量前端设计与开发指南落地 (Frontend Guide)
+- 核心变更：深度汇总并产出了全站前端设计与开发规范文档 `doc/_page_guide.md`，涵盖了 UI 美学（Teal 品牌色、双语字体、动画曲线）、交互模式（右侧大抽屉、卡片式布局）、纯原生开发标准（Vanilla JS、ES Modules、零外部依赖）、图标规范（内嵌 SVG、严禁 Emoji）以及 **界面文字以中文为主** 的本地化准则。
+- 关键文档：`doc/_page_guide.md`、`doc/_instruction.md`
+- 依据：参考 `webui/page/service/admin.html` 的成熟实践并进行架构级指导沉淀。
+
 ## [2026-03-20 10:22 CST] Service 名称统一为下划线版本 (Service Name Unification)
 - 核心变更：将 Hub 生命周期配置、5 个 service 的目录/`cmd` 入口/`manifest.service_id`/注册心跳与自报信息统一切到 underscore 版本，当前目标名固定为 `account`、`ai_doubao`、`chat_server`、`file_storage`、`sql_db`、`surface_manager`；同时同步了 `scripts/deploy.sh`、Hub 默认 endpoint key、相关测试断言和现存 `run/*-latest` 产物名。
 - 关键文件：`hub/config/services.json`、`hub/cmd/hub/main.go`、`scripts/deploy.sh`、`services/ai_doubao/cmd/ai_doubao/main.go`、`services/chat_server/cmd/chat_server/main.go`、`services/file_storage/cmd/file_storage/main.go`、`services/sql_db/cmd/sql_db/main.go`、`services/surface_manager/cmd/surface_manager/main.go`、`services/*/manifest.json`
@@ -360,3 +447,52 @@
   - 有效实践：将业务性的冒烟测试从 Bash 脚本迁移至 Go 实现的 Hub 内部，可以显著提升环境适应性与治理颗粒度。
 - 下一步：
   - 根据评估结论，分阶段实施 `deploy.sh` 的配置化重构与 Hub 侧冒烟测试逻辑开发。
+
+## [2026-03-21 12:29 CST] 统一 Config Loader 收敛与 Chat 配置边界修正
+- 核心变更：
+  - 在 `pkg/hubsvc/project_config.go` 重建统一配置加载实现，固定 `config/` 目录边界，默认读取 `config.json` 与 `configx.json`，并以 `filename -> {result, err}` 返回结果；`err.kind` 区分 `missing` 与 `load`。
+  - 保留 `EnsureProjectConfigFiles` 作为补齐入口，统一生成 `config.json`、`configx.json` 与 `configx.json.example`，其中前两者默认写入 `{}`。
+  - 将 `chat_server` 的运行配置从平台级 per-user 覆盖收回为 service 级统一配置，`app.chat.config.get/update` 与 WS 会话统一直接使用 `services/chat_server/config/config.json`。
+  - 移除 `services/chat_server/manifest.json` 中的 `-user-config` 启动参数，并同步更新当前说明文档与标准文档，明确平台级标准不再定义通用 `user_custom_config` 机制。
+- 关键文件：
+  - `pkg/hubsvc/project_config.go`
+  - `services/chat_server/cmd/chat_server/main.go`
+  - `services/chat_server/internal/app/runtime_config.go`
+  - `services/chat_server/manifest.json`
+  - `doc/_instruction/core.md`
+  - `doc/_instruction/structure.md`
+  - `doc/_service_standard.md`
+- 验证结果：`gofmt` 已执行，`go test ./...` 已通过。依据：上述文件改动与本轮格式化、全量 Go 测试结果。
+
+## [2026-03-21 14:41 CST] Hub DAG 启动模型切换与 Service 自治启动落地
+- 时间范围：2026-03-21 13:50 -> 2026-03-21 14:41
+- 核心变更：
+  - 重写 `hub/internal/supervisor/lifecycle.go`，把 Hub 启动器收敛为“读取各 service `run/manifest.json` 的 `depends_on` -> 环检测 -> DAG 分批启动 -> register 即 ready”的单阶段模型，删除 Hub 侧后置 `service.lifecycle.init` 与 `kill_old` 语义。
+  - 将 `hub/internal/supervisor/handler.go`、`hub/internal/supervisor/registry.go` 与 `hub/cmd/hub/main.go` 同步调整为 `registered == ready`、支持 `skipped` 启动结果，并输出新的启动快照日志。
+  - 将 `account`、`surface_manager` 的初始化完全收回 service 进程内部；所有受管 service 统一改为自清理 `run/.service_pid`、先监听与内部就绪、再 register、再 heartbeat。
+  - 删除 `services/account/internal/app/handler.go` 与 `services/surface_manager/internal/app/hub_builtins.go` 中仅为 Hub 后置初始化保留的 `service.lifecycle.init` 暴露；`hub/internal/gateway/admin_service_tools.go` 的 runtime manifest 生成逻辑也同步去掉旧 `kill_old` 字段。
+- 关键文件：
+  - `hub/internal/supervisor/lifecycle.go`
+  - `hub/internal/supervisor/registry.go`
+  - `hub/internal/supervisor/handler.go`
+  - `hub/cmd/hub/main.go`
+  - `services/account/internal/app/app.go`
+  - `services/account/internal/app/handler.go`
+  - `services/sql_db/cmd/sql_db/main.go`
+  - `services/file_storage/cmd/file_storage/main.go`
+  - `services/chat_server/cmd/chat_server/main.go`
+  - `services/ai_doubao/cmd/ai_doubao/main.go`
+  - `services/surface_manager/cmd/surface_manager/main.go`
+  - `services/surface_manager/internal/app/hub_builtins.go`
+  - `services/autogui/cmd/autogui/main.go`
+  - `doc/_instruction/core.md`
+  - `doc/_instruction/structure.md`
+- 验证结果：
+  - `gofmt` 已执行。
+  - `go test ./...` 已通过。
+  - `scripts/reset_db.sh && DEPLOY_TAIL=0 ./scripts/deploy.sh` 实际启动验证通过；日志显示 `sql_db -> account/surface_manager` 依赖链已按新模型稳定启动，Hub 最终输出 `registered=7 ready=7 skipped=0`，自动烟测通过。依据：本轮代码改动、全量 Go 测试结果与 2026-03-21 14:41 的实际部署日志。
+
+## [2026-03-21 19:55 CST] 服务治理页表格圆角优化 (Table Border-radius Optimization)
+- 核心变更：将服务管理页 (`page/service/admin`) 的服务列表与工具列表所在的 `.table-card` 容器圆角从 18px 统一改为 12px (`var(--radius-md)`)，并添加 `overflow: hidden` 以确保表头背景与容器圆角对齐，提升了数据展示区的视觉一致性。
+- 关键文件：`webui/page/service/admin.css`
+- 验证结果：已在 CSS 中分离 `.table-card` 定义。依据：代码修改核验。

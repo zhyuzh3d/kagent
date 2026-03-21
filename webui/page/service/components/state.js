@@ -1,7 +1,11 @@
 export const state = {
   managed: [],
+  registered: [],
+  tools: [],
   selectedID: "",
-  activeModal: null, // 'config', 'manifest', 'files', 'probe', 'audit', 'generator'
+  activeModal: "lifecycle",
+  activeMainTab: "services",
+  appRoot: "",
 };
 
 export function getSelectedService() {

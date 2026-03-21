@@ -9,7 +9,7 @@ import (
 type ServiceToolDescriptor = toolproto.ServiceTool
 type ServiceManifest = toolproto.ServiceManifest
 
-func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor, healthy bool) ServiceManifest {
+func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor) ServiceManifest {
 	serviceID := "ai_doubao"
 	serviceName := "ai_doubao"
 	version := "1.0.0"
@@ -48,15 +48,10 @@ func BuildAIServiceManifest(info *AIServiceInfo, tools []AIServiceToolDescriptor
 		ServiceToolDescriptor{ToolID: "service.lifecycle.state.get", Category: "service", Type: "lifecycle", Tool: "state.get", Description: "service lifecycle state snapshot", AllowedCallerTypes: []string{"service"}},
 		ServiceToolDescriptor{ToolID: "service.lifecycle.shutdown", Category: "service", Type: "lifecycle", Tool: "shutdown", Description: "service shutdown", AllowedCallerTypes: []string{"service"}},
 	)
-	reliability := "verified"
-	if !healthy {
-		reliability = "unverified"
-	}
 	return toolproto.NormalizeServiceManifest(ServiceManifest{
 		ServiceID:   serviceID,
 		ServiceName: serviceName,
 		Version:     version,
-		Reliability: reliability,
 		Visibility:  "public",
 		Provides:    provides,
 	})

@@ -1,61 +1,102 @@
-[2026-03-21 00:47:27] [INFO] [DEPLOY] Starting Hub (kagent)...
-[2026-03-21 00:47:27] [SUCC] [DEPLOY] Hub launch command submitted. Hub will handle port preemption, service orchestration, and startup result logging.
-[2026-03-21 00:47:27] [INFO] [DEPLOY] Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)...
-[2026-03-21 00:47:27] [WARN] [HUB] [anonymous] shutdown requested from 127.0.0.1:62019 via tool
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:PortPreempted: 18080
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Version:backend=26032002,webui=26032002
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Listen: 127.0.0.1:18080
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Lifecycle:StartAll: begin
-[2026-03-21 00:47:28] [INFO] [HUB] service old process not cleaned: service=autogui pid=35730 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/autogui/run/autogui-latest started_at_ms=1774025230397
-[2026-03-21 00:47:28] [INFO] [HUB] service old process not cleaned: service=surface_manager pid=35732 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/surface_manager/run/surface_manager-latest started_at_ms=1774025230399
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=autogui,endpoint=http://127.0.0.1:18087
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=surface_manager,endpoint=http://127.0.0.1:18086
-[2026-03-21 00:47:28] [INFO] [SURFACE_MANAGER] register surface_manager to hub status=200
-[2026-03-21 00:47:28] [INFO] [SURFACE_MANAGER] surface_manager listening=http://127.0.0.1:18086
-[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=account pid=35720 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/account/run/account-latest started_at_ms=1774025230248
-[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=ai_doubao pid=35722 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/ai_doubao/run/ai_doubao-latest started_at_ms=1774025230249
-[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=sql_db pid=35731 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/sql_db/run/sql_db-latest started_at_ms=1774025230398
-[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=file_storage pid=35721 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/file_storage/run/file_storage-latest started_at_ms=1774025230248
-[2026-03-21 00:47:28] [INFO] [HUB] service old process cleaned: service=chat_server pid=35718 path=/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/run/chat_server-latest started_at_ms=1774025230245
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=ai_doubao,endpoint=http://127.0.0.1:18081
-[2026-03-21 00:47:28] [INFO] [AI_DOUBAO] register ai_doubao to hub status=200
-[2026-03-21 00:47:28] [INFO] [AI_DOUBAO] ai_doubao service listening at http://127.0.0.1:18081
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=account,endpoint=http://127.0.0.1:18083
-[2026-03-21 00:47:28] [INFO] [ACCOUNT] account service listening=http://127.0.0.1:18083
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=file_storage,endpoint=http://127.0.0.1:18084
-[2026-03-21 00:47:28] [INFO] [FILE_STORAGE] register file_storage service to hub status=200
-[2026-03-21 00:47:28] [INFO] [FILE_STORAGE] file_storage service listening=http://127.0.0.1:18084
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=chat_server,endpoint=http://127.0.0.1:18082
-[2026-03-21 00:47:28] [INFO] [CHAT_SERVER] register chat_server to hub status=200
-[2026-03-21 00:47:28] [INFO] [CHAT_SERVER] chat_server listening at http://127.0.0.1:18082
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:RegistrationSuccess:service=sql_db,endpoint=http://127.0.0.1:18085
-[2026-03-21 00:47:28] [INFO] [SQL_DB] register sql_db service to hub status=200
-[2026-03-21 00:47:28] [INFO] [SQL_DB] sql_db service listening=http://127.0.0.1:18085
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=sql_db pid=36211 instance=sql_db-1774025248763847000 endpoint=http://127.0.0.1:18085 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=ai_doubao pid=36209 instance=ai_doubao-1774025248762942000 endpoint=http://127.0.0.1:18081 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=chat_server pid=36213 instance=chat_server-1774025248767329000 endpoint=http://127.0.0.1:18082 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=account pid=36210 instance=account-1774025248762858000 endpoint=http://127.0.0.1:18083 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=file_storage pid=36212 instance=file_storage-1774025248763833000 endpoint=http://127.0.0.1:18084 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=surface_manager pid=36198 instance=surface_manager-1774025248597923000 endpoint=http://127.0.0.1:18086 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=autogui pid=36193 instance=autogui-1774025248593670000 endpoint=http://127.0.0.1:18087 attempts=1
-[2026-03-21 00:47:28] [INFO] [HUB] account security state synced
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:Startup:Lifecycle:Done: registered=7 ready=7 total=7 duration_ms=313
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.register
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.me
-[2026-03-21 00:47:28] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#1
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#2
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.sso.old-token-rejected
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_list
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_create
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_create
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_list
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.storage.database.schema
-[2026-03-21 00:47:29] [INFO] [HUB] System:Internal:SmokeTest:Passed: user=smoke_1774025248911169000 project=prj-c0cddc0ee53a85e5d94dd4fb7c524e79 thread=thd-4cb8d69215a59886c982a8fc9e644a05 stages=10
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.html [304] (216.25µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.css [304] (121.542µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/admin.js [304] (93.875µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/logic.js [304] (102.584µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/render.js [304] (145.875µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/utils.js [304] (445.375µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/state.js [304] (200.417µs)
-[2026-03-21 00:47:33] [INFO] [PAGE] [zhyuzh] System:HTTP:GET /page/service/components/api.js [304] (65.458µs)
+[2026-03-21 19:52:58] [WARN] [DEPLOY] Stopping existing hub listener(s) on 127.0.0.1:18080: 61682
+[2026-03-21 19:52:59] [WARN] [DEPLOY] Stopping existing sql_db listener(s) on 127.0.0.1:18085: 61701
+[2026-03-21 19:53:00] [WARN] [ACCOUNT] account service shutdown: hub heartbeat failed: execute hub tool call: Post "http://127.0.0.1:18080/api/tool/call": dial tcp 127.0.0.1:18080: connect: connection refused
+[2026-03-21 19:53:00] [WARN] [DEPLOY] Stopping existing ai_doubao listener(s) on 127.0.0.1:18081: 61700
+[2026-03-21 19:53:01] [WARN] [DEPLOY] Stopping existing chat_server listener(s) on 127.0.0.1:18082: 61699
+[2026-03-21 19:53:02] [WARN] [DEPLOY] Stopping existing file_storage listener(s) on 127.0.0.1:18084: 61702
+[2026-03-21 19:53:03] [WARN] [SURFACE_MANAGER] surface_manager shutdown: hub heartbeat failed: execute hub tool call: Post "http://127.0.0.1:18080/api/tool/call": dial tcp 127.0.0.1:18080: connect: connection refused
+[2026-03-21 19:53:03] [INFO] [DEPLOY] Starting Hub (kagent)...
+[2026-03-21 19:53:03] [SUCC] [DEPLOY] Hub launch command submitted. Hub will handle port preemption, service orchestration, and startup result logging.
+[2026-03-21 19:53:03] [INFO] [DEPLOY] Entering log monitoring mode (Press Ctrl+C to stop viewing, Hub will keep running)...
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:PortPreempted: 18080 pid=61696
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Version:backend=26032101,webui=26032101
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:Listen: 127.0.0.1:18080
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:Lifecycle:StartAll: begin
+[2026-03-21 19:53:07] [INFO] [CHAT_SERVER] chat_server listening at http://127.0.0.1:18082
+[2026-03-21 19:53:07] [INFO] [FILE_STORAGE] file_storage service listening=http://127.0.0.1:18084
+[2026-03-21 19:53:07] [INFO] [AI_DOUBAO] ai_doubao service listening at http://127.0.0.1:18081
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=chat_server,endpoint=http://127.0.0.1:18082
+[2026-03-21 19:53:07] [INFO] [CHAT_SERVER] register chat_server to hub status=200
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=file_storage,endpoint=http://127.0.0.1:18084
+[2026-03-21 19:53:07] [INFO] [SQL_DB] sql_db service listening=http://127.0.0.1:18085
+[2026-03-21 19:53:07] [INFO] [FILE_STORAGE] register file_storage service to hub status=200
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=ai_doubao,endpoint=http://127.0.0.1:18081
+[2026-03-21 19:53:07] [INFO] [AI_DOUBAO] register ai_doubao to hub status=200
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=sql_db,endpoint=http://127.0.0.1:18085
+[2026-03-21 19:53:07] [INFO] [SQL_DB] register sql_db service to hub status=200
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=autogui,endpoint=http://127.0.0.1:18087
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=account,endpoint=http://127.0.0.1:18083
+[2026-03-21 19:53:07] [INFO] [ACCOUNT] account service listening=http://127.0.0.1:18083
+[2026-03-21 19:53:07] [INFO] [SURFACE_MANAGER] surface_manager listening=http://127.0.0.1:18086
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:RegistrationSuccess:service=surface_manager,endpoint=http://127.0.0.1:18086
+[2026-03-21 19:53:07] [INFO] [SURFACE_MANAGER] register surface_manager to hub status=200
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=sql_db pid=65172 instance=sql_db-1774093987572338000 endpoint=http://127.0.0.1:18085 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=ai_doubao pid=65174 instance=ai_doubao-1774093987572351000 endpoint=http://127.0.0.1:18081 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=chat_server pid=65170 instance=chat_server-1774093987572274000 endpoint=http://127.0.0.1:18082 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=account pid=65176 instance=account-1774093987695654000 endpoint=http://127.0.0.1:18083 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=file_storage pid=65173 instance=file_storage-1774093987572533000 endpoint=http://127.0.0.1:18084 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=surface_manager pid=65175 instance=surface_manager-1774093987695661000 endpoint=http://127.0.0.1:18086 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:ServiceReady: service=autogui pid=65171 instance=autogui-1774093987572274000 endpoint=http://127.0.0.1:18087 attempts=1
+[2026-03-21 19:53:07] [INFO] [HUB] account security state synced
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:Startup:Lifecycle:Done: registered=7 ready=7 skipped=0 total=7 duration_ms=247
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.register
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.me
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#1
+[2026-03-21 19:53:07] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.auth.login#2
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: account.sso.old-token-rejected
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_list
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.project_create
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_create
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.app.chat.thread_list
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Stage: tool.storage.database.schema
+[2026-03-21 19:53:08] [INFO] [HUB] System:Internal:SmokeTest:Passed: user=smoke_1774093987825808000 project=prj-5b554852b6d7a2b7db10e417bae9b24a thread=thd-198e5d4ee2c37bb37d518a16e8f8ccb4 stages=10
+[2026-03-21 19:53:09] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [304] (234.958µs)
+[2026-03-21 19:53:10] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.css [304] (878.917µs)
+[2026-03-21 19:53:10] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.js [304] (830.916µs)
+[2026-03-21 19:53:10] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (109.417µs)
+[2026-03-21 19:53:10] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/render.js [304] (103.666µs)
+[2026-03-21 19:53:17] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [304] (264.541µs)
+[2026-03-21 19:53:17] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (87.542µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [200] (3.192916ms)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (54.584µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.css [200] (244.542µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.js [200] (197.833µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/render.js [200] (222.666µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/logic.js [200] (377.125µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/utils.js [200] (252.042µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/state.js [200] (355.375µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/api.js [200] (204.25µs)
+[2026-03-21 19:53:18] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /favicon.ico [200] (468.708µs)
+[2026-03-21 19:53:22] [INFO] [HUB] System:Internal:RegistrationSuccess:service=autogui,endpoint=http://127.0.0.1:18087
+[2026-03-21 19:53:23] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [304] (201.042µs)
+[2026-03-21 19:53:23] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (59.25µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [200] (417.666µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (58.542µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.css [200] (794.459µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.js [200] (312.667µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/utils.js [200] (105.458µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/render.js [200] (412.208µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/state.js [200] (79.542µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/logic.js [200] (113.041µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/api.js [200] (73.291µs)
+[2026-03-21 19:53:47] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /favicon.ico [200] (462.583µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [200] (173.083µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (665.875µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.css [200] (227.708µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.js [200] (3.972125ms)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/logic.js [200] (216.625µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/state.js [200] (133.792µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/render.js [200] (146µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/utils.js [200] (1.094584ms)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/api.js [200] (67.667µs)
+[2026-03-21 19:53:50] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /favicon.ico [200] (360.167µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.html [200] (397.167µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /.well-known/appspecific/com.chrome.devtools.json [404] (57.167µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.css [200] (228.542µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/admin.js [200] (486.458µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/logic.js [200] (716µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/state.js [200] (158.75µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/render.js [200] (1.171417ms)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/utils.js [200] (330.208µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /page/service/components/api.js [200] (189.459µs)
+[2026-03-21 19:54:08] [INFO] [PAGE] [zhyuzh2] System:HTTP:GET /favicon.ico [200] (146.25µs)

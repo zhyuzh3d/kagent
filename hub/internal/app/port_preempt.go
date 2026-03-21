@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -20,17 +21,17 @@ import (
 func EnsurePortReady(addr string) error {
 	expectedExecPath, _ := os.Executable()
 	expectedExecPath = normalizeExecutablePath(expectedExecPath)
-	// 1. Check if already listening
-	ln, err := net.Listen("tcp", addr)
-	if err == nil {
-		ln.Close()
+	_, portStr, _ := net.SplitHostPort(addr)
+
+	// 1. If no other process is listening on this port, it is ready.
+	pids := findPIDsByPort(portStr)
+	if len(pids) == 0 {
 		return nil
 	}
 
 	// 2. Port is occupied, try graceful shutdown if it's a Hub instance
-	// We use a short timeout and ignore errors (might not be a Hub)
 	adminURL := fmt.Sprintf("http://%s/api/tool/call", addr)
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
 	defer cancel()
 	payload, _ := json.Marshal(map[string]any{
 		"tool_id": "hub.system.shutdown",
@@ -38,42 +39,36 @@ func EnsurePortReady(addr string) error {
 	})
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, adminURL, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err == nil {
+	if resp, err := http.DefaultClient.Do(req); err == nil {
 		resp.Body.Close()
 	}
 
-	// 3. Short wait for graceful exit
-	time.Sleep(800 * time.Millisecond)
-
-	// 4. Check again
-	ln, err = net.Listen("tcp", addr)
-	if err == nil {
-		ln.Close()
-		return nil
-	}
-
-	// 5. Still occupied, proceed with "Force Kill"
-	_, portStr, _ := net.SplitHostPort(addr)
-	pid := findPIDByPort(portStr)
-	if pid > 0 && pid != os.Getpid() {
-		cleaned, cleanErr := CleanHubProcessByPID(pid, expectedExecPath)
-		if cleanErr != nil {
-			return fmt.Errorf("preempt port %s failed: %w", portStr, cleanErr)
-		}
-		if cleaned {
-			Infof("System:Internal:Startup:PortPreempted: %s", portStr)
-			// Small settle time
-			time.Sleep(200 * time.Millisecond)
+	// 3. Robust wait for old listeners to exit, then force kill remaining Hub listeners.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		pids = findPIDsByPort(portStr)
+		if len(pids) == 0 {
 			return nil
 		}
-		return fmt.Errorf("port %s is occupied by a non-matching process pid=%d", portStr, pid)
+		for _, pid := range pids {
+			if pid <= 0 || pid == os.Getpid() {
+				continue
+			}
+			cleaned, _ := CleanHubProcessByPID(pid, expectedExecPath)
+			if cleaned {
+				Infof("System:Internal:Startup:PortPreempted: %s pid=%d", portStr, pid)
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
+	if remaining := findPIDsByPort(portStr); len(remaining) > 0 {
+		return fmt.Errorf("timeout waiting for port %s to be released; remaining_pids=%v", addr, remaining)
+	}
 	return nil
 }
 
-func findPIDByPort(port string) int {
+func findPIDsByPort(port string) []int {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		// netstat -ano | findstr :PORT
@@ -85,27 +80,51 @@ func findPIDByPort(port string) int {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return 0
+		return nil
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 0 || lines[0] == "" {
-		return 0
+	if len(lines) == 0 {
+		return nil
 	}
+	out := make([]int, 0, len(lines))
+	seen := map[int]struct{}{}
 
 	// On Windows, the PID is the last column
 	if runtime.GOOS == "windows" {
-		fields := strings.Fields(lines[0])
-		if len(fields) > 0 {
+		for _, line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) == 0 {
+				continue
+			}
 			pid, _ := strconv.Atoi(fields[len(fields)-1])
-			return pid
+			if pid <= 0 {
+				continue
+			}
+			if _, ok := seen[pid]; ok {
+				continue
+			}
+			seen[pid] = struct{}{}
+			out = append(out, pid)
 		}
-		return 0
+		slices.Sort(out)
+		return out
 	}
 
 	// On Unix, lsof -t returns just the PID
-	pid, _ := strconv.Atoi(strings.TrimSpace(lines[0]))
-	return pid
+	for _, line := range lines {
+		pid, _ := strconv.Atoi(strings.TrimSpace(line))
+		if pid <= 0 {
+			continue
+		}
+		if _, ok := seen[pid]; ok {
+			continue
+		}
+		seen[pid] = struct{}{}
+		out = append(out, pid)
+	}
+	slices.Sort(out)
+	return out
 }
 
 func killProcess(pid int) error {

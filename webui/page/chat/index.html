@@ -1195,10 +1195,10 @@
   <script>
     (async function authGuard() {
       try {
-        const resp = await fetch('/api/tool/call', {
+        const resp = await fetch('/api/tool/call?tool_id=account.auth.me', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tool_id: 'account.auth.me', args: {} }),
+          body: JSON.stringify({ args: {} }),
           cache: 'no-store',
         });
         if (!resp.ok) throw new Error('not authenticated');
@@ -1352,10 +1352,10 @@
 
       el.logoutBtn.addEventListener('click', async () => {
         try {
-          await fetch('/api/tool/call', {
+          await fetch('/api/tool/call?tool_id=account.auth.logout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tool_id: 'account.auth.logout', args: {} }),
+            body: JSON.stringify({ args: {} }),
           });
         } catch (_) { }
         window.location.href = '/page/account/';

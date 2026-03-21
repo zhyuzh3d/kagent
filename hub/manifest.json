@@ -1,0 +1,8 @@
+{
+  "service_id": "hub",
+  "service_name": "Kagent Hub",
+  "description": "Kagent 核心枢纽：负责服务编排、工具降临、路由治理与安全审计。",
+  "version": "1.0.0",
+  "reliability": "system",
+  "visibility": "internal"
+}

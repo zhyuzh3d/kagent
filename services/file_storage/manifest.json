@@ -1,5 +1,6 @@
 {
   "service_id": "file_storage",
+  "description": "Storage service for scoped file operations, blob upload and retrieval, signed download URLs, and blob garbage collection.",
   "service_name": "file_storage",
   "version": "1.0.0",
   "visibility": "public",
@@ -14,7 +15,6 @@
     "register_timeout_ms": 5000,
     "restart_policy": "never",
     "restart_backoff_ms": 300,
-    "restart_times": 3,
-    "kill_old": true
+    "restart_times": 3
   }
 }

@@ -1,5 +1,6 @@
 import { EMPTY_LOG_TEXT } from "./constants.js";
 import { escapeAttribute, redactSessionToken } from "./formatters.js";
+import { createSurfaceBridge } from "../bridge.js";
 
 export function createRuntimeController({
   els,
@@ -8,6 +9,17 @@ export function createRuntimeController({
   renderSurfaceSelect,
   setActions,
 }) {
+  const bridge = createSurfaceBridge({
+    callTool,
+    onFlash: ({ runtime, message }) => {
+      appendLog("host.flash", { surface_id: runtime.surfaceID, message });
+      setStatus(`[${runtime.surfaceID}] ${message}`, "ok");
+    },
+    onError: (err) => {
+      setStatus(err && err.message ? err.message : String(err), "err");
+    },
+  });
+
   function setStatus(text, cls = "") {
     els.statusBadge.textContent = text;
     els.statusBadge.className = `badge ${cls}`.trim();
@@ -36,8 +48,22 @@ export function createRuntimeController({
     }
     const channel = new MessageChannel();
     state.port = channel.port1;
+    state.runtimeBridge = {
+      surfaceID: entry.surface_id,
+      surfaceType: entry.surface_type || "app",
+      surfaceVersion: entry.surface_version || entry.version || "1.0",
+      sessionToken: state.sessionToken,
+      port: state.port,
+      capabilityCache: new Map(),
+    };
     state.port.onmessage = (ev) => {
       const msg = ev.data || {};
+      bridge.handleBridgeMessage(state.runtimeBridge, msg).catch((err) => {
+        setStatus(err && err.message ? err.message : String(err), "err");
+      });
+      if (msg.type === "surfacefs_request" || msg.type === "host_call") {
+        return;
+      }
       if (msg.type === "surface_ready" || msg.type === "surface_actions") {
         setActions(msg.actions || []);
       }
@@ -48,6 +74,8 @@ export function createRuntimeController({
       {
         type: "surface_connect",
         surface_id: entry.surface_id,
+        surface_type: entry.surface_type || "app",
+        surface_version: entry.surface_version || entry.version || "1.0",
         session_token: state.sessionToken,
       },
       "*",

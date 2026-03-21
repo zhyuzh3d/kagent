@@ -31,11 +31,21 @@ func main() {
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
+	if _, err := hubsvc.LoadProjectConfig(filepath.Join(appRoot, "services", "sql_db")); err != nil {
+		app.Errorf("load service config failed: %v", err)
+		os.Exit(1)
+	}
 	dataRoot := filepath.Join(appRoot, "data")
 	serviceSecretPath := filepath.Join(appRoot, "services", "sql_db", "run", ".service_secret")
+	processStorePath := filepath.Join(appRoot, "services", "sql_db", "run", ".service_pid")
+	runtimeManifestPath := filepath.Join(appRoot, "services", "sql_db", "run", "manifest_runtime.json")
 	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
 		app.Errorf("load bootstrap secret failed: %v", err)
+		os.Exit(1)
+	}
+	if err := hubsvc.CleanupPreviousServiceProcess(processStorePath, "sql_db"); err != nil {
+		app.Errorf("cleanup previous process failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -61,49 +71,6 @@ func main() {
 	if instance == "" {
 		instance = "sql_db-" + app.NewRequestID()
 	}
-	if registerURL != "" {
-		healthy := true
-		registerCall := toolproto.CallRequest{
-			ToolID: "hub.governance.service.register",
-			Args: map[string]any{
-				"service_id":  strings.TrimSpace(manifest.ServiceID),
-				"instance_id": strings.TrimSpace(instance),
-				"version":     strings.TrimSpace(manifest.Version),
-				"transport":   "tcp",
-				"endpoint": map[string]any{
-					"tcp_url": "http://" + strings.TrimSpace(*addr),
-				},
-				"tools":   toSupervisorTools(manifest),
-				"healthy": &healthy,
-			},
-			Context: &toolproto.Context{
-				RequestID: "reg-" + app.NewRequestID(),
-				TraceID:   "tr-" + app.NewRequestID(),
-				Caller: toolproto.Caller{
-					Type:      "service",
-					ServiceID: manifest.ServiceID,
-				},
-			},
-		}
-		rawResp, statusCode, err := postHubToolCall(registerURL, serviceBootstrap, registerCall)
-		if err != nil {
-			app.Errorf("register sql_db service to hub failed: %v", err)
-			os.Exit(1)
-		}
-		if statusCode >= 300 {
-			app.Errorf("register sql_db service to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
-			os.Exit(1)
-		}
-		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
-			app.Errorf("decode register response failed: %v", err)
-			os.Exit(1)
-		}
-		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
-			app.Warnf("delete bootstrap secret failed: %v", err)
-		}
-		app.Infof("register sql_db service to hub status=%d", statusCode)
-	}
-
 	mux := http.NewServeMux()
 	var server *http.Server
 	var shutdownOnce sync.Once
@@ -227,8 +194,17 @@ func main() {
 		}
 
 		resolveTargetFromCaller := func(c toolproto.Caller) (app.StorageScopeTarget, error) {
-			switch strings.ToLower(strings.TrimSpace(c.Type)) {
-			case "user":
+			callerType := strings.ToLower(strings.TrimSpace(c.Type))
+			if callerType == "" {
+				switch {
+				case strings.TrimSpace(c.UserID) != "":
+					callerType = toolproto.CallerTypeUser
+				case strings.TrimSpace(c.ServiceID) != "":
+					callerType = toolproto.CallerTypeService
+				}
+			}
+			switch callerType {
+			case toolproto.CallerTypeUser, toolproto.CallerTypeAdmin, toolproto.CallerTypePage:
 				if strings.TrimSpace(c.UserID) == "" {
 					return app.StorageScopeTarget{}, fmt.Errorf("missing caller user_id")
 				}
@@ -236,7 +212,7 @@ func main() {
 					Scope:  "user",
 					UserID: strings.TrimSpace(c.UserID),
 				}, nil
-			case "surface":
+			case toolproto.CallerTypeSurface:
 				if strings.TrimSpace(c.UserID) == "" || strings.TrimSpace(c.SurfaceID) == "" {
 					return app.StorageScopeTarget{}, fmt.Errorf("missing caller surface context")
 				}
@@ -245,7 +221,7 @@ func main() {
 					UserID:    strings.TrimSpace(c.UserID),
 					SurfaceID: strings.TrimSpace(c.SurfaceID),
 				}, nil
-			case "service":
+			case toolproto.CallerTypeService:
 				if strings.TrimSpace(c.ServiceID) == "" {
 					return app.StorageScopeTarget{}, fmt.Errorf("missing caller service_id")
 				}
@@ -510,11 +486,76 @@ func main() {
 	})
 
 	server = &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	app.Infof("sql_db service listening=http://%s", *addr)
+	ln, err := hubsvc.Listen(*addr)
+	if err != nil {
+		app.Errorf("server listen failed: %v", err)
+		os.Exit(1)
+	}
+	startedAtMS := time.Now().UnixMilli()
+	if err := hubsvc.RecordCurrentServiceProcess(processStorePath, manifest.ServiceID, startedAtMS); err != nil {
+		app.Errorf("record current process failed: %v", err)
+		os.Exit(1)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- server.Serve(ln)
+	}()
+	if registerURL != "" {
+		healthy := true
+		registerCall := toolproto.CallRequest{
+			ToolID: "hub.governance.service.register",
+			Args: map[string]any{
+				"service_id":  strings.TrimSpace(manifest.ServiceID),
+				"instance_id": strings.TrimSpace(instance),
+				"version":     strings.TrimSpace(manifest.Version),
+				"transport":   "tcp",
+				"endpoint": map[string]any{
+					"tcp_url": "http://" + strings.TrimSpace(*addr),
+				},
+				"tools":   toSupervisorTools(manifest),
+				"healthy": &healthy,
+			},
+			Context: &toolproto.Context{
+				RequestID: "reg-" + app.NewRequestID(),
+				TraceID:   "tr-" + app.NewRequestID(),
+				Caller: toolproto.Caller{
+					Type:      "service",
+					ServiceID: manifest.ServiceID,
+				},
+			},
+		}
+		rawResp, statusCode, err := postHubToolCall(registerURL, serviceBootstrap, registerCall)
+		if err != nil {
+			app.Errorf("register sql_db service to hub failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if statusCode >= 300 {
+			app.Errorf("register sql_db service to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+			shutdownNow("register to hub failed")
+			return
+		}
+		registerResp, err := hubsvc.DecodeSupervisorRegisterResult(rawResp)
+		if err != nil {
+			app.Errorf("decode register response failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.WriteServiceRuntimeManifest(runtimeManifestPath, registerResp); err != nil {
+			app.Errorf("write runtime manifest failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
+			app.Warnf("delete bootstrap secret failed: %v", err)
+		}
+		app.Infof("register sql_db service to hub status=%d", statusCode)
+	}
 	if hubToolCallURL := buildHubToolCallURL(registerURL); hubToolCallURL != "" {
 		startHubToolHeartbeatGuard(hubToolCallURL, manifest.ServiceID, instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
 	}
-	app.Infof("sql_db service listening=http://%s", *addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := <-serveErrCh; err != nil && err != http.ErrServerClosed {
 		app.Errorf("server failed: %v", err)
 		os.Exit(1)
 	}

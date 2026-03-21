@@ -2,9 +2,10 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
+
+	"kagent/pkg/hubsvc"
 )
 
 type RawConfig struct {
@@ -93,12 +94,15 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
+	if hubsvc.JSONBytesBlank(b) {
+		return &ModelConfig{}, nil
+	}
 	var raw RawConfig
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	if len(raw.Models) == 0 {
-		return nil, errors.New("config models is empty")
+		return &ModelConfig{}, nil
 	}
 	for i := range raw.Models {
 		if raw.Models[i].Name == modelName {
@@ -112,22 +116,9 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 }
 
 func validateModelConfig(cfg *ModelConfig) error {
-	active := cfg.ActiveChat()
-	if active.APIKey == "" || active.BaseURL == "" || active.Model == "" {
-		return errors.New("chat/flash config is incomplete")
-	}
-	if cfg.ASR.WSURL == "" || cfg.ASR.AppID == "" || cfg.ASR.AccessToken == "" {
-		return errors.New("asr_s config is incomplete")
-	}
-	if cfg.TTS.WSURL == "" || cfg.TTS.AppID == "" || cfg.TTS.AccessToken == "" || cfg.TTS.VoiceType == "" {
-		return errors.New("tts_s config is incomplete")
-	}
 	svc := cfg.EffectiveAIService()
 	if svc.Mode != "local" && svc.Mode != "service" {
 		return fmt.Errorf("ai_service.mode must be local or service")
-	}
-	if svc.Mode == "service" && svc.BaseURL == "" {
-		return fmt.Errorf("ai_service.baseUrl is required in service mode")
 	}
 	return nil
 }

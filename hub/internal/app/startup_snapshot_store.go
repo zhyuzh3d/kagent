@@ -14,6 +14,13 @@ type StartupSnapshotStore struct {
 	db *sql.DB
 }
 
+type StartupSnapshotRecord struct {
+	SnapshotID  string          `json:"snapshot_id"`
+	HubVersion  string          `json:"hub_version"`
+	PayloadJSON json.RawMessage `json:"payload_json"`
+	CreatedAtMS int64           `json:"created_at_ms"`
+}
+
 func NewStartupSnapshotStore(path string) (*StartupSnapshotStore, error) {
 	cleanPath := strings.TrimSpace(path)
 	if cleanPath == "" {
@@ -60,6 +67,28 @@ func (s *StartupSnapshotStore) Save(hubVersion string, payload any) error {
 		return fmt.Errorf("insert startup snapshot: %w", err)
 	}
 	return nil
+}
+
+func (s *StartupSnapshotStore) LoadLatest() (StartupSnapshotRecord, bool, error) {
+	if s == nil || s.db == nil {
+		return StartupSnapshotRecord{}, false, fmt.Errorf("startup snapshot store is not initialized")
+	}
+	row := s.db.QueryRow(`
+		SELECT snapshot_id, hub_version, payload_json, created_at_ms
+		FROM hub_startup_snapshots
+		ORDER BY created_at_ms DESC
+		LIMIT 1
+	`)
+	var record StartupSnapshotRecord
+	var payload string
+	if err := row.Scan(&record.SnapshotID, &record.HubVersion, &payload, &record.CreatedAtMS); err != nil {
+		if err == sql.ErrNoRows {
+			return StartupSnapshotRecord{}, false, nil
+		}
+		return StartupSnapshotRecord{}, false, fmt.Errorf("query latest startup snapshot: %w", err)
+	}
+	record.PayloadJSON = json.RawMessage(payload)
+	return record, true, nil
 }
 
 func (s *StartupSnapshotStore) init() error {

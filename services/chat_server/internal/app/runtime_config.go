@@ -8,18 +8,12 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"kagent/pkg/hubsvc"
 )
 
-type UserCustomConfigFile struct {
-	SchemaVersion int            `json:"schemaVersion"`
-	UserID        string         `json:"userId"`
-	UpdatedAt     string         `json:"updatedAt"`
-	Overrides     map[string]any `json:"overrides"`
-}
-
 type RuntimeConfigManager struct {
-	defaultPath string
-	userPath    string
+	configPath string
 
 	mu           sync.RWMutex
 	defaultMap   map[string]any
@@ -27,10 +21,9 @@ type RuntimeConfigManager struct {
 	snapshot     PublicConfig
 }
 
-func NewRuntimeConfigManager(defaultPath string, userPath string) (*RuntimeConfigManager, error) {
+func NewRuntimeConfigManager(configPath string) (*RuntimeConfigManager, error) {
 	m := &RuntimeConfigManager{
-		defaultPath: defaultPath,
-		userPath:    userPath,
+		configPath: configPath,
 	}
 	if err := m.Reload(); err != nil {
 		return nil, err
@@ -43,17 +36,11 @@ func (m *RuntimeConfigManager) Reload() error {
 	if err != nil {
 		return fmt.Errorf("default public config: %w", err)
 	}
-	fileDefaults, err := loadOptionalConfigMap(m.defaultPath, false)
+	fileDefaults, err := loadOptionalConfigMap(m.configPath, false)
 	if err != nil {
-		return fmt.Errorf("load public config %s: %w", m.defaultPath, err)
+		return fmt.Errorf("load public config %s: %w", m.configPath, err)
 	}
-	mergedDefaults := deepMergeMaps(baseMap, fileDefaults)
-
-	userCfg, err := loadUserCustomConfigFile(m.userPath)
-	if err != nil {
-		return fmt.Errorf("load user custom config %s: %w", m.userPath, err)
-	}
-	effective := deepMergeMaps(mergedDefaults, userCfg.Overrides)
+	effective := deepMergeMaps(baseMap, fileDefaults)
 
 	var snapshot PublicConfig
 	if err := mapToStruct(effective, &snapshot); err != nil {
@@ -62,7 +49,7 @@ func (m *RuntimeConfigManager) Reload() error {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.defaultMap = mergedDefaults
+	m.defaultMap = baseMap
 	m.effectiveMap = effective
 	m.snapshot = snapshot
 	return nil
@@ -97,54 +84,13 @@ func (m *RuntimeConfigManager) ApplySnapshot(snapshot map[string]any) error {
 }
 
 func (m *RuntimeConfigManager) UpdateEffectiveMap(next map[string]any) (map[string]any, error) {
-	m.mu.RLock()
-	base := cloneMap(m.defaultMap)
-	m.mu.RUnlock()
-
-	overrides := diffMaps(base, next)
-	userCfg := UserCustomConfigFile{
-		SchemaVersion: 1,
-		UserID:        "default",
-		UpdatedAt:     time.Now().Format(time.RFC3339),
-		Overrides:     overrides,
-	}
-	if err := writeJSONAtomic(m.userPath, userCfg); err != nil {
-		return nil, fmt.Errorf("write user custom config: %w", err)
+	if err := writeJSONAtomic(m.configPath, next); err != nil {
+		return nil, fmt.Errorf("write runtime config: %w", err)
 	}
 	if err := m.Reload(); err != nil {
 		return nil, err
 	}
 	return m.EffectiveMap(), nil
-}
-
-func loadUserCustomConfigFile(path string) (*UserCustomConfigFile, error) {
-	if path == "" {
-		return &UserCustomConfigFile{SchemaVersion: 1, UserID: "default", Overrides: map[string]any{}}, nil
-	}
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return &UserCustomConfigFile{SchemaVersion: 1, UserID: "default", Overrides: map[string]any{}}, nil
-		}
-		return nil, err
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var cfg UserCustomConfigFile
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-	if cfg.Overrides == nil {
-		cfg.Overrides = map[string]any{}
-	}
-	if cfg.SchemaVersion == 0 {
-		cfg.SchemaVersion = 1
-	}
-	if cfg.UserID == "" {
-		cfg.UserID = "default"
-	}
-	return &cfg, nil
 }
 
 func loadOptionalConfigMap(path string, missingOK bool) (map[string]any, error) {
@@ -161,7 +107,7 @@ func loadOptionalConfigMap(path string, missingOK bool) (map[string]any, error) 
 	if len(b) == 0 {
 		return map[string]any{}, nil
 	}
-	m, err := unmarshalMap(b)
+	m, err := hubsvc.DecodeJSONMapAllowEmpty(b)
 	if err != nil {
 		return nil, err
 	}

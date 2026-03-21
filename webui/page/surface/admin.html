@@ -3,404 +3,111 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Surface Admin</title>
-  <style>
-    :root {
-      --bg: #f4f1e8;
-      --card: #fffef9;
-      --line: #d7d2c1;
-      --text: #1f2420;
-      --muted: #68706b;
-      --accent: #115e59;
-      --accent2: #1d4ed8;
-      --warn: #b45309;
-      --err: #b91c1c;
-      --ok: #15803d;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at 14% 8%, rgba(17,94,89,.1), transparent 32%),
-        radial-gradient(circle at 84% 12%, rgba(29,78,216,.08), transparent 34%),
-        var(--bg);
-    }
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      padding: 14px 18px;
-      background: rgba(255,254,249,.92);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--line);
-    }
-    .topbar h1 { margin: 0; font-size: 18px; flex: 1; }
-    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
-    button {
-      border: 1px solid #9ca8a1;
-      background: #f7faf7;
-      color: var(--text);
-      border-radius: 10px;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    button.secondary { background: var(--accent2); color: #fff; border-color: var(--accent2); }
-    button.warn { background: var(--warn); color: #fff; border-color: var(--warn); }
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(320px, 0.95fr) minmax(520px, 1.35fr) minmax(320px, 0.95fr);
-      gap: 12px;
-      padding: 12px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-    .card h2 { margin: 0; padding: 11px 13px; font-size: 13px; color: var(--accent); border-bottom: 1px solid var(--line); }
-    .body { padding: 12px; display: grid; gap: 10px; }
-    .mono { font-family: "JetBrains Mono", monospace; font-size: 12px; }
-    .list {
-      max-height: 740px;
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
-    }
-    .item {
-      padding: 10px;
-      border-bottom: 1px solid var(--line);
-      display: grid;
-      gap: 6px;
-      cursor: pointer;
-    }
-    .item.active { background: #eef8f5; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .ok { color: var(--ok); }
-    .warn-text { color: var(--warn); }
-    .err { color: var(--err); }
-    textarea, input, select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      font: inherit;
-      background: #fff;
-      color: var(--text);
-    }
-    textarea { min-height: 220px; resize: vertical; }
-    pre {
-      margin: 0;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      background: #fbfcfa;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 300px;
-      overflow: auto;
-    }
-    .kv {
-      display: grid;
-      grid-template-columns: 120px 1fr;
-      gap: 8px 10px;
-      font-size: 12px;
-      align-items: start;
-    }
-    .kv label { color: var(--muted); }
-    @media (max-width: 1200px) { .layout { grid-template-columns: 1fr; } }
-  </style>
+  <title>Surface 治理台</title>
+  <link rel="stylesheet" href="./admin.css" />
 </head>
 <body>
-  <div class="topbar">
-    <h1>Surface Admin Console</h1>
-    <button id="refreshBtn" class="primary">Refresh</button>
-    <button id="rescanBtn" class="warn">Rescan</button>
-    <button id="rebindBtn">Rebind</button>
-    <span id="statusBadge" class="badge">idle</span>
-  </div>
-
-  <div class="layout">
-    <section class="card">
-      <h2>Catalog</h2>
-      <div class="body">
-        <div class="list" id="surfaceList"></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Package Editor</h2>
-      <div class="body">
-        <div class="row">
-          <button id="toggleEnableBtn">Enable / Disable</button>
-          <button id="openBtn" class="secondary">Open</button>
-          <button id="issueSessionBtn">Issue Session</button>
-          <button id="issueCapBtn">Issue Capability</button>
-        </div>
-        <div class="kv">
-          <label>Surface</label><div id="surfaceTitle" class="mono">-</div>
-          <label>Entry</label><div id="surfaceEntry" class="mono">-</div>
-          <label>Session</label><div id="sessionToken" class="mono">-</div>
-          <label>Capability</label><div id="capToken" class="mono">-</div>
-        </div>
-        <div class="row">
-          <select id="fileSelect"></select>
-          <button id="loadFileBtn">Load File</button>
-          <button id="saveFileBtn" class="primary">Save File</button>
-        </div>
-        <textarea id="fileEditor" class="mono"></textarea>
-      </div>
-    </section>
-
-    <div style="display:grid;gap:12px;">
-      <section class="card">
-        <h2>Generate Surface</h2>
-        <div class="body">
-          <input id="generateName" placeholder="surface_name，例如 note_pad" />
-          <textarea id="generatePrompt" class="mono" style="min-height:140px;">创建一个可在 page/surface/index.html 里装载的轻量文本记录 surface，保留 state_change 与 action_result 回报。</textarea>
-          <div class="row">
-            <button id="generateBtn" class="primary">Generate</button>
-            <button id="generateOpenBtn">Generate + Open</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Runtime / Logs</h2>
-        <div class="body">
-          <div class="row">
-            <button id="runtimeBtn">Runtime</button>
-            <button id="logsBtn">Logs</button>
-            <button id="pkgListBtn">Package Files</button>
-          </div>
-          <pre id="infoPanel" class="mono">(empty)</pre>
-        </div>
-      </section>
+  <header class="topbar">
+    <div>
+      <h1>Surface 治理台</h1>
+      <p>统一查看 catalog、包文件、运行态与 capability 令牌，不再把 package 编辑和运行观测割裂开。</p>
     </div>
-  </div>
+    <div class="topbar-actions">
+      <button id="refreshBtn" class="primary">刷新 Catalog</button>
+      <button id="rescanBtn">重扫目录</button>
+      <button id="rebindBtn">重新绑定</button>
+      <span id="statusBadge" class="badge">idle</span>
+    </div>
+  </header>
 
-  <script>
-    const els = {
-      refreshBtn: document.getElementById("refreshBtn"),
-      rescanBtn: document.getElementById("rescanBtn"),
-      rebindBtn: document.getElementById("rebindBtn"),
-      statusBadge: document.getElementById("statusBadge"),
-      surfaceList: document.getElementById("surfaceList"),
-      surfaceTitle: document.getElementById("surfaceTitle"),
-      surfaceEntry: document.getElementById("surfaceEntry"),
-      sessionToken: document.getElementById("sessionToken"),
-      capToken: document.getElementById("capToken"),
-      toggleEnableBtn: document.getElementById("toggleEnableBtn"),
-      openBtn: document.getElementById("openBtn"),
-      issueSessionBtn: document.getElementById("issueSessionBtn"),
-      issueCapBtn: document.getElementById("issueCapBtn"),
-      fileSelect: document.getElementById("fileSelect"),
-      loadFileBtn: document.getElementById("loadFileBtn"),
-      saveFileBtn: document.getElementById("saveFileBtn"),
-      fileEditor: document.getElementById("fileEditor"),
-      generateName: document.getElementById("generateName"),
-      generatePrompt: document.getElementById("generatePrompt"),
-      generateBtn: document.getElementById("generateBtn"),
-      generateOpenBtn: document.getElementById("generateOpenBtn"),
-      runtimeBtn: document.getElementById("runtimeBtn"),
-      logsBtn: document.getElementById("logsBtn"),
-      pkgListBtn: document.getElementById("pkgListBtn"),
-      infoPanel: document.getElementById("infoPanel"),
-    };
+  <main class="page-shell">
+    <section class="overview-grid">
+      <article class="overview-card">
+        <span>Surface 总数</span>
+        <strong id="totalCount">0</strong>
+      </article>
+      <article class="overview-card">
+        <span>已启用</span>
+        <strong id="enabledCount">0</strong>
+      </article>
+      <article class="overview-card">
+        <span>可打开</span>
+        <strong id="readyCount">0</strong>
+      </article>
+    </section>
 
-    const state = { items: [], selectedID: "", sessionToken: "", capabilityToken: "" };
+    <section class="layout">
+      <article class="card">
+        <div class="card-head">
+          <h2>Catalog</h2>
+          <span class="hint">选择一个 surface 后，右侧会同步 package / token / runtime。</span>
+        </div>
+        <div class="card-body">
+          <div class="list" id="surfaceList"></div>
+        </div>
+      </article>
 
-    function setStatus(text, cls = "") {
-      els.statusBadge.textContent = text;
-      els.statusBadge.className = "badge " + cls;
-    }
+      <article class="card">
+        <div class="card-head">
+          <h2>Package Editor</h2>
+          <span class="hint">包文件编辑、启用切换、session/capability 令牌发放。</span>
+        </div>
+        <div class="card-body">
+          <div class="action-row">
+            <button id="toggleEnableBtn">启用 / 停用</button>
+            <button id="openBtn" class="secondary">在加载器中打开</button>
+            <button id="issueSessionBtn">发放 Session</button>
+            <button id="issueCapBtn">发放 FS Capability</button>
+          </div>
+          <div class="meta-grid">
+            <label>Surface</label><div id="surfaceTitle" class="mono">-</div>
+            <label>Entry</label><div id="surfaceEntry" class="mono">-</div>
+            <label>Session</label><div id="sessionToken" class="mono token-text">-</div>
+            <label>Capability</label><div id="capToken" class="mono token-text">-</div>
+          </div>
+          <div class="editor-toolbar">
+            <select id="fileSelect"></select>
+            <button id="loadFileBtn">读取文件</button>
+            <button id="saveFileBtn" class="primary">保存文件</button>
+          </div>
+          <textarea id="fileEditor" class="mono editor"></textarea>
+        </div>
+      </article>
 
-    async function callTool(toolID, args = {}) {
-      const resp = await fetch("/api/tool/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tool_id: toolID, args }),
-      });
-      const raw = await resp.text();
-      let data = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
-      if (!resp.ok || !data || data.ok !== true) {
-        const msg = (data && data.error && data.error.message) || raw || `http ${resp.status}`;
-        throw new Error(msg);
-      }
-      return data.result || {};
-    }
-
-    function pretty(v) { return JSON.stringify(v, null, 2); }
-    function selected() { return state.items.find((item) => item.surface_id === state.selectedID) || null; }
-    function encodeBase64(text) { return btoa(unescape(encodeURIComponent(text))); }
-    function decodeBase64(text) { return decodeURIComponent(escape(atob(text || ""))); }
-
-    function renderList() {
-      if (!state.items.length) {
-        els.surfaceList.innerHTML = '<div class="item"><div class="muted">no surfaces</div></div>';
-        return;
-      }
-      els.surfaceList.innerHTML = state.items.map((item) => {
-        const active = item.surface_id === state.selectedID ? "active" : "";
-        const statusCls = item.status === "ok" ? "ok" : (item.status === "invalid" || item.status === "missing_entry" ? "err" : "warn-text");
-        return `
-          <div class="item ${active}" data-id="${item.surface_id}">
-            <div class="row"><strong>${item.name || item.surface_id}</strong><span class="mono muted">${item.surface_id}</span></div>
-            <div class="row">
-              <span class="${statusCls}">${item.status}</span>
-              <span class="muted">enabled=${item.enabled}</span>
-              <span class="muted">${item.surface_type}</span>
-              <span class="muted">${item.entry_url || "-"}</span>
+      <div class="stack">
+        <article class="card">
+          <div class="card-head">
+            <h2>Generate Surface</h2>
+            <span class="hint">生成一个新的 package，并可直接在加载器中打开。</span>
+          </div>
+          <div class="card-body">
+            <input id="generateName" placeholder="surface_name，例如 note_pad" />
+            <textarea id="generatePrompt" class="mono prompt-editor">创建一个可在 page/surface/index.html 里装载的轻量文本记录 surface，保留 state_change 与 action_result 回报。</textarea>
+            <div class="action-row">
+              <button id="generateBtn" class="primary">生成</button>
+              <button id="generateOpenBtn">生成并打开</button>
             </div>
           </div>
-        `;
-      }).join("");
-      for (const itemEl of els.surfaceList.querySelectorAll(".item[data-id]")) {
-        itemEl.addEventListener("click", () => selectSurface(itemEl.dataset.id));
-      }
-    }
+        </article>
 
-    async function refreshList() {
-      setStatus("loading");
-      const result = await callTool("ui.surface.catalog_list", {});
-      state.items = Array.isArray(result.items) ? result.items : [];
-      if (!state.selectedID && state.items[0]) state.selectedID = state.items[0].surface_id;
-      renderList();
-      if (state.selectedID) await selectSurface(state.selectedID);
-      setStatus("ready");
-    }
+        <article class="card">
+          <div class="card-head">
+            <h2>Runtime / Logs</h2>
+            <span class="hint">查看 runtime 状态、日志以及 package 文件清单。</span>
+          </div>
+          <div class="card-body">
+            <div class="action-row">
+              <button id="runtimeBtn">运行态</button>
+              <button id="logsBtn">日志</button>
+              <button id="pkgListBtn">包文件列表</button>
+            </div>
+            <pre id="infoPanel" class="mono result-box">(empty)</pre>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
 
-    async function selectSurface(surfaceID) {
-      state.selectedID = surfaceID;
-      state.sessionToken = "";
-      state.capabilityToken = "";
-      renderList();
-      const item = selected();
-      if (!item) return;
-      els.surfaceTitle.textContent = `${item.name || item.surface_id} / ${item.surface_type}`;
-      els.surfaceEntry.textContent = item.entry_url || "-";
-      els.sessionToken.textContent = "-";
-      els.capToken.textContent = "-";
-      els.fileEditor.value = "";
-      await listPackageFiles();
-    }
-
-    async function listPackageFiles() {
-      const item = selected();
-      if (!item) return;
-      const result = await callTool("ui.surface.package_list", { surface_id: item.surface_id });
-      const items = Array.isArray(result.items) ? result.items.filter((it) => !it.is_dir) : [];
-      els.fileSelect.innerHTML = items.map((it) => `<option value="${it.path}">${it.path}</option>`).join("");
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    async function loadFile() {
-      const item = selected();
-      if (!item) return;
-      const path = els.fileSelect.value;
-      const result = await callTool("ui.surface.package_read", { surface_id: item.surface_id, path });
-      els.fileEditor.value = decodeBase64(result.data_base64 || "");
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    async function saveFile() {
-      const item = selected();
-      if (!item) return;
-      const path = els.fileSelect.value;
-      const result = await callTool("ui.surface.package_write", {
-        surface_id: item.surface_id,
-        path,
-        data_base64: encodeBase64(els.fileEditor.value || ""),
-      });
-      els.infoPanel.textContent = pretty(result);
-      await refreshList();
-      await selectSurface(item.surface_id);
-      setStatus("saved", "ok");
-    }
-
-    async function toggleEnable() {
-      const item = selected();
-      if (!item) return;
-      await callTool("ui.surface.enable_set", { surface_id: item.surface_id, enabled: !item.enabled });
-      await refreshList();
-      await selectSurface(item.surface_id);
-    }
-
-    async function issueSession() {
-      const item = selected();
-      if (!item) return;
-      const result = await callTool("ui.surface.session_issue", { surface_id: item.surface_id });
-      state.sessionToken = result.surface_session_token || "";
-      els.sessionToken.textContent = state.sessionToken || "-";
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    async function issueCapability() {
-      const item = selected();
-      if (!item) return;
-      if (!state.sessionToken) await issueSession();
-      const result = await callTool("ui.surface.capability_issue", {
-        surface_session_token: state.sessionToken,
-        scope: "fs.write",
-        path_prefix: ".",
-      });
-      state.capabilityToken = result.capability_token || "";
-      els.capToken.textContent = state.capabilityToken || "-";
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    async function generate(openAfter) {
-      const result = await callTool("ui.surface.generate", {
-        surface_name: (els.generateName.value || "").trim(),
-        prompt: els.generatePrompt.value || "",
-      });
-      state.selectedID = result.surface_id || state.selectedID;
-      await refreshList();
-      if (state.selectedID) await selectSurface(state.selectedID);
-      if (openAfter && state.selectedID) window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
-      setStatus("generated", "ok");
-    }
-
-    async function loadRuntime() {
-      const item = selected();
-      if (!item) return;
-      const result = await callTool("ui.surface.runtime_status", { surface_id: item.surface_id });
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    async function loadLogs() {
-      const item = selected();
-      if (!item) return;
-      const result = await callTool("ui.surface.logs_query", { surface_id: item.surface_id, limit: 80 });
-      els.infoPanel.textContent = pretty(result);
-    }
-
-    els.refreshBtn.addEventListener("click", () => refreshList().catch((err) => setStatus(err.message, "err")));
-    els.rescanBtn.addEventListener("click", () => callTool("ui.surface.rescan", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
-    els.rebindBtn.addEventListener("click", () => callTool("ui.surface.rebind", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
-    els.toggleEnableBtn.addEventListener("click", () => toggleEnable().catch((err) => setStatus(err.message, "err")));
-    els.openBtn.addEventListener("click", () => { if (state.selectedID) window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank"); });
-    els.issueSessionBtn.addEventListener("click", () => issueSession().catch((err) => setStatus(err.message, "err")));
-    els.issueCapBtn.addEventListener("click", () => issueCapability().catch((err) => setStatus(err.message, "err")));
-    els.loadFileBtn.addEventListener("click", () => loadFile().catch((err) => setStatus(err.message, "err")));
-    els.saveFileBtn.addEventListener("click", () => saveFile().catch((err) => setStatus(err.message, "err")));
-    els.generateBtn.addEventListener("click", () => generate(false).catch((err) => setStatus(err.message, "err")));
-    els.generateOpenBtn.addEventListener("click", () => generate(true).catch((err) => setStatus(err.message, "err")));
-    els.runtimeBtn.addEventListener("click", () => loadRuntime().catch((err) => setStatus(err.message, "err")));
-    els.logsBtn.addEventListener("click", () => loadLogs().catch((err) => setStatus(err.message, "err")));
-    els.pkgListBtn.addEventListener("click", () => listPackageFiles().catch((err) => setStatus(err.message, "err")));
-
-    refreshList().catch((err) => setStatus(err.message, "err"));
-  </script>
+  <script type="module" src="./admin.js"></script>
 </body>
 </html>

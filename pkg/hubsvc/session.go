@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"kagent/pkg/toolproto"
@@ -99,6 +101,52 @@ func DecodeSupervisorRegisterResult(responseBody []byte) (toolproto.SupervisorRe
 		return toolproto.SupervisorRegisterResult{}, fmt.Errorf("decode register result: %w", err)
 	}
 	return out, nil
+}
+
+func BuildServiceRuntimeManifest(result toolproto.SupervisorRegisterResult) (toolproto.ServiceRuntimeManifest, error) {
+	if result.RegisteredService == nil {
+		return toolproto.ServiceRuntimeManifest{}, fmt.Errorf("registered service info missing")
+	}
+	item := result.RegisteredService
+	return toolproto.ServiceRuntimeManifest{
+		ServiceName:        strings.TrimSpace(item.ServiceName),
+		ServiceID:          strings.TrimSpace(item.ServiceID),
+		Version:            strings.TrimSpace(item.Version),
+		BuildHash:          strings.TrimSpace(item.BuildHash),
+		Reliability:        strings.TrimSpace(item.Reliability),
+		Visibility:         strings.TrimSpace(item.Visibility),
+		Registered:         strings.TrimSpace(item.ServiceID) != "",
+		Active:             strings.EqualFold(strings.TrimSpace(item.Status), "active"),
+		InstanceID:         strings.TrimSpace(item.InstanceID),
+		PID:                item.PID,
+		Endpoint:           strings.TrimSpace(item.Endpoint),
+		Status:             strings.TrimSpace(item.Status),
+		Healthy:            item.Healthy,
+		ManifestHash:       strings.TrimSpace(item.ManifestHash),
+		ToolCount:          item.ToolCount,
+		RegisteredAtMS:     item.RegisteredAtMS,
+		LastSeenAtMS:       item.LastSeenAtMS,
+		RegisteredManifest: toolproto.NormalizeServiceManifest(item.RegisteredManifest),
+	}, nil
+}
+
+func WriteServiceRuntimeManifest(path string, result toolproto.SupervisorRegisterResult) error {
+	manifest, err := BuildServiceRuntimeManifest(result)
+	if err != nil {
+		return err
+	}
+	fullPath := strings.TrimSpace(path)
+	if fullPath == "" {
+		return fmt.Errorf("runtime manifest path is empty")
+	}
+	raw, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal runtime manifest: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(fullPath, append(raw, '\n'), 0o644)
 }
 
 func BuildHubToolCallURL(raw string) string {
@@ -534,4 +582,18 @@ func parseInt64Field(raw string, field string) (int64, error) {
 
 func nowMS() int64 {
 	return time.Now().UnixMilli()
+}
+
+// Listen creates a TCP listener with SO_REUSEADDR (and SO_REUSEPORT if available) enabled.
+func Listen(addr string) (net.Listener, error) {
+	lc := net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			var err error
+			c.Control(func(fd uintptr) {
+				err = setReuseAddrPort(fd)
+			})
+			return err
+		},
+	}
+	return lc.Listen(context.Background(), "tcp", addr)
 }

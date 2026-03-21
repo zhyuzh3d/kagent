@@ -13,33 +13,45 @@
     "services": [
       {
         "service_id": "sql_db",
-        "dir": "services/sql_db"
+        "dir": "services/sql_db",
+        "enabled": true,
+        "reliability": "trusted"
       },
       {
         "service_id": "ai_doubao",
-        "dir": "services/ai_doubao"
+        "dir": "services/ai_doubao",
+        "enabled": true,
+        "reliability": "trusted"
       },
       {
         "service_id": "chat_server",
-        "dir": "services/chat_server"
+        "dir": "services/chat_server",
+        "enabled": true,
+        "reliability": "trusted"
       },
       {
         "service_id": "account",
         "dir": "services/account",
-        "depends_on": ["sql_db"]
+        "enabled": true,
+        "reliability": "trusted"
       },
       {
         "service_id": "file_storage",
-        "dir": "services/file_storage"
+        "dir": "services/file_storage",
+        "enabled": true,
+        "reliability": "trusted"
       },
       {
         "service_id": "surface_manager",
         "dir": "services/surface_manager",
-        "depends_on": ["sql_db"]
+        "enabled": true,
+        "reliability": "verified"
       },
       {
         "service_id": "autogui",
-        "dir": "services/autogui"
+        "dir": "services/autogui",
+        "enabled": true,
+        "reliability": "trusted"
       }
     ]
   }

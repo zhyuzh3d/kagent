@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
+
+	"kagent/pkg/hubsvc"
 )
 
 type RawConfig struct {
@@ -94,12 +95,15 @@ func LoadModelConfig(path string, modelName string) (*ModelConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
+	if hubsvc.JSONBytesBlank(b) {
+		return &ModelConfig{}, nil
+	}
 	var raw RawConfig
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	if len(raw.Models) == 0 {
-		return nil, errors.New("config models is empty")
+		return &ModelConfig{}, nil
 	}
 	for i := range raw.Models {
 		if raw.Models[i].Name == modelName {
@@ -116,9 +120,6 @@ func validateModelConfig(cfg *ModelConfig) error {
 	svc := cfg.EffectiveAIService()
 	if svc.Mode != "service" {
 		return errors.New("chat_server ai_service.mode must be service")
-	}
-	if strings.TrimSpace(svc.BaseURL) == "" {
-		return errors.New("ai_service.baseUrl is required")
 	}
 	return nil
 }

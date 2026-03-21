@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"kagent/hub/internal/routing"
 	"kagent/hub/internal/supervisor"
 	"kagent/hub/internal/transport"
+	"kagent/pkg/hubsvc"
 )
 
 func main() {
@@ -41,6 +41,13 @@ func main() {
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
+	if _, err := hubsvc.EnsureProjectConfigFiles(filepath.Join(appRoot, "hub")); err != nil {
+		app.Warnf("HubConfigFile-Ensure-Error:%v", err)
+	} else {
+		if _, err := hubsvc.LoadProjectConfig(filepath.Join(appRoot, "hub")); err != nil {
+			app.Warnf("HubConfigFile-Load-Error:%v", err)
+		}
+	}
 	sqlitePathResolved := app.ResolvePathFromRoot(appRoot, *sqlitePath)
 	servicesConfigPathResolved := app.ResolvePathFromRoot(appRoot, *servicesConfigPath)
 	dataRoot := filepath.Join(appRoot, "data")
@@ -65,6 +72,7 @@ func main() {
 		app.Errorf("HubPlatform-Init-Error:%v", err)
 		os.Exit(1)
 	}
+	hubPlatform.SetBuiltinTools(hubgateway.HubManifest().Tools)
 	servicesRoot := filepath.Join(appRoot, "services")
 	serviceDirs := []struct {
 		serviceID string
@@ -148,6 +156,7 @@ func main() {
 		auditStore,
 		toolHandler,
 		lifecycleManager,
+		startupSnapshotStore,
 		servicesConfigPathResolved,
 		appRoot,
 	)
@@ -181,7 +190,7 @@ func main() {
 		app.Warnf("ServiceLifecycle-Config-Load-Error:%v", cfgErr)
 	} else {
 		registerURL := "http://" + strings.TrimSpace(*addr) + "/api/tool/call"
-		manager, managerErr := supervisor.NewLifecycleManager(appRoot, servicesConfigPathResolved, registerURL, cfg, hubPlatform, supervisorRegistry, transportClient)
+		manager, managerErr := supervisor.NewLifecycleManager(appRoot, servicesConfigPathResolved, registerURL, cfg, hubPlatform, supervisorRegistry)
 		if managerErr != nil {
 			app.Warnf("ServiceLifecycle-Init-Error:%v", managerErr)
 		} else {
@@ -204,7 +213,7 @@ func main() {
 	}
 	systemHandler.Server = server
 
-	listener, err := net.Listen("tcp", *addr)
+	listener, err := hubsvc.Listen(*addr)
 	if err != nil {
 		app.Errorf("System:Internal:Startup:ServerError: %v", err)
 		os.Exit(1)
@@ -218,6 +227,7 @@ func main() {
 			snapshot := lifecycleManager.StartAll(startCtx)
 			readyCount := 0
 			registeredCount := 0
+			skippedCount := 0
 			for _, svc := range snapshot.Services {
 				if svc.Registered {
 					registeredCount++
@@ -227,8 +237,9 @@ func main() {
 					app.Infof("System:Internal:Startup:ServiceReady: service=%s pid=%d instance=%s endpoint=%s attempts=%d", svc.ServiceID, svc.PID, svc.Instance, svc.Endpoint, svc.Attempts)
 					continue
 				}
-				if svc.Registered {
-					app.Warnf("System:Internal:Startup:ServiceRegisteredOnly: service=%s pid=%d instance=%s endpoint=%s status=%s attempts=%d err=%s", svc.ServiceID, svc.PID, svc.Instance, svc.Endpoint, svc.Status, svc.Attempts, svc.ErrorText)
+				if strings.TrimSpace(svc.Status) == supervisor.InstanceStatusSkipped {
+					skippedCount++
+					app.Warnf("System:Internal:Startup:ServiceSkipped: service=%s dir=%s status=%s err=%s", svc.ServiceID, svc.Dir, svc.Status, svc.ErrorText)
 					continue
 				}
 				app.Warnf("System:Internal:Startup:ServiceFailed: service=%s dir=%s exec=%s attempts=%d err=%s", svc.ServiceID, svc.Dir, svc.ExecPath, svc.Attempts, svc.ErrorText)
@@ -243,7 +254,7 @@ func main() {
 					break
 				}
 			}
-			app.Infof("System:Internal:Startup:Lifecycle:Done: registered=%d ready=%d total=%d duration_ms=%d", registeredCount, readyCount, len(snapshot.Services), snapshot.CompletedAtMS-snapshot.StartedAtMS)
+			app.Infof("System:Internal:Startup:Lifecycle:Done: registered=%d ready=%d skipped=%d total=%d duration_ms=%d", registeredCount, readyCount, skippedCount, len(snapshot.Services), snapshot.CompletedAtMS-snapshot.StartedAtMS)
 			if startupSnapshotStore != nil {
 				if err := startupSnapshotStore.Save(ver.Backend, snapshot); err != nil {
 					app.Warnf("StartupSnapshotStore-Save-Error:%v", err)

@@ -1,7 +1,7 @@
 # Service Standard
 
-> 版本：草案 v0.8
-> 起草时间：2026-03-19 CST
+> 版本：草案 v0.9
+> 起草时间：2026-03-21 CST
 > 文档性质：面向 AI 开发、service 接入、service 重构与代码审查的约束性标准
 
 ## 1. 文档目的
@@ -284,6 +284,18 @@
 3. `Hub` 对冲突进行记录并形成治理结论。
 4. `Hub` 只接受必要控制面字段，不接受任意私有业务字段的治理解释权。
 
+### 10.5 `config/` 目录与启动加载约束
+
+为保证 `Hub` 与 `service` 的配置形态一致，当前标准补充以下最低要求：
+
+1. `hub/` 与每个 `service` 项目根目录都必须包含本项目自己的 `config/` 文件夹。
+2. 每个 `config/` 文件夹内都必须至少存在 `config.json`、`configx.json` 与 `configx.json.example` 三个文件。
+3. `config.json` 用于普通配置；`configx.json` 用于用户敏感信息、密钥、令牌或其他不应默认暴露的配置；`configx.json.example` 用于说明 `configx.json` 的字段与格式。
+4. `config.json` 与 `configx.json` 的默认内容应优先使用 `{}`；读取方必须把空文件、空白文件与空对象都视为合法输入，而不是把它当成启动失败。
+5. `service` 必须在程序启动最早阶段加载自己 `config/` 目录内需要的配置，再继续执行注册、暴露 tool 或其他运行逻辑。
+6. 平台级标准只定义 service / hub 进程级统一配置，不提供通用的用户级 `config` 覆盖机制；若某个 `service` 需要按用户差异化行为处理，应在其内部业务数据与业务逻辑中自行实现。
+7. `Hub` 自身也应遵循同样的目录约束；生命周期清单、治理参数与敏感治理配置应位于 `hub/config/` 目录下管理。
+
 ## 11. Tool 标准协议
 
 ### 11.1 Tool 的作用
@@ -355,26 +367,30 @@ tool 元数据必须同时满足：
 
 ### 12.2 标准字段
 
-`manifest.provides[]` 与 `register.tools[]` 应至少能够表达以下字段：
+`manifest.provides[]` 与 `register.tools[]` 应至少能够表达以下声明字段：
 
 | 字段名 | 说明 | 约束 |
 | --- | --- | --- |
+| `category` | 领域分类 | 推荐填写；可由 `tool_id` 拆解 |
+| `type` | 领域类型 | 推荐填写；可由 `tool_id` 拆解 |
+| `tool` | 动作名 | 推荐填写；可由 `tool_id` 拆解 |
 | `tool_id` | 工具唯一逻辑标识 | 必填 |
+| `version` | 工具版本 | 可选，存在时应稳定 |
 | `description` | 工具简要说明 | 必填，短、准、可读 |
 | `input_schema` | 输入结构说明 | 推荐 JSON Schema 或等价结构 |
 | `output_schema` | 输出结构说明 | 推荐 JSON Schema 或等价结构 |
 | `protocol` | 协议形态 | 如 `http`、`uds` |
+| `streaming` | 是否流式 | 应与真实 transport 一致 |
+| `streaming_mode` | 流式模式 | 如 `ws` |
+| `ws_path` | 流式入口路径 | 仅流式工具使用 |
 | `allowed_caller_types` | 允许的 caller 类型 | Hub 路由门槛；可包含 `all` |
 | `capabilities_required` | 所需能力 | Hub 路由门槛 |
-| `hub_only` | 是否只接受 Hub 作为可信入口 | 由 service 声明 |
-| `hub_auth_required` | 是否需要 Hub 鉴权 | 由 service 声明；用于减少无意义计算 |
-| `has_effects` | 是否存在副作用 | 布尔语义或等价表达 |
-| `risk_lv` | 风险等级 | 默认 `0`，由 service 内部设定 |
-| `streaming` | 是否流式 | 应与真实 transport 一致 |
-| `ws_path` | 流式入口路径 | 仅流式工具使用 |
-| `timeout_ms_default` | 默认超时 | 供 Hub 路由和调用参考 |
 | `scope_support` | 业务作用域支持 | storage/database 类 service 常用 |
-| `version` | 工具版本 | 可选，存在时应稳定 |
+| `hub_only` | 是否要求经由 Hub 可信入口接入 | 由 service 声明；同时隐含依赖 Hub 的可信注入与校验 |
+| `has_effects` | 是否存在副作用 | 布尔语义或等价表达 |
+| `side_effect` | 副作用摘要 | 如 `set_cookie`、`write_file` |
+| `risk_lv` | 风险等级 | 默认 `0`，由 service 内部设定 |
+| `timeout_ms_default` | 默认超时 | 供 Hub 路由和调用参考 |
 
 ### 12.3 字段边界说明
 
@@ -387,16 +403,81 @@ tool 元数据必须同时满足：
    - 只表达 Hub 侧能力门槛
    - 不等于内部执行权限
 3. `hub_only`
-   - 表达 service 对该 tool 的接入姿态
+   - 表达 service 对该 tool 的接入姿态与可信入口要求
+   - 若 `hub_only=true`，表示该 tool 预期通过 Hub 进入，并依赖 Hub 的可信注入与校验
    - 不等于 Hub 可以物理强制全世界
-4. `hub_auth_required`
-   - 表达该 tool 是否依赖 Hub 可信注入
-   - 与 `allowed_caller_types` 不是同一维度
-5. `risk_lv`
+4. `risk_lv`
    - 是 service 对 tool 风险的自声明
    - 可被 Hub 用于展示、标记和默认路由策略
 
-### 12.4 `allowed_caller_types=all`
+### 12.4 Hub 对外完整 Tool 对象
+
+`manifest.provides[]` 与 `register.tools[]` 只承载 `service` 的声明事实。`Hub` 对外提供给治理接口、管理页面和 AI 的完整 tool 对象，应拆成以下三层：
+
+1. `spec`
+   - `service` 自报的稳定声明
+2. `observed`
+   - `Hub` 从 register / heartbeat / instance 观察到的运行事实
+3. `governance`
+   - `Hub` 的治理结论、路由结果与统计结果
+
+推荐结构如下：
+
+```json
+{
+  "tool_id": "storage.file.read",
+  "service_id": "file_storage",
+  "spec": {
+    "category": "storage",
+    "type": "file",
+    "tool": "read",
+    "version": "1.0.0",
+    "description": "Read one file within caller scope.",
+    "input_schema": {},
+    "output_schema": {},
+    "protocol": "http",
+    "streaming": false,
+    "streaming_mode": "",
+    "ws_path": "",
+    "allowed_caller_types": ["user", "surface", "service"],
+    "capabilities_required": [],
+    "scope_support": ["user", "surface", "service"],
+    "hub_only": true,
+    "has_effects": false,
+    "side_effect": "",
+    "risk_lv": 0,
+    "timeout_ms_default": 5000
+  },
+  "observed": {
+    "registered": true,
+    "healthy_instance_count": 1,
+    "last_seen_at_ms": 1760000000000,
+    "transport": "tcp",
+    "endpoint": "http://127.0.0.1:18084",
+    "source": "manifest+register+heartbeat"
+  },
+  "governance": {
+    "enabled": true,
+    "bound_service_id": "file_storage",
+    "binding_reason": "manual_override|score|single_provider",
+    "manual_override": false,
+    "reliability": "verified",
+    "success_rate": 0.99,
+    "call_count": 1234,
+    "conflict_reason": ""
+  }
+}
+```
+
+字段边界要求如下：
+
+1. `healthy_instance_count`、`last_seen_at_ms` 属于 `observed`
+2. `bound_service_id`、`binding_reason`、`manual_override` 属于 `governance`
+3. `bound_service_id` 表示 Hub 当前把该 `tool_id` 路由到哪个 `service_id`，不是替代工具名
+4. `reliability`、`success_rate`、`call_count` 的最终值由 Hub 维护，不由 service 自设
+5. 若 Hub 只暴露扁平对象，也必须能无歧义映射回 `spec / observed / governance` 三层
+
+### 12.5 `allowed_caller_types=all`
 
 当 `allowed_caller_types` 包含 `all` 时，表示：
 
@@ -515,6 +596,33 @@ caller 不是：
 
 这些字段属于 `Hub` 的治理产物，而不是 service 的最终自声明事实。
 
+### 15.4 Service Catalog 与管理界面特殊项
+
+`Hub` 对外提供 service 列表、tool 全集和管理界面数据时，应遵循以下规则：
+
+1. service 列表必须包含 `hub` 自身。
+2. `hub` 应被视为内建虚拟 `service`，而不是普通受管子进程。
+3. tool 全集必须包含 `hub` 自身提供的 `hub.admin.*`、`hub.governance.service.*`、`hub.system.*` 工具。
+4. `Hub` 对外返回 service catalog 时，应显式标记 `hub` 的特殊身份，例如 `builtin=true`、`service_kind=hub` 或等价字段。
+
+管理界面与治理接口应基于该标记做特殊处理：
+
+1. `hub` 不应复用普通 service 的启动、停止、重启、构建语义。
+2. `hub` 的停机属于高风险操作，应单独标记、单独确认。
+3. `hub` 不应默认暴露普通 service 的 runtime manifest 编辑、工作目录文件编辑或普通 provider 重绑入口，除非该能力被单独设计并明确授权。
+4. `hub` 的 endpoint、instance、transport、lifecycle 展示应体现其“内建/当前进程”语义，而不是伪装成普通外部实例。
+5. 若某个界面同时展示普通 service 与 `hub`，应保证用户能清楚区分两者的治理边界与可操作范围。
+
+### 15.5 `config/` 目录治理接口
+
+针对 `service` 项目的 `config/` 目录，`Hub` 与管理界面应至少提供以下治理能力：
+
+1. 能列出目标 `service` 的 `config/` 目录中文件列表，而不是只暴露固定两个文件的只读快照。
+2. 能读取并修改 `config/` 目录内任意配置文件，前提是路径仍受限于该 `service` 自己的 `config/` 根目录。
+3. 对 `configx.json` 或其他敏感配置文件，应在界面或返回结构中显式标记其敏感属性，但不应因此失去通用编辑能力。
+4. 管理界面中的 service/admin 页面应以“配置目录视图 + 通用编辑器”为主，而不应只提供 `config.json` / `configx.json` 的硬编码下拉项。
+5. 若平台保留 `config.json`、`configx.json` 的快捷工具，也应把它们视为通用 `config/` 文件治理能力的语法糖，而不是完整替代品。
+
 ## 16. 推荐可信模式
 
 ### 16.1 目标
@@ -538,7 +646,7 @@ caller 不是：
 
 推荐可信模式应写成建议性与接入姿态要求，而不是伪强制表达。因此：
 
-1. 若 tool 声明 `hub_only=true` 或 `hub_auth_required=true`，则表示该 tool 期望以 Hub 作为可信入口。
+1. 若 tool 声明 `hub_only=true`，则表示该 tool 期望以 Hub 作为可信入口，并依赖 Hub 的可信注入与校验。
 2. `service` 应实现与该声明一致的内部逻辑。
 3. `Hub` 可以根据这些声明做标记、展示与默认路由决策。
 4. `Hub` 不负责证明全世界都遵守这一点。
@@ -659,6 +767,8 @@ caller 不是：
 3. 能通过 `manifest / register / heartbeat` 被 `Hub` 纳管。
 4. 能让 `Hub` 对其 `tool` 做 caller / capability 前置筛选。
 5. 能让 `Hub` 维护其运行统计与状态视图。
+6. 项目根目录内存在 `config/`、`config.json` 与 `configx.json`。
+7. 启动阶段会在暴露能力前加载所需配置，并把空配置视为合法默认状态。
 
 当一个 `tool` 被视为符合当前标准时，应至少满足：
 
@@ -687,10 +797,20 @@ caller 不是：
 
 1. `Hub` 对其内部安全做了完全背书。
 
----
+## 22. 网络监听与端口重用 (Networking & Port Reuse)
+ 
+ 为了保证服务在本地开发、CI/CD 以及 Hub 生命周期编排中的鲁棒性，所有 Service 必须遵循以下网络规范：
+ 
+ 1. **统一监听入口**：禁止直接使用 `net.Listen` 或 `http.ListenAndServe`。所有符合规范的 Service 必须通过 `pkg/hubsvc.Listen(addr)` 获取监听器。
+ 2. **强制开启重用选项**：
+     - **SO_REUSEADDR**：必须开启，以允许端口在 `TIME_WAIT` 状态下立即重启。
+     - **SO_REUSEPORT** (POSIX 系统)：在 macOS 和 Linux 上必须开启，以增强新进程抢占旧进程端口的能力，确保新旧交替无缝衔接。
+ 3. **跨平台兼容**：Service 的监听逻辑应通过 `pkg/hubsvc` 屏蔽底层差异（如 Windows 与 POSIX 的系统调用差异），确保一致的启动行为。
+ 
+ ---
+ 
+**文档更新时间**：2026-03-21 12:29:00 CST
 
-**文档更新时间**：2026-03-19 20:00:27 CST
+**本轮修改范围**：细化 `config/` 目录标准，补入 `configx.json.example` 与 `{}` 默认值约束，明确平台级标准不再提供通用用户级 config 覆盖机制；保留第 22 章节“网络监听与端口重用”规范。
 
-**本轮修改范围**：仅精炼 `/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_service_standard.md` 的重复、冗余与啰嗦表述，不新增规范点，不删减既有约束含义。
-
-**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_service_standard.md` 既有内容、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_instruction.md` 的文档入口规则，以及本轮对本文件内部结构与语义重复点的逐段复核。
+**信息来源**：`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/doc/_service_standard.md` 既有内容、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/pkg/hubsvc/project_config.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/hub/internal/app/hub_platform.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/hub/internal/gateway/admin_service_tools.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/cmd/chat_server/main.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/services/chat_server/internal/app/runtime_config.go`、`/Users/zhyuzh/BaiduTongbu/2026.03.03kagent/kagent/webui/page/service/admin.js` 的实时核对结果。

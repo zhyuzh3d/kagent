@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"kagent/pkg/hubsvc"
 )
 
 const (
@@ -919,25 +921,6 @@ func clamp01(v float64) float64 {
 }
 
 func EnsureServiceConfigFiles(serviceRoot string) error {
-	root := strings.TrimSpace(serviceRoot)
-	if root == "" {
-		return fmt.Errorf("service root is empty")
-	}
-	configDir := filepath.Join(root, "config")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return fmt.Errorf("create service config dir: %w", err)
-	}
-	sampleFiles := map[string]string{
-		filepath.Join(configDir, "config.json"):          "{\n  \"service\": {}\n}\n",
-		filepath.Join(configDir, "configx.json.example"): "{\n  \"secrets\": {\n    \"token\": \"\"\n  }\n}\n",
-	}
-	for path, content := range sampleFiles {
-		if _, err := os.Stat(path); err == nil {
-			continue
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write service config sample %s: %w", path, err)
-		}
-	}
-	return nil
+	_, err := hubsvc.EnsureProjectConfigFiles(serviceRoot)
+	return err
 }

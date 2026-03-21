@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -33,11 +34,21 @@ func main() {
 	if rootErr != nil {
 		app.Warnf("detect app root fallback: %v", rootErr)
 	}
+	if _, err := hubsvc.LoadProjectConfig(filepath.Join(appRoot, "services", "ai_doubao")); err != nil {
+		app.Errorf("load service config failed: %v", err)
+		os.Exit(1)
+	}
 	configPathResolved := app.ResolvePathFromRoot(appRoot, *configPath)
 	serviceSecretPath := app.ResolvePathFromRoot(appRoot, "services/ai_doubao/run/.service_secret")
+	processStorePath := app.ResolvePathFromRoot(appRoot, "services/ai_doubao/run/.service_pid")
+	runtimeManifestPath := app.ResolvePathFromRoot(appRoot, "services/ai_doubao/run/manifest_runtime.json")
 	serviceBootstrap, err := hubsvc.LoadBootstrapSecret(serviceSecretPath)
 	if err != nil {
 		app.Errorf("load bootstrap secret failed: %v", err)
+		os.Exit(1)
+	}
+	if err := hubsvc.CleanupPreviousServiceProcess(processStorePath, "ai_doubao"); err != nil {
+		app.Errorf("cleanup previous process failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -144,60 +155,6 @@ func main() {
 	}
 
 	hubToolCallURL := buildHubToolCallURL(registerURL)
-	if hubToolCallURL != "" {
-		healthy := true
-		info := &app.AIServiceInfo{
-			ServiceID:    "ai_doubao",
-			ServiceName:  "ai_doubao",
-			Version:      version,
-			Provider:     "ai_doubao",
-			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.llm.generate", "ai.speech.tts"},
-			Transport:    "http+ws",
-		}
-		manifest := app.BuildAIServiceManifest(info, toolDescriptors, true)
-		registerPayload := app.SupervisorRegisterRequest{
-			ServiceID:  strings.TrimSpace(manifest.ServiceID),
-			InstanceID: strings.TrimSpace(instance),
-			Version:    strings.TrimSpace(manifest.Version),
-			Transport:  "tcp",
-			Endpoint: app.Endpoint{
-				TCPURL: "http://" + strings.TrimSpace(*addr),
-			},
-			Tools:   toSupervisorToolsFromDescriptors(version, toolDescriptors),
-			Healthy: &healthy,
-		}
-
-		callReq := toolproto.CallRequest{
-			ToolID: "hub.governance.service.register",
-			Args:   structToMap(registerPayload),
-			Context: &toolproto.Context{
-				RequestID: "reg-" + app.NewRequestID(),
-				TraceID:   "tr-" + app.NewRequestID(),
-				Caller: toolproto.Caller{
-					Type:      "service",
-					ServiceID: strings.TrimSpace(manifest.ServiceID),
-				},
-			},
-		}
-		rawResp, statusCode, err := postHubToolCall(hubToolCallURL, serviceBootstrap, callReq)
-		if err != nil {
-			app.Errorf("register ai_doubao to hub failed: %v", err)
-			os.Exit(1)
-		}
-		if statusCode >= 300 {
-			app.Errorf("register ai_doubao to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
-			os.Exit(1)
-		}
-		if _, err := hubsvc.DecodeSupervisorRegisterResult(rawResp); err != nil {
-			app.Errorf("decode register response failed: %v", err)
-			os.Exit(1)
-		}
-		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
-			app.Warnf("delete bootstrap secret failed: %v", err)
-		}
-		app.Infof("register ai_doubao to hub status=%d", statusCode)
-	}
-
 	mux := http.NewServeMux()
 	var server *http.Server
 	var shutdownOnce sync.Once
@@ -421,11 +378,85 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	app.Infof("ai_doubao service listening at http://%s", *addr)
+	ln, err := hubsvc.Listen(*addr)
+	if err != nil {
+		app.Errorf("service listen failed: %v", err)
+		os.Exit(1)
+	}
+	startedAtMS := time.Now().UnixMilli()
+	if err := hubsvc.RecordCurrentServiceProcess(processStorePath, "ai_doubao", startedAtMS); err != nil {
+		app.Errorf("record current process failed: %v", err)
+		os.Exit(1)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- server.Serve(ln)
+	}()
 	if hubToolCallURL != "" {
+		healthy := true
+		info := &app.AIServiceInfo{
+			ServiceID:    "ai_doubao",
+			ServiceName:  "ai_doubao",
+			Version:      version,
+			Provider:     "ai_doubao",
+			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.llm.generate", "ai.speech.tts"},
+			Transport:    "http+ws",
+		}
+		manifest := app.BuildAIServiceManifest(info, toolDescriptors)
+		registerPayload := app.SupervisorRegisterRequest{
+			ServiceID:  strings.TrimSpace(manifest.ServiceID),
+			InstanceID: strings.TrimSpace(instance),
+			Version:    strings.TrimSpace(manifest.Version),
+			Transport:  "tcp",
+			Endpoint: app.Endpoint{
+				TCPURL: "http://" + strings.TrimSpace(*addr),
+			},
+			Tools:   toSupervisorToolsFromDescriptors(version, toolDescriptors),
+			Healthy: &healthy,
+		}
+
+		callReq := toolproto.CallRequest{
+			ToolID: "hub.governance.service.register",
+			Args:   structToMap(registerPayload),
+			Context: &toolproto.Context{
+				RequestID: "reg-" + app.NewRequestID(),
+				TraceID:   "tr-" + app.NewRequestID(),
+				Caller: toolproto.Caller{
+					Type:      "service",
+					ServiceID: strings.TrimSpace(manifest.ServiceID),
+				},
+			},
+		}
+		rawResp, statusCode, err := postHubToolCall(hubToolCallURL, serviceBootstrap, callReq)
+		if err != nil {
+			app.Errorf("register ai_doubao to hub failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if statusCode >= 300 {
+			app.Errorf("register ai_doubao to hub status=%d body=%s", statusCode, strings.TrimSpace(string(rawResp)))
+			shutdownNow("register to hub failed")
+			return
+		}
+		registerResp, err := hubsvc.DecodeSupervisorRegisterResult(rawResp)
+		if err != nil {
+			app.Errorf("decode register response failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.WriteServiceRuntimeManifest(runtimeManifestPath, registerResp); err != nil {
+			app.Errorf("write runtime manifest failed: %v", err)
+			shutdownNow("register to hub failed")
+			return
+		}
+		if err := hubsvc.DeleteBootstrapSecret(serviceSecretPath); err != nil {
+			app.Warnf("delete bootstrap secret failed: %v", err)
+		}
+		app.Infof("register ai_doubao to hub status=%d", statusCode)
 		startHubToolHeartbeatGuard(hubToolCallURL, "ai_doubao", instance, os.Getpid(), "http://"+strings.TrimSpace(*addr), serviceBootstrap, shutdownNow)
 	}
-	app.Infof("ai_doubao service listening at http://%s", *addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := <-serveErrCh; err != nil && err != http.ErrServerClosed {
 		app.Errorf("service listen failed: %v", err)
 		os.Exit(1)
 	}
