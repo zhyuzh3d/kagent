@@ -2,6 +2,32 @@ package app
 
 import "strings"
 
+type ServiceManifest struct {
+	ServiceID   string
+	ServiceName string
+	Version     string
+	Reliability string
+	Visibility  string
+	Provides    []ServiceToolDescriptor
+	Requires    []string
+}
+
+type ServiceToolDescriptor struct {
+	Category             string
+	Type                 string
+	Tool                 string
+	ToolID               string
+	Description          string
+	InputSchema          map[string]any
+	OutputSchema         map[string]any
+	SideEffect           string
+	ScopeSupport         []string
+	CapabilitiesRequired []string
+	AllowedCallerTypes   []string
+	TimeoutMSDefault     int
+	Streaming            string
+}
+
 func BuiltinServiceManifests() []ServiceManifest {
 	return []ServiceManifest{
 		{

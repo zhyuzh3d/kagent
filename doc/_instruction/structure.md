@@ -66,7 +66,7 @@ kagent/                                         # 仓库根目录
 │   │   ├── account/index.html                  # 账号页面
 │   │   ├── chat/                               # Chat 页面脚本与资源
 │   │   ├── service/                            # Service/admin 治理页面与配置/文件编辑 UI
-│   │   └── surface/                            # Surface 页面脚本与资源
+│   │   └── surface/                            # Surface 页面脚本与资源 (含 lib/ 逻辑库与 components/ 组件)
 │   └── surface/                                # 插件化 UI
 │       ├── buildin/                            # 内置 Surface
 │       └── demo-unsafe.html                    # 示例页面（用途待确认）

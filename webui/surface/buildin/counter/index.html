@@ -302,7 +302,11 @@
       const args = action.args && typeof action.args === "object" ? action.args : {};
 
       if (name === "get_state") {
-        emitActionResult(action, "ok", { from_surface: true });
+        emitActionResult(action, "ok", { 
+          from_surface: true, 
+          count: count, 
+          state_version: stateVersion 
+        });
         return;
       }
 

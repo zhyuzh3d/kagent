@@ -1,6 +1,6 @@
 import { EMPTY_LOG_TEXT } from "./constants.js";
 import { escapeAttribute, redactSessionToken } from "./formatters.js";
-import { createSurfaceBridge } from "../bridge.js";
+import { createSurfaceBridge } from "../lib/bridge.js";
 
 export function createRuntimeController({
   els,
@@ -67,6 +67,15 @@ export function createRuntimeController({
       if (msg.type === "surface_ready" || msg.type === "surface_actions") {
         setActions(msg.actions || []);
       }
+      if (msg.type === "state_change" || msg.type === "surface_ready") {
+        state.lastSurfaceState = msg;
+        if (els.tabsNav) {
+          const statusTab = els.tabsNav.querySelector('[data-tab="status"]');
+          if (statusTab && statusTab.classList.contains("active")) {
+             loadRuntime(true).catch(() => {});
+          }
+        }
+      }
       appendLog(msg.type || "event", msg);
     };
     state.port.start();
@@ -83,6 +92,17 @@ export function createRuntimeController({
     );
   }
 
+  function renderCapabilities(entry) {
+    if (!els.capabilitiesList) return;
+    const caps = entry.allowed_host_calls || [];
+    if (!caps.length) {
+      els.capabilitiesList.innerHTML = '<span class="hint">此 Surface 无特殊权限要求</span>';
+      return;
+    }
+    const html = caps.map(cap => `<span class="pill">${escapeAttribute(cap)}</span>`).join("");
+    els.capabilitiesList.innerHTML = html;
+  }
+
   async function loadSurface(surfaceID) {
     if (!surfaceID) {
       throw new Error("请先选择要加载的 Surface");
@@ -94,9 +114,10 @@ export function createRuntimeController({
     state.entry = entry;
     state.sessionToken = session.surface_session_token || "";
     renderSurfaceSelect(entry.surface_id);
-    els.surfaceMeta.textContent = `${entry.name || entry.surface_id} / ${entry.surface_id}`;
+    els.surfaceMeta.textContent = `${entry.name || entry.surface_id}`;
     els.entryMeta.textContent = entry.entry_url || "-";
     renderSessionToken(state.sessionToken);
+    renderCapabilities(entry);
     els.surfaceFrame.onload = () => connectChannel(entry);
     els.surfaceFrame.src = entry.entry_url;
     setStatus("已就绪", "ok");
@@ -109,16 +130,32 @@ export function createRuntimeController({
     appendLog("action_call", action);
   }
 
-  async function loadRuntime() {
+  async function loadRuntime(silent = false) {
     if (!state.entry) return;
     const result = await callTool("ui.surface.runtime_status", { surface_id: state.entry.surface_id });
-    appendLog("runtime_status", result);
+    
+    if (state.lastSurfaceState) {
+      result.last_surface_state = state.lastSurfaceState;
+    }
+
+    if (els.runtimeStatus) {
+      els.runtimeStatus.textContent = JSON.stringify(result, null, 2);
+    }
+    if (!silent) {
+      appendLog("runtime_status", { surface_id: state.entry.surface_id, note: "已同步至状态页" });
+    }
   }
 
   async function loadLogs() {
     if (!state.entry) return;
     const result = await callTool("ui.surface.logs_query", { surface_id: state.entry.surface_id, limit: 60 });
     appendLog("logs_query", result);
+  }
+
+  function reloadIframe() {
+    if (els.surfaceFrame && els.surfaceFrame.src && els.surfaceFrame.src !== "about:blank") {
+       els.surfaceFrame.contentWindow.location.reload();
+    }
   }
 
   return {
@@ -129,5 +166,6 @@ export function createRuntimeController({
     loadSurface,
     renderSessionToken,
     setStatus,
+    reloadIframe,
   };
 }

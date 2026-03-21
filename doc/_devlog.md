@@ -496,3 +496,43 @@
 - 核心变更：将服务管理页 (`page/service/admin`) 的服务列表与工具列表所在的 `.table-card` 容器圆角从 18px 统一改为 12px (`var(--radius-md)`)，并添加 `overflow: hidden` 以确保表头背景与容器圆角对齐，提升了数据展示区的视觉一致性。
 - 关键文件：`webui/page/service/admin.css`
 - 验证结果：已在 CSS 中分离 `.table-card` 定义。依据：代码修改核验。
+## [2026-03-21 22:30 CST] Surface 页面脚本目录整理与 lib/ 落地 (Surface Page Script Reorganization)
+- 核心变更：
+  - 在 `webui/page/surface/` 下创建 `lib/` 目录，将逻辑与工具类脚本从页面目录移入。
+  - **文件移动**：`action-dispatcher.js`, `bridge.js`, `llm-protocol.js`, `manifest.js`, `prompt-assembly.js`, `record-store.js`, `surface-manager.js`, `utils.js` 统一移至 `lib/`。
+  - **引用更新**：同步更新了 `main.js`、`components/runtime.js` 以及 `lib/surface-manager.js` 等文件中的相对导入路径，确保模块链路完整，不再在页面根目录下散落非入口脚本。
+- 关键文件：
+  - `webui/page/surface/lib/` (新目录)
+  - `webui/page/surface/main.js`
+  - `webui/page/surface/components/runtime.js`
+  - `webui/page/surface/lib/surface-manager.js`
+- 验证结果：模块导入路径已按 `webui/page/surface/` 与 `webui/page/surface/lib` 的层级关系完成对齐。依据：代码修改核验。
+
+## [2026-03-21 22:45 CST] Surface Loader 界面交互与美学重构 (UI/UX Transformation)
+- 核心变更：
+  - **布局范式迁移**：将 `index.html` 从传统的上下分离布局重构为“左侧主预览 + 右侧多功能面板”的现代 WebApp 架构。
+  - **信息层级收纳**：运行区顶部的 Surface 元数据（名称、入口、Token）正式挪至右侧面板的“概览”标签页，释放了主视口的纵向空间。
+  - **侧边栏标签化**：右侧面板全面转为标签页（Tabs）模式，支持“概览”、“动作”、“状态”、“日志”四项分类，并实现了切换时的自动状态同步（如切换到状态页即自动拉取快照）。
+  - **美学与响应式标准化**：
+    - 视觉：接入 Teal 品牌色系 (`#0d9488`)，引入 Inter 字体、卡片悬浮阴影、毛玻璃背景效果 (`glass-bg`) 以及 `fadeIn` 平滑切页动画。
+    - 响应式：针对 Pad (1024px) 与 Mobile (768px) 进行了深度适配，支持侧边栏自动下沉与顶部控件流式换行，确保全设备下的高可用性。
+  - **功能补强**：在预览区增加了“刷新”按钮；在“概览”页增加了 Surface 权限能力（Capabilities）的药丸式可视化展示。
+- 关键文件：
+  - `webui/page/surface/index.html`
+  - `webui/page/surface/styles.css`
+  - `webui/page/surface/components/dom.js`
+  - `webui/page/surface/components/app.js`
+  - `webui/page/surface/components/runtime.js`
+- 收益：界面从“简易加载器”进化为具备生产力的“Surface 控制台”，降低了操作的认知负荷，提升了插件开发的调试效率。
+
+## [2026-03-21 22:45 CST] Surface Loader 布局与排版规范化 (Design Guide Alignment)
+- 核心变更：
+  - **布局修正**：针对“预览区高度不足”和“侧边栏过窄”的问题，重新定义了栅格布局 `grid-template-columns: minmax(0, 1fr) 480px;` 增加右侧宽度；并将预览区容器设定为 `.card-body { flex: 1; display: flex; flex-direction: column; }` 配合 `iframe { flex: 1; }`，使其强制撑满可视高度。
+  - **排版对齐**：全面清理了 CSS 中的私有字号（如 12px/13px），严格遵照 `doc/_page_guide.md` 的规范：
+    - `body` 重置为绝对字号 `14px`。
+    - 列表主标签、状态标识 `.badge`/`.pill` 和小字提示改用 `0.8rem` (11.2px) 避免干扰。
+    - 卡片标题 `.card-header h2` 及主控 `.brand h1` 改用 `1.2rem` (16.8px) 强化信息层级。
+    - 所有 `.mono` 类与数据文本均显式继承基础并引入 `JetBrains Mono` 字体栈以确保数据展示的技术质感。
+- 关键文件：
+  - `webui/page/surface/styles.css`
+- 收益：消灭了与设计白皮书冲突的样式碎片，使布局比重更加合理，改善了控制台类页面的空间利用率。

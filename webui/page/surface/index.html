@@ -7,52 +7,168 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="shell">
-    <div class="topbar">
-      <h1>Surface 加载器<span class="sub">从分类列表选择可用 Surface，并查看它主动上报的动作定义与事件回报</span></h1>
+  <header class="app-header">
+    <div class="brand">
+      <h1>Surface <span class="accent-text">Loader</span></h1>
+      <p class="sub">测试与运行插件化 Surface 界面，管理动作定义与生命周期事件</p>
+    </div>
+    <div class="controls">
       <select id="surfaceSelect" class="mono surface-select" aria-label="选择 Surface"></select>
       <button id="loadBtn" class="primary">加载</button>
+      <button id="resetLayoutBtn" type="button">重置布局</button>
       <span id="statusBadge" class="badge">READY</span>
     </div>
+  </header>
 
-    <div class="layout">
-      <section class="card">
-        <h2>Surface 运行区</h2>
-        <div class="body">
-          <div class="kv">
-            <label>Surface</label><div id="surfaceMeta" class="mono">-</div>
-            <label>入口</label><div id="entryMeta" class="mono">-</div>
-            <label>会话</label>
-            <div id="sessionMeta" class="session-text">
-              <span class="mono">-</span>
+  <main class="window-desktop">
+    <!-- 运行预览 (最底层) -->
+    <section
+      class="panel-window"
+      id="windowPreview"
+      data-panel-id="preview"
+      data-base-z="10"
+      data-min-width="420"
+      data-min-height="320"
+    >
+      <div class="panel-header window-drag-handle">
+        <div class="header-left">
+          <h2>运行预览</h2>
+        </div>
+        <div class="header-right">
+           <button id="refreshFrameBtn" class="icon-btn" type="button" title="重载预览" aria-label="重载预览">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+           </button>
+           <button class="icon-btn window-collapse-btn" type="button" title="折叠或恢复窗口" aria-label="折叠或恢复运行预览">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+           </button>
+        </div>
+      </div>
+      <div class="panel-body glass-bg no-padding">
+        <iframe id="surfaceFrame" sandbox="allow-scripts allow-downloads" src="about:blank"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </section>
+
+    <!-- 调试日志 (中间层) -->
+    <section
+      class="panel-window"
+      id="windowLog"
+      data-panel-id="log"
+      data-base-z="20"
+      data-min-width="420"
+      data-min-height="180"
+    >
+      <div class="panel-header window-drag-handle">
+        <div class="header-left">
+          <h2>调试日志</h2>
+        </div>
+        <div class="header-right">
+          <button id="clearLogsBtn" class="icon-btn" type="button" title="清空日志" aria-label="清空日志"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+          <button id="toggleLogBtn" class="icon-btn window-collapse-btn" type="button" title="折叠或恢复窗口" aria-label="折叠或恢复调试日志"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+        </div>
+      </div>
+      <div class="panel-body no-padding log-body">
+        <pre id="eventLog" class="mono code-box log-scroll">（空）</pre>
+      </div>
+      <div class="window-resizer"></div>
+    </section>
+
+      <!-- 控制面板 (最顶层) -->
+    <aside
+      class="panel-window"
+      id="windowControl"
+      data-panel-id="control"
+      data-base-z="30"
+      data-min-width="360"
+      data-min-height="360"
+    >
+      <div class="panel-header window-drag-handle">
+        <div class="header-left">
+          <h2>控制面板</h2>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn window-collapse-btn" type="button" title="折叠或恢复窗口" aria-label="折叠或恢复控制面板"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+        </div>
+      </div>
+      <div class="panel-body flex-col no-padding tabs-card">
+        <nav class="tabs-nav" id="tabsNav">
+          <button class="tab-btn active" data-tab="overview">概览</button>
+          <button class="tab-btn" data-tab="actions">动作</button>
+          <button class="tab-btn" data-tab="status">状态</button>
+        </nav>
+        <div class="tabs-content">
+            <!-- 概览标签 -->
+            <div class="tab-pane active" id="tab-overview">
+              <div class="pane-inner">
+                <div class="section-title">概览信息</div>
+                <div class="metadata-stack">
+                  <div class="kv-item stack">
+                    <label>标识</label>
+                    <div id="surfaceMeta" class="mono">-</div>
+                  </div>
+                  <div class="kv-item stack">
+                    <label>入口地址</label>
+                    <div id="entryMeta" class="mono truncate">-</div>
+                  </div>
+                  <div class="kv-item stack">
+                    <label>会话令牌</label>
+                    <div id="sessionMeta" class="mono session-field">-</div>
+                  </div>
+                </div>
+
+                <div class="section-title">权限与能力</div>
+                <div id="capabilitiesList" class="caps-container stack-items">
+                  <span class="hint">未绑定 Surface</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <iframe id="surfaceFrame" sandbox="allow-scripts allow-downloads"></iframe>
-        </div>
-      </section>
 
-      <section class="card">
-        <h2>动作 / 事件</h2>
-        <div class="body stack">
-          <div class="row">
-            <span id="actionsBadge" class="pill">动作：0</span>
-            <span class="hint">动作列表由当前 Surface 通过事件主动上报，右侧 schema 会随选择同步更新。</span>
-          </div>
-          <div class="action-grid">
-            <select id="actionSelect"></select>
-            <pre id="actionSchema" class="mono">暂无动作 schema</pre>
-            <textarea id="actionEditor" class="mono">{"id":"demo-act","name":"","args":{}}</textarea>
-          </div>
-          <div class="row">
-            <button id="dispatchBtn" class="primary">发送动作</button>
-            <button id="runtimeBtn">运行状态</button>
-            <button id="logsBtn">日志</button>
-          </div>
-          <pre id="eventLog" class="mono event-log">（空）</pre>
+            <!-- 动作标签 -->
+            <div class="tab-pane" id="tab-actions">
+              <div class="pane-inner stack-y flex-col">
+                <div class="form-item">
+                  <div class="label-row">
+                    <label>可用动作</label>
+                    <span id="actionsBadge" class="pill">0</span>
+                  </div>
+                  <select id="actionSelect" class="full-width"></select>
+                </div>
+
+                <div class="action-details-tabs">
+                  <nav class="inner-tabs-nav" id="actionTabsNav">
+                    <button class="inner-tab-btn active" data-inner-tab="schema">Schema</button>
+                    <button class="inner-tab-btn" data-inner-tab="json">可执行 JSON</button>
+                  </nav>
+
+                  <div class="inner-tabs-content">
+                    <div class="inner-tab-pane active" id="inner-tab-schema">
+                      <pre id="actionSchema" class="mono code-box action-scroll mini-scroll">暂无动作定义</pre>
+                    </div>
+                    <div class="inner-tab-pane" id="inner-tab-json">
+                      <textarea id="actionEditor" class="mono editor-box full-width mini-scroll" spellcheck="false">{}</textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <button id="dispatchBtn" class="primary full-width">执行动作指令</button>
+              </div>
+            </div>
+
+            <!-- 状态标签 -->
+            <div class="tab-pane" id="tab-status">
+              <div class="pane-inner stack-y flex-col">
+                <div class="label-row flex-between">
+                  <div class="section-title mb-0">实时动态快照</div>
+                  <span class="status-live-indicator"><span class="live-dot"></span>自动刷新中</span>
+                </div>
+                <pre id="runtimeStatus" class="mono code-box grow mini-scroll">等待查询...</pre>
+              </div>
+            </div>
         </div>
-      </section>
-    </div>
-  </div>
+      </div>
+      <div class="window-resizer"></div>
+    </aside>
+  </main>
 
   <script type="module" src="./components/app.js"></script>
 </body>

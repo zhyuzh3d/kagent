@@ -1,9 +1,9 @@
-import { GLOBAL_ACTION_DESCRIPTORS, createActionDispatcher } from "./action-dispatcher.js";
-import { createLLMProtocolSession } from "./llm-protocol.js";
-import { assemblePromptBundle, loadPromptOverrideText, savePromptOverrideText } from "./prompt-assembly.js";
-import { createRecordStore } from "./record-store.js";
-import { createSurfaceManager } from "./surface-manager.js";
-import { createID, sleep } from "./utils.js";
+import { GLOBAL_ACTION_DESCRIPTORS, createActionDispatcher } from "./lib/action-dispatcher.js";
+import { createLLMProtocolSession } from "./lib/llm-protocol.js";
+import { assemblePromptBundle, loadPromptOverrideText, savePromptOverrideText } from "./lib/prompt-assembly.js";
+import { createRecordStore } from "./lib/record-store.js";
+import { createSurfaceManager } from "./lib/surface-manager.js";
+import { createID, sleep } from "./lib/utils.js";
 
 fetch('/api/debug/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: 'INFO', module: 'System', content: 'Surface Manager module start', source: 'SURF', page: 'surface' }) }).catch(() => {});
 

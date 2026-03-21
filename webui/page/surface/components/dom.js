@@ -1,19 +1,40 @@
 export function getElements() {
   return {
+    // 顶部控制栏
     surfaceSelect: document.getElementById("surfaceSelect"),
     loadBtn: document.getElementById("loadBtn"),
+    resetLayoutBtn: document.getElementById("resetLayoutBtn"),
     statusBadge: document.getElementById("statusBadge"),
+
+    // 运行区
+    surfaceFrame: document.getElementById("surfaceFrame"),
+    refreshFrameBtn: document.getElementById("refreshFrameBtn"),
+
+    // 分隔面板控制
+    logResizer: document.getElementById("logResizer"),
+    logPane: document.getElementById("logPane"),
+    toggleLogBtn: document.getElementById("toggleLogBtn"),
+
+    // 侧边概览
     surfaceMeta: document.getElementById("surfaceMeta"),
     entryMeta: document.getElementById("entryMeta"),
     sessionMeta: document.getElementById("sessionMeta"),
-    surfaceFrame: document.getElementById("surfaceFrame"),
+    capabilitiesList: document.getElementById("capabilitiesList"),
+
+    // 动作面板
     actionSelect: document.getElementById("actionSelect"),
     actionSchema: document.getElementById("actionSchema"),
     actionsBadge: document.getElementById("actionsBadge"),
     actionEditor: document.getElementById("actionEditor"),
     dispatchBtn: document.getElementById("dispatchBtn"),
-    runtimeBtn: document.getElementById("runtimeBtn"),
-    logsBtn: document.getElementById("logsBtn"),
+    actionTabsNav: document.getElementById("actionTabsNav"),
+
+    // 状态与日志
+    runtimeStatus: document.getElementById("runtimeStatus"),
     eventLog: document.getElementById("eventLog"),
+    clearLogsBtn: document.getElementById("clearLogsBtn"),
+
+    // 标签页导航
+    tabsNav: document.getElementById("tabsNav"),
   };
 }

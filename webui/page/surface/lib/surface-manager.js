@@ -1,4 +1,4 @@
-import { callTool } from "./components/api.js";
+import { callTool } from "../components/api.js";
 import { createSurfaceBridge, isBridgeMessageType } from "./bridge.js";
 import { buildPermissionProfile, extractManifestFromHTML } from "./manifest.js";
 
