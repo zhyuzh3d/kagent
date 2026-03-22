@@ -70,6 +70,8 @@ func renderMessageContent(category string, messageType string, payload map[strin
 		return renderActionContent(category, messageType, payload)
 	case CategorySurface:
 		return renderSurfaceContent(messageType, payload)
+	case CategorySurfaceContext:
+		return renderSurfaceContextContent(messageType, payload)
 	case CategoryPhase:
 		return renderPhaseContent(messageType)
 	case CategoryConfig:
@@ -117,6 +119,67 @@ func renderSurfaceContent(messageType string, payload map[string]any) string {
 		return fmt.Sprintf("%s 当前状态：%s。（surface_state name=%s status=%s state=%s）", surfaceID, stateText, surfaceID, status, stateText)
 	default:
 		return fmt.Sprintf("%s 发生变化：%s。（surface_change name=%s status=%s event=%s delta=%s）", surfaceID, stateText, surfaceID, status, eventType, stateText)
+	}
+}
+
+func renderSurfaceContextContent(messageType string, payload map[string]any) string {
+	switch messageType {
+	case TypeSurfaceRegistrySync:
+		registry, _ := payload["registry"].([]any)
+		names := make([]string, 0, len(registry))
+		for _, item := range registry {
+			if row, ok := item.(map[string]any); ok {
+				name := firstNonEmpty(asTrimmedString(row["name"]), asTrimmedString(row["surface_id"]))
+				if name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+		active := firstNonEmpty(asTrimmedString(payload["active_surface_id"]), "none")
+		if len(names) == 0 {
+			return fmt.Sprintf("当前页面暂无可用 surface。（surface_registry_sync active=%s）", active)
+		}
+		return fmt.Sprintf("当前页面可用 surface：%s。（surface_registry_sync active=%s）", strings.Join(names, "、"), active)
+	case TypeSurfaceActiveChange:
+		active := firstNonEmpty(asTrimmedString(payload["active_surface_id"]), "none")
+		if active == "none" {
+			return "当前没有激活的 surface。"
+		}
+		return fmt.Sprintf("当前激活的 surface：%s。", active)
+	case TypeSurfaceRuntimeContext:
+		runtime := anyMap(payload["runtime_context"])
+		surfaceID := firstNonEmpty(asTrimmedString(payload["surface_id"]), asTrimmedString(runtime["surface_id"]), "surface")
+		title := firstNonEmpty(asTrimmedString(runtime["title"]), surfaceID)
+		open := asTrimmedString(runtime["mode"]) != "closed"
+		if raw, ok := runtime["open"].(bool); ok && !raw {
+			open = false
+		}
+		if !open {
+			return fmt.Sprintf("%s 当前未打开。", title)
+		}
+		mode := firstNonEmpty(asTrimmedString(runtime["mode"]), "floating")
+		ready := "not_ready"
+		if raw, ok := runtime["ready"].(bool); ok && raw {
+			ready = "ready"
+		}
+		actions := make([]string, 0)
+		switch list := runtime["actions"].(type) {
+		case []any:
+			for _, item := range list {
+				if row, ok := item.(map[string]any); ok {
+					name := asTrimmedString(row["name"])
+					if name != "" {
+						actions = append(actions, name)
+					}
+				}
+			}
+		}
+		if len(actions) == 0 {
+			return fmt.Sprintf("%s 已打开（%s, %s），当前未声明 runtime actions。", title, mode, ready)
+		}
+		return fmt.Sprintf("%s 已打开（%s, %s），可用 actions：%s。", title, mode, ready, strings.Join(actions, ", "))
+	default:
+		return firstNonEmpty(asTrimmedString(payload["text"]), jsonCompactString(payload))
 	}
 }
 

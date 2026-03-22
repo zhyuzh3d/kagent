@@ -1,0 +1,221 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-toggle {
+  background: transparent;
+  padding: 8px;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.btn-toggle:hover {
+  background: var(--panel2);
+}
+
+.current-path {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.path-sep {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--muted);
+  transition: border-color 0.3s;
+}
+
+@keyframes flashSend {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 6px #ffffff;
+  }
+
+  100% {
+    border-color: var(--muted);
+    box-shadow: none;
+  }
+}
+
+@keyframes flashReceive {
+  0% {
+    border-color: var(--ok);
+    box-shadow: 0 0 6px var(--ok);
+  }
+
+  100% {
+    border-color: var(--muted);
+    box-shadow: none;
+  }
+}
+
+@keyframes flashError {
+  0% {
+    border-color: var(--err);
+    box-shadow: 0 0 6px var(--err);
+  }
+
+  100% {
+    border-color: var(--muted);
+    box-shadow: none;
+  }
+}
+
+.flash-send {
+  animation: flashSend 0.3s ease-out;
+}
+
+.flash-receive {
+  animation: flashReceive 0.3s ease-out;
+}
+
+.flash-error {
+  animation: flashError 0.3s ease-out;
+}
+
+.status-text {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 100px;
+}
+
+.version-text {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-family: "SF Mono", monospace;
+}
+
+button {
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-start {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-start:hover:not(:disabled) {
+  background: var(--accent2);
+}
+
+.btn-stop {
+  background: var(--err);
+  color: #fff;
+}
+
+.btn-stop:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn-ghost,
+.btn-config {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.btn-config:hover:not(:disabled),
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+
+.surface-select {
+  min-width: 196px;
+  max-width: min(24vw, 280px);
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, 0.92);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.surface-select:hover,
+.surface-select:focus {
+  border-color: var(--accent2);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent2);
+}
+
+@media (max-width: 900px) {
+  .surface-select {
+    min-width: 156px;
+    max-width: 34vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .status-text {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .surface-select {
+    min-width: 140px;
+    max-width: 42vw;
+  }
+}

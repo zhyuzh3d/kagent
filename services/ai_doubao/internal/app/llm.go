@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -18,11 +19,12 @@ const chatSurfaceActionPromptSuffix = "" +
 	"格式：{\"say\":\"给用户看的主内容\",\"aside\":\"可选的小字说明\",\"action\":null|{\"type\":\"call\",\"id\":\"可选\",\"path\":\"动作名\",\"args\":{\"target\":\"surface_id或surface名称\",\"surface_id\":\"surface_id\",\"...\":\"动作参数\"},\"followup\":\"none|report\"}}\n" +
 	"硬性约束：say 只能是给用户看的自然语言，严禁包含 action/args/followup/payload/协议字段片段。\n" +
 	"流程约束：\n" +
-	"1) 用户要求打开某个 surface：先调用 get_surfaces 且 followup=report；拿到列表后若命中目标再调用 open_surface(target) 且 followup=report；若不存在则直接回复找不到且不发动作。\n" +
-	"2) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
-	"3) 调用 surface action 前，必须确保目标 surface 已启用且已打开；action 名称与参数必须来自该 surface 运行时注册信息。\n" +
-	"4) 调用 tool.call.<tool_id> 前，必须确认这是 Hub 正式工具；autogui 相关动作必须先打开 task surface，并把关键执行过程通过 task surface action 写回时间线。\n" +
-	"5) followup 仅允许 none/report；当需要根据动作结果继续推理时必须用 report。\n" +
+	"1) 先阅读当前 history 中的 page surface context：其中会告诉你页面当前可用的 surface 列表、当前激活的 surface、哪些 surface 已打开，以及这些已打开 surface 当前可用的 runtime actions。\n" +
+	"2) 用户要求打开某个 surface：如果当前 context 已明确该目标存在，可直接调用 open_surface(target) 且 followup=report；只有当 context 缺失、过期或目标不明确时，才先调用 get_surfaces。\n" +
+	"3) 用户要求关闭某个 surface：直接调用 close_surface(target) 且 followup=report。\n" +
+	"4) 调用 surface action 前，必须确保目标 surface 已打开且 runtime actions 中确实存在该 action；若目标已打开且 action 已知，可直接调用 surface.call.<surface_id>.<action_name>。\n" +
+	"5) 调用 tool.call.<tool_id> 前，必须确认这是 Hub 正式工具；autogui 相关动作必须先打开 task surface，并把关键执行过程通过 task surface action 写回时间线。\n" +
+	"6) followup 仅允许 none/report；每轮最多产生一个 action；动作结果本身不会自动触发下一轮 AI 回复，如需继续推理只能等待新的显式触发。\n" +
 	"如果不需要动作，输出普通自然文本即可，不要伪造动作执行结果。"
 
 const continuationUserPrompt = "请基于最新 observer 事件继续推理并回复用户。只输出用户可读结论，禁止复述协议字段原文。"
@@ -95,15 +97,13 @@ func (c *DoubaoLLMClient) StreamWithSystem(ctx context.Context, systemPromptOver
 }
 
 func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input string) []map[string]any {
-	inputArr := make([]map[string]any, 0, len(history)+3)
+	projectedHistory := projectLLMHistory(history)
+	inputArr := make([]map[string]any, 0, len(projectedHistory)+3)
 	inputArr = append(inputArr, map[string]any{
 		"role":    "system",
 		"content": systemPrompt,
 	})
-	for _, m := range history {
-		if !shouldIncludeInLLMHistory(m) {
-			continue
-		}
+	for _, m := range projectedHistory {
 		content := strings.TrimSpace(semanticPromptContent(m))
 		if content == "" {
 			continue
@@ -136,18 +136,105 @@ func buildLLMInputMessages(systemPrompt string, history []ChatMessage, input str
 	return inputArr
 }
 
-func shouldIncludeInLLMHistory(msg ChatMessage) bool {
-	if strings.TrimSpace(semanticPromptContent(msg)) == "" {
-		return false
+type indexedHistoryMessage struct {
+	index int
+	msg   ChatMessage
+}
+
+func projectLLMHistory(history []ChatMessage) []ChatMessage {
+	selected := make([]indexedHistoryMessage, 0, len(history))
+	latestRuntime := map[string]indexedHistoryMessage{}
+	latestState := map[string]indexedHistoryMessage{}
+	var latestRegistry *indexedHistoryMessage
+	var latestActive *indexedHistoryMessage
+	var latestActionReport *indexedHistoryMessage
+
+	for idx, msg := range history {
+		if strings.TrimSpace(semanticPromptContent(msg)) == "" {
+			continue
+		}
+		switch detectActionTypeFromJSON(msg.ActionJSON) {
+		case TypeActionCall, TypeActionExecute:
+			continue
+		}
+		current := indexedHistoryMessage{index: idx, msg: msg}
+		if msg.Role != RoleObserver {
+			selected = append(selected, current)
+			continue
+		}
+		switch msg.Category {
+		case CategorySurfaceContext:
+			switch msg.MessageType {
+			case TypeSurfaceRegistrySync:
+				tmp := current
+				latestRegistry = &tmp
+			case TypeSurfaceActiveChange:
+				tmp := current
+				latestActive = &tmp
+			case TypeSurfaceRuntimeContext:
+				key := firstNonEmpty(surfaceIDFromMessage(msg), fmt.Sprintf("runtime:%d", idx))
+				latestRuntime[key] = current
+			}
+		case CategorySurface:
+			key := firstNonEmpty(surfaceIDFromMessage(msg), fmt.Sprintf("surface:%d", idx))
+			latestState[key] = current
+		case CategoryAIAction, CategoryUserAction:
+			if msg.MessageType == TypeActionReport || msg.MessageType == TypeActionCombined {
+				tmp := current
+				latestActionReport = &tmp
+			}
+		}
 	}
-	switch detectActionTypeFromJSON(msg.ActionJSON) {
-	case TypeActionCall, TypeActionExecute:
-		return false
+
+	if latestRegistry != nil {
+		selected = append(selected, *latestRegistry)
 	}
-	if msg.MessageType == TypeActionCall {
-		return false
+	if latestActive != nil {
+		selected = append(selected, *latestActive)
 	}
-	return true
+	for _, item := range latestRuntime {
+		selected = append(selected, item)
+	}
+	for _, item := range latestState {
+		selected = append(selected, item)
+	}
+	if latestActionReport != nil {
+		selected = append(selected, *latestActionReport)
+	}
+	sort.Slice(selected, func(i, j int) bool {
+		return selected[i].index < selected[j].index
+	})
+	out := make([]ChatMessage, 0, len(selected))
+	for _, item := range selected {
+		out = append(out, item.msg)
+	}
+	return out
+}
+
+func surfaceIDFromMessage(msg ChatMessage) string {
+	payload := payloadFromMessage(msg)
+	if surfaceID := asTrimmedString(payload["surface_id"]); surfaceID != "" {
+		return surfaceID
+	}
+	if runtime := anyMap(payload["runtime_context"]); len(runtime) > 0 {
+		if surfaceID := asTrimmedString(runtime["surface_id"]); surfaceID != "" {
+			return surfaceID
+		}
+	}
+	action := actionPayloadFromMessage(msg)
+	return firstNonEmpty(asTrimmedString(action["surface_id"]), asTrimmedString(action["action_surface_id"]))
+}
+
+func payloadFromMessage(msg ChatMessage) map[string]any {
+	var payload map[string]any
+	_ = json.Unmarshal([]byte(strings.TrimSpace(msg.PayloadJSON)), &payload)
+	return payload
+}
+
+func actionPayloadFromMessage(msg ChatMessage) map[string]any {
+	var payload map[string]any
+	_ = json.Unmarshal([]byte(strings.TrimSpace(msg.ActionJSON)), &payload)
+	return payload
 }
 
 func buildChatSystemPrompt(base string) string {

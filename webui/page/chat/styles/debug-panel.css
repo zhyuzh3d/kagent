@@ -1,0 +1,52 @@
+.resize-handle {
+  height: 6px;
+  cursor: ns-resize;
+  background: var(--line);
+  flex-shrink: 0;
+  display: none;
+}
+
+.resize-handle.visible {
+  display: block;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+  background: var(--accent);
+}
+
+.debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.debug-panel {
+  height: 0;
+  overflow: hidden;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.debug-panel.open {
+  height: 180px;
+}
+
+.debug-panel pre {
+  margin: 0;
+  padding: 8px 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: "SF Mono", monospace;
+  height: 100%;
+  overflow-y: auto;
+}

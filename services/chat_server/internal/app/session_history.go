@@ -202,7 +202,7 @@ func (s *Session) finalizeAssistantMessage(turnID uint64, finalText string, stat
 	s.clearTurnInterrupt(turnID)
 }
 
-func (s *Session) appendHistoryMessage(msg ChatMessage) string {
+func (s *Session) appendHistoryMessageEntry(msg ChatMessage) (ChatMessage, bool) {
 	payload := map[string]any{}
 	if strings.TrimSpace(msg.PayloadJSON) != "" {
 		_ = json.Unmarshal([]byte(msg.PayloadJSON), &payload)
@@ -232,7 +232,7 @@ func (s *Session) appendHistoryMessage(msg ChatMessage) string {
 	})
 	if err != nil {
 		Errorf("[Turn:%d] build message failed: %v", msg.TurnID, err)
-		return ""
+		return ChatMessage{}, false
 	}
 	if s.chatStore != nil {
 		persisted, err := s.chatStore.AppendMessage(entry)
@@ -246,6 +246,14 @@ func (s *Session) appendHistoryMessage(msg ChatMessage) string {
 	s.chatHistory = append(s.chatHistory, entry)
 	s.applyHistoryWindowLocked()
 	s.historyMu.Unlock()
+	return entry, true
+}
+
+func (s *Session) appendHistoryMessage(msg ChatMessage) string {
+	entry, ok := s.appendHistoryMessageEntry(msg)
+	if !ok {
+		return ""
+	}
 	return entry.MessageID
 }
 

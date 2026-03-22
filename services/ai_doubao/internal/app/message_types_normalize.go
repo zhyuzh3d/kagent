@@ -32,6 +32,8 @@ func normalizeMessageCategory(category string) string {
 		return CategoryUserAction
 	case CategorySurface:
 		return CategorySurface
+	case CategorySurfaceContext:
+		return CategorySurfaceContext
 	case CategoryPhase:
 		return CategoryPhase
 	case CategoryConfig:
@@ -58,6 +60,8 @@ func normalizeMessageType(category string, messageType string, role string) stri
 		return TypeActionReport
 	case CategorySurface:
 		return TypeSurfaceChange
+	case CategorySurfaceContext:
+		return TypeSurfaceRegistrySync
 	case CategoryPhase:
 		return TypeConvoStart
 	case CategoryConfig:

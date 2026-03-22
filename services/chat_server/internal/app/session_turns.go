@@ -110,6 +110,8 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		s.handleActionResult(ctrl)
 	case "state_change":
 		s.handleStateChange(ctrl)
+	case "surface_registry_sync", "surface_active_change", "surface_runtime_context":
+		s.handleSurfaceContext(ctrl)
 	case "page_close":
 		s.appendHistoryMessage(ChatMessage{
 			TurnID:      ctrl.TurnID,

@@ -1,0 +1,175 @@
+.surface-float-root {
+  display: contents;
+}
+
+.surface-float-panel {
+  position: fixed;
+  width: min(560px, calc(100vw - 24px));
+  height: min(520px, calc(100vh - 24px));
+  min-width: min(360px, calc(100vw - 24px));
+  min-height: min(260px, calc(100vh - 24px));
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(18, 23, 37, 0.97), rgba(11, 16, 25, 0.97));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+  z-index: 18;
+  pointer-events: auto;
+}
+
+.surface-float-panel.open {
+  display: flex;
+}
+
+.surface-float-panel.is-docked {
+  position: relative;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: auto;
+}
+
+.surface-float-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.08);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.surface-float-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dbe6ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.surface-float-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.surface-window-light {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.18);
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.surface-window-light:hover {
+  transform: scale(1.05);
+  filter: saturate(1.08);
+}
+
+.surface-window-light svg {
+  width: 8px;
+  height: 8px;
+  stroke: rgba(15, 23, 42, 0.72);
+  stroke-width: 1.8;
+  fill: none;
+  opacity: 0.92;
+}
+
+.surface-window-light.close {
+  background: #ff5f57;
+}
+
+.surface-window-light.dock {
+  background: #febc2e;
+}
+
+.surface-window-light.refresh {
+  background: #28c840;
+}
+
+.surface-float-body {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+}
+
+.surface-float-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.surface-window-workspace {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.surface-runtime-host {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.surface-runtime-host .surface-float-iframe {
+  display: block;
+}
+
+.surface-float-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background:
+    linear-gradient(135deg, transparent 0 46%, rgba(129, 140, 248, 0.12) 46% 54%, transparent 54% 100%),
+    linear-gradient(135deg, transparent 0 62%, rgba(129, 140, 248, 0.22) 62% 70%, transparent 70% 100%),
+    linear-gradient(135deg, transparent 0 78%, rgba(129, 140, 248, 0.34) 78% 86%, transparent 86% 100%);
+}
+
+.surface-interaction-shield {
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 19;
+  background: transparent;
+}
+
+.surface-interaction-shield.active {
+  display: block;
+}
+
+.surface-float-panel.is-docked .surface-float-head {
+  cursor: default;
+}
+
+.surface-float-panel.is-docked .surface-float-resize {
+  display: none;
+}

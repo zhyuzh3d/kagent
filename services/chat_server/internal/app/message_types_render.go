@@ -70,6 +70,8 @@ func renderMessageContent(category string, messageType string, payload map[strin
 		return renderActionContent(category, messageType, payload)
 	case CategorySurface:
 		return renderSurfaceContent(messageType, payload)
+	case CategorySurfaceContext:
+		return renderSurfaceContextContent(messageType, payload)
 	case CategoryPhase:
 		return renderPhaseContent(messageType)
 	case CategoryConfig:
@@ -102,9 +104,45 @@ func renderActionContent(category string, messageType string, payload map[string
 	}
 }
 
+func observerSourceLabel(payload map[string]any, fallback string) string {
+	if payload == nil {
+		return strings.TrimSpace(fallback)
+	}
+	label := firstNonEmpty(
+		asTrimmedString(payload["source_label"]),
+		asTrimmedString(payload["surface_title"]),
+		asTrimmedString(payload["surface_name"]),
+	)
+	if strings.TrimSpace(label) == "" {
+		return strings.TrimSpace(fallback)
+	}
+	return strings.TrimSpace(label)
+}
+
+func runtimeActionCount(runtime map[string]any) int {
+	if runtime == nil {
+		return 0
+	}
+	switch raw := runtime["actions"].(type) {
+	case []any:
+		return len(raw)
+	case []map[string]any:
+		return len(raw)
+	default:
+		return 0
+	}
+}
+
 func renderSurfaceContent(messageType string, payload map[string]any) string {
 	surfaceID := firstNonEmpty(asTrimmedString(payload["surface_id"]), asTrimmedString(payload["name"]), "surface")
-	stateText := firstNonEmpty(asTrimmedString(payload["state_text"]), jsonCompactString(anyMap(payload["business_state"])), jsonCompactString(anyMap(payload["state"])))
+	surfaceName := firstNonEmpty(asTrimmedString(payload["surface_title"]), asTrimmedString(payload["surface_name"]), surfaceID)
+	sourceLabel := observerSourceLabel(payload, surfaceName)
+	stateText := firstNonEmpty(
+		asTrimmedString(payload["state_text"]),
+		asTrimmedString(payload["visible_text"]),
+		jsonCompactString(anyMap(payload["business_state"])),
+		jsonCompactString(anyMap(payload["state"])),
+	)
 	status := firstNonEmpty(asTrimmedString(payload["status"]), "unknown")
 	eventType := firstNonEmpty(asTrimmedString(payload["event_type"]), "state_change")
 	if stateText == "" {
@@ -112,11 +150,68 @@ func renderSurfaceContent(messageType string, payload map[string]any) string {
 	}
 	switch messageType {
 	case TypeSurfaceOpen:
-		return fmt.Sprintf("已打开 surface：%s。（surface_open name=%s status=%s）", surfaceID, surfaceID, status)
+		return fmt.Sprintf("%s 已打开。", sourceLabel)
 	case TypeSurfaceState:
-		return fmt.Sprintf("%s 当前状态：%s。（surface_state name=%s status=%s state=%s）", surfaceID, stateText, surfaceID, status, stateText)
+		return fmt.Sprintf("%s 当前状态变更：%s。", sourceLabel, stateText)
 	default:
-		return fmt.Sprintf("%s 发生变化：%s。（surface_change name=%s status=%s event=%s delta=%s）", surfaceID, stateText, surfaceID, status, eventType, stateText)
+		if eventType == "surface_close" || eventType == "surface_closed" {
+			return fmt.Sprintf("%s 已关闭。", sourceLabel)
+		}
+		return fmt.Sprintf("%s 发生变化：%s。", sourceLabel, stateText)
+	}
+}
+
+func renderSurfaceContextContent(messageType string, payload map[string]any) string {
+	sourceLabel := observerSourceLabel(payload, ObserverSourceLabelPage)
+	switch messageType {
+	case TypeSurfaceRegistrySync:
+		registry, _ := payload["registry"].([]any)
+		names := make([]string, 0, len(registry))
+		for _, item := range registry {
+			if row, ok := item.(map[string]any); ok {
+				name := firstNonEmpty(asTrimmedString(row["name"]), asTrimmedString(row["surface_id"]))
+				if name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+		if len(names) == 0 {
+			return fmt.Sprintf("%s 已同步可用 surface 列表（0 个）。", sourceLabel)
+		}
+		if len(names) <= 3 {
+			return fmt.Sprintf("%s 已同步可用 surface 列表（%d 个）：%s。", sourceLabel, len(names), strings.Join(names, "、"))
+		}
+		return fmt.Sprintf("%s 已同步可用 surface 列表（%d 个）。", sourceLabel, len(names))
+	case TypeSurfaceActiveChange:
+		active := firstNonEmpty(asTrimmedString(payload["active_surface_id"]), "none")
+		if active == "none" {
+			return fmt.Sprintf("%s 当前没有激活 surface。", sourceLabel)
+		}
+		return fmt.Sprintf("%s 切换激活 surface：%s。", sourceLabel, active)
+	case TypeSurfaceRuntimeContext:
+		runtime := anyMap(payload["runtime_context"])
+		surfaceID := firstNonEmpty(asTrimmedString(payload["surface_id"]), asTrimmedString(runtime["surface_id"]), "surface")
+		title := firstNonEmpty(asTrimmedString(runtime["title"]), asTrimmedString(payload["surface_title"]), asTrimmedString(payload["surface_name"]), surfaceID)
+		sourceLabel = observerSourceLabel(payload, title)
+		open := asTrimmedString(runtime["mode"]) != "closed"
+		if raw, ok := runtime["open"].(bool); ok {
+			open = raw
+		}
+		if !open {
+			return fmt.Sprintf("%s 当前未打开。", sourceLabel)
+		}
+		mode := firstNonEmpty(asTrimmedString(runtime["mode"]), "floating")
+		ready := "not_ready"
+		if raw, ok := runtime["ready"].(bool); ok && raw {
+			ready = "ready"
+		}
+		actionCount := runtimeActionCount(runtime)
+		if actionCount > 0 {
+			return fmt.Sprintf("%s 已同步运行上下文（mode=%s, ready=%s, actions=%d）。", sourceLabel, mode, ready, actionCount)
+		}
+		return fmt.Sprintf("%s 已同步运行上下文（mode=%s, ready=%s）。", sourceLabel, mode, ready)
+	default:
+		return firstNonEmpty(asTrimmedString(payload["text"]), jsonCompactString(payload))
 	}
 }
 

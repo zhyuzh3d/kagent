@@ -38,15 +38,25 @@ type ControlMessage struct {
 	ActionEffect        map[string]any `json:"action_effect,omitempty"`
 	ActionState         map[string]any `json:"action_state,omitempty"`
 
-	SurfaceID      string         `json:"surface_id,omitempty"`
-	SurfaceType    string         `json:"surface_type,omitempty"`
-	SurfaceVersion string         `json:"surface_version,omitempty"`
-	EventType      string         `json:"event_type,omitempty"`
-	BusinessState  map[string]any `json:"business_state,omitempty"`
-	VisibleText    string         `json:"visible_text,omitempty"`
-	Status         string         `json:"status,omitempty"`
-	StateVersion   int64          `json:"state_version,omitempty"`
-	UpdatedAtMS    int64          `json:"updated_at_ms,omitempty"`
+	SurfaceID           string           `json:"surface_id,omitempty"`
+	SurfaceType         string           `json:"surface_type,omitempty"`
+	SurfaceVersion      string           `json:"surface_version,omitempty"`
+	SurfaceName         string           `json:"surface_name,omitempty"`
+	SurfaceTitle        string           `json:"surface_title,omitempty"`
+	ActiveSurfaceID     string           `json:"active_surface_id,omitempty"`
+	EventType           string           `json:"event_type,omitempty"`
+	BusinessState       map[string]any   `json:"business_state,omitempty"`
+	VisibleText         string           `json:"visible_text,omitempty"`
+	Status              string           `json:"status,omitempty"`
+	StateVersion        int64            `json:"state_version,omitempty"`
+	UpdatedAtMS         int64            `json:"updated_at_ms,omitempty"`
+	ContextVersion      int64            `json:"context_version,omitempty"`
+	Registry            []map[string]any `json:"registry,omitempty"`
+	RuntimeContext      map[string]any   `json:"runtime_context,omitempty"`
+	SurfaceRegister     map[string]any   `json:"surface_register,omitempty"`
+	SurfaceRegistration map[string]any   `json:"surface_registration,omitempty"`
+	SurfaceActions      []map[string]any `json:"surface_actions,omitempty"`
+	OpenSurfaces        []map[string]any `json:"open_surfaces,omitempty"`
 
 	ConfigSource       string         `json:"config_source,omitempty"`
 	ConfigChangedPaths []string       `json:"config_changed_paths,omitempty"`
@@ -77,12 +87,17 @@ type EventMessage struct {
 	SurfaceID      string         `json:"surface_id,omitempty"`
 	SurfaceType    string         `json:"surface_type,omitempty"`
 	SurfaceVersion string         `json:"surface_version,omitempty"`
+	SurfaceName    string         `json:"surface_name,omitempty"`
+	SurfaceTitle   string         `json:"surface_title,omitempty"`
+	Status         string         `json:"status,omitempty"`
+	VisibleText    string         `json:"visible_text,omitempty"`
 	StateVersion   int64          `json:"state_version,omitempty"`
 	BusinessState  map[string]any `json:"business_state,omitempty"`
 	Payload        map[string]any `json:"payload,omitempty"`
 
-	HasMore  bool          `json:"has_more,omitempty"`
-	Messages []ChatMessage `json:"messages,omitempty"`
+	HasMore         bool          `json:"has_more,omitempty"`
+	Messages        []ChatMessage `json:"messages,omitempty"`
+	ObserverMessage *ChatMessage  `json:"observer_message,omitempty"`
 }
 
 type SurfaceCapabilities struct {

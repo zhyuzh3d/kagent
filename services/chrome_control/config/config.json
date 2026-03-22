@@ -1,0 +1,36 @@
+{
+  "chrome_executable_candidates": [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "google-chrome",
+    "chromium"
+  ],
+  "default_mode": "headless",
+  "default_window": {
+    "width": 1440,
+    "height": 960,
+    "left": 20,
+    "top": 20,
+    "state": "normal"
+  },
+  "default_viewport": {
+    "width": 1440,
+    "height": 960,
+    "scale": 1,
+    "mobile": false
+  },
+  "default_lang": "zh-CN",
+  "default_timezone": "Asia/Shanghai",
+  "default_user_agent": "",
+  "default_timeout_ms": 15000,
+  "default_navigation_timeout_ms": 20000,
+  "default_download_root": "services/chrome_control/run/downloads",
+  "allowed_download_roots": [
+    "services/chrome_control/run/downloads"
+  ],
+  "max_browsers": 4,
+  "max_tabs_per_browser": 8,
+  "event_buffer_size": 200,
+  "cleanup_stale_browsers_on_start": true,
+  "allow_insecure_certs": false
+}

@@ -52,6 +52,9 @@ func BuildMessage(in MessageWrite) (ChatMessage, error) {
 	if content == "" {
 		return ChatMessage{}, fmt.Errorf("message content is empty for role=%s", role)
 	}
+	if role == RoleObserver && strings.TrimSpace(say) == "" {
+		say = content
+	}
 
 	actionType := detectActionTypeFromJSON(actionJSON)
 	category := inferMessageCategory(normalizeMessageCategory(in.Category), actionType, role)

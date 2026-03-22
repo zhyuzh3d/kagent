@@ -1,0 +1,20 @@
+{
+  "service_id": "chrome_control",
+  "description": "Chrome DevTools Protocol automation service for browser, tab, DOM, download, storage, and debug workflows.",
+  "service_name": "chrome_control",
+  "version": "1.0.0",
+  "visibility": "public",
+  "entry": {
+    "args": [
+      "-addr",
+      "127.0.0.1:18088"
+    ],
+    "env": {}
+  },
+  "lifecycle": {
+    "register_timeout_ms": 5000,
+    "restart_policy": "never",
+    "restart_backoff_ms": 300,
+    "restart_times": 2
+  }
+}

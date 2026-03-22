@@ -6,6 +6,15 @@ function asObject(value, fallback = {}) {
   return value && typeof value === "object" ? value : fallback;
 }
 
+function cloneValue(value) {
+  if (value == null) return value;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (_) {
+    return value;
+  }
+}
+
 function normalizeActionDescriptor(action) {
   const item = asObject(action, null);
   if (!item) return null;
@@ -112,11 +121,16 @@ export function createPageSurfaceHost(options = {}) {
       surface_type: runtime.surfaceType,
       surface_version: runtime.surfaceVersion,
       ready: runtime.ready,
-      registration: runtime.registration,
-      state: runtime.state,
-      workspace_state: runtime.workspaceState,
+      registration: cloneValue(runtime.registration),
+      register_payload: cloneValue(runtime.registerPayload),
+      registered_at_ms: Number.isFinite(runtime.registeredAtMS) ? runtime.registeredAtMS : 0,
+      state: cloneValue(runtime.state),
+      workspace_state: cloneValue(runtime.workspaceState),
       host_actions: hostActionDescriptors(),
-      actions: Array.from(runtime.actions.values()),
+      actions: Array.from(runtime.actions.values()).map((item) => cloneValue(item)),
+      registered_actions_raw: Array.isArray(runtime.registeredActionsRaw)
+        ? runtime.registeredActionsRaw.map((item) => cloneValue(item))
+        : [],
     };
   }
 
@@ -189,6 +203,8 @@ export function createPageSurfaceHost(options = {}) {
     const data = asObject(msg, null);
     if (!data) return;
     if (data.type === "surface_register") {
+      runtime.registerPayload = cloneValue(data);
+      runtime.registeredAtMS = Date.now();
       runtime.registration = {
         title: typeof data.title === "string" ? data.title : runtime.entry.name || runtime.surfaceID,
         description: typeof data.description === "string" ? data.description : runtime.entry.desc || "",
@@ -196,6 +212,7 @@ export function createPageSurfaceHost(options = {}) {
       };
       runtime.actions.clear();
       const registeredActions = Array.isArray(data.actions) ? data.actions : [];
+      runtime.registeredActionsRaw = registeredActions.map((item) => cloneValue(item));
       registeredActions.forEach((action) => {
         const descriptor = normalizeActionDescriptor(action);
         if (descriptor) runtime.actions.set(descriptor.name, descriptor);
@@ -283,6 +300,8 @@ export function createPageSurfaceHost(options = {}) {
       ready: false,
       registered: false,
       registration: null,
+      registerPayload: null,
+      registeredAtMS: 0,
       readyPromise: null,
       readyResolve: null,
       readyReject: null,
@@ -295,6 +314,7 @@ export function createPageSurfaceHost(options = {}) {
       },
       workspaceState: buildWorkspaceState({ workspaceState: {} }, workspaceState),
       actions: new Map(),
+      registeredActionsRaw: [],
       actionWaiters: new Map(),
       hostWaiters: new Map(),
       sessionToken,

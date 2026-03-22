@@ -52,6 +52,12 @@
         "dir": "services/autogui",
         "enabled": true,
         "reliability": "trusted"
+      },
+      {
+        "service_id": "chrome_control",
+        "dir": "services/chrome_control",
+        "enabled": true,
+        "reliability": "trusted"
       }
     ]
   }
