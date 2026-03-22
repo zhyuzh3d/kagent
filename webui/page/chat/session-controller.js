@@ -51,6 +51,21 @@ export function createSessionController(options) {
     appendDebug("INFO", "SessionControl", turnId, finalText, "Trigger LLM explicitly (trigger_llm)");
   }
 
+  function requestAIReply(reason = "surface_host_action") {
+    if (!ioWorker) {
+      appendDebug("WARN", "SessionControl", null, null, "call_ai_reply skipped: worker not ready");
+      return { requested: false, reason: "worker_not_ready" };
+    }
+    if (!app.running) {
+      appendDebug("WARN", "SessionControl", null, null, "call_ai_reply skipped: session not running");
+      return { requested: false, reason: "session_not_running" };
+    }
+    const turnId = app.activeTurnId || app.currentTurn || 0;
+    workerSend({ type: "send_control", control: "call_ai_reply", turn_id: turnId, reason });
+    appendDebug("INFO", "SessionControl", turnId, null, `Trigger AI reply explicitly (${reason})`);
+    return { requested: true, turn_id: turnId };
+  }
+
   function handleVadUtteranceEnd() {
     if (!app.running) return;
     app.utteranceActive = false;
@@ -250,6 +265,7 @@ export function createSessionController(options) {
     syncWorkerConfig,
     workerSend,
     finalizeUtterance,
+    requestAIReply,
     initWorkerConnection,
     reconnectWith,
   };

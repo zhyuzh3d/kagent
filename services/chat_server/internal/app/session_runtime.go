@@ -70,14 +70,15 @@ type Session struct {
 	interruptMu   sync.Mutex
 	turnInterrupt map[uint64]string
 
-	actionMu            sync.Mutex
-	userTurnActive      bool
-	continuationRunning bool
-	continuationSeq     uint64
-	pendingFollowups    []ChatMessage
-	followupFlushTimer  *time.Timer
-	actionRateWindow    []int64
-	actionDedup         map[string]int64
+	actionMu               sync.Mutex
+	userTurnActive         bool
+	continuationRunning    bool
+	continuationSeq        uint64
+	pendingFollowups       []ChatMessage
+	followupReplyRequested bool
+	followupFlushTimer     *time.Timer
+	actionRateWindow       []int64
+	actionDedup            map[string]int64
 
 	actionRefMu      sync.Mutex
 	actionCallRefIDs map[string]string

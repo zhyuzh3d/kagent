@@ -384,10 +384,24 @@ func buildSurfaceEntryURL(surfaceType string, pkgPath string, entry string) stri
 	if typ == "" || pkg == "" || ent == "" {
 		return ""
 	}
+	baseParts := []string{"surface"}
 	if typ == SurfaceTypeCustom && strings.Contains(pkg, "/custom/") {
-		return "/" + path.Join("surface", pkg, ent)
+		baseParts = append(baseParts, pkg)
+	} else {
+		baseParts = append(baseParts, typ, pkg)
 	}
-	return "/" + path.Join("surface", typ, pkg, ent)
+	cleanEntry := path.Clean(ent)
+	if cleanEntry == "." || cleanEntry == "" {
+		return ""
+	}
+	if path.Base(cleanEntry) == "index.html" {
+		dir := path.Dir(cleanEntry)
+		if dir == "." {
+			return "/" + path.Join(baseParts...) + "/"
+		}
+		return "/" + path.Join(append(baseParts, dir)...) + "/"
+	}
+	return "/" + path.Join(append(baseParts, cleanEntry)...)
 }
 
 func defaultSurfaceEnabled(surfaceType string, status string) bool {

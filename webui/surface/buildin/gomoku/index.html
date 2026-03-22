@@ -1,37 +1,90 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gomoku Surface</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <main class="gomoku-shell">
     <section class="info-panel">
       <p class="eyebrow">Local Surface Game</p>
-      <h1>Gomoku</h1>
-      <p id="statusText" class="status-text">等待宿主连接…</p>
+      <h1>Gomoku33</h1>
       <div class="meta-grid">
         <div>
           <span>当前</span>
-          <strong id="currentPlayer">Black</strong>
+          <strong id="currentPlayer" class="mono">黑棋</strong>
+        </div>
+        <div>
+          <span>你执</span>
+          <strong id="playerSideLabel" class="mono">黑棋</strong>
         </div>
         <div>
           <span>手数</span>
-          <strong id="moveCount">0</strong>
+          <strong id="moveCount" class="mono large">0</strong>
         </div>
         <div>
           <span>结果</span>
-          <strong id="winnerText">-</strong>
+          <strong id="winnerText" class="mono">-</strong>
         </div>
       </div>
-      <button id="newGameBtn" type="button">New Game</button>
+      <p id="statusText" class="status-text">等待宿主连接…</p>
+      <section class="control-card" aria-label="对局控制">
+        <div class="section-row">
+          <div>
+            <p class="section-title">对局控制</p>
+          </div>
+        </div>
+        <div class="side-switch" role="group" aria-label="选择执子方">
+          <button id="playBlackBtn" type="button" class="side-btn is-active" aria-pressed="true">我执黑</button>
+          <button id="playWhiteBtn" type="button" class="side-btn" aria-pressed="false">我执白</button>
+        </div>
+      </section>
+      <button id="newGameBtn" type="button" class="btn primary">New Game</button>
     </section>
     <section class="board-panel">
-      <div id="board" class="board" aria-label="Gomoku Board"></div>
+      <div class="board-panel-head">
+        <div>
+          <p class="section-title">棋盘</p>
+          <p id="boardHint" class="board-hint">棋盘准备中…</p>
+        </div>
+      </div>
+      <div class="board-stage">
+        <div id="board" class="board" aria-label="Gomoku Board">
+          <svg id="boardGrid" class="board-grid" viewBox="0 0 720 720" aria-hidden="true"></svg>
+        </div>
+      </div>
     </section>
   </main>
+  <div id="resultModal" class="result-modal" hidden>
+    <div class="result-dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <p class="result-kicker">本局结束</p>
+      <h2 id="resultTitle" class="result-title">黑胜</h2>
+      <p id="resultSummary" class="result-summary">黑棋完成五连，拿下本局。</p>
+      <div class="result-stats">
+        <div class="result-stat">
+          <span>游戏时间</span>
+          <strong id="resultDuration">00:00</strong>
+        </div>
+        <div class="result-stat">
+          <span>总手数</span>
+          <strong id="resultMoves">0</strong>
+        </div>
+        <div class="result-stat">
+          <span>你执</span>
+          <strong id="resultSide">黑棋</strong>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button id="resultCloseBtn" type="button" class="btn btn-ghost">知道了</button>
+        <button id="resultRestartBtn" type="button" class="btn primary">再来一局</button>
+      </div>
+    </div>
+  </div>
   <script type="module" src="./app.js"></script>
 </body>
+
 </html>

@@ -79,8 +79,26 @@ export function createChatStore(options) {
     return type === "llm_delta" || type === "llm_final" || type === "tts_chunk";
   }
 
-  function isDefaultVisibleRole(role) {
-    return role === "user" || role === "assistant" || role === "ai" || role === "observer";
+  function isPrimaryConversationRole(role) {
+    return role === "user" || role === "assistant" || role === "ai";
+  }
+
+  function hasPrimaryContent(msg) {
+    if (!msg) return false;
+    return typeof msg.say === "string" && msg.say.trim().length > 0;
+  }
+
+  function hasExpandedContent(msg) {
+    if (!msg) return false;
+    return !!(
+      (typeof msg.aside === "string" && msg.aside.trim()) ||
+      (typeof msg.actionJSON === "string" && msg.actionJSON.trim()) ||
+      (typeof msg.rawData === "string" && msg.rawData.trim()) ||
+      (typeof msg.parseError === "string" && msg.parseError.trim()) ||
+      (typeof msg.createdLocalYMDHMS === "string" && msg.createdLocalYMDHMS.trim()) ||
+      (typeof msg.createdLocalWeekday === "string" && msg.createdLocalWeekday.trim()) ||
+      (typeof msg.createdLocalLunar === "string" && msg.createdLocalLunar.trim())
+    );
   }
 
   function applyRoleVisibility(msg) {
@@ -89,7 +107,7 @@ export function createChatStore(options) {
       msg.element.style.display = "";
       return;
     }
-    msg.element.style.display = isDefaultVisibleRole(msg.role) ? "" : "none";
+    msg.element.style.display = isPrimaryConversationRole(msg.role) && hasPrimaryContent(msg) ? "" : "none";
   }
 
   function buildDebugText(msg) {
@@ -124,14 +142,18 @@ export function createChatStore(options) {
     msg.element.dataset.sessionEpoch = msg.sessionEpoch || 0;
 
     msg.mainEl.textContent = mainText || "";
-    msg.metaEl.textContent = msg.aside || "";
-    msg.metaEl.style.display = msg.aside ? "block" : "none";
+    msg.mainEl.style.display = mainText ? "block" : "none";
+
+    const expandedAside = app.showMore ? (msg.aside || "") : "";
+    msg.metaEl.textContent = expandedAside;
+    msg.metaEl.style.display = expandedAside ? "block" : "none";
 
     const badge = actionBadgeText(msg.actionJSON || "");
     msg.actionBadgeEl.textContent = badge;
-    msg.actionBadgeEl.style.display = badge ? "inline-flex" : "none";
+    msg.actionBadgeEl.style.display = app.showMore && badge ? "inline-flex" : "none";
 
     msg.element.classList.toggle("malformed", !!msg.parseError);
+    msg.element.classList.toggle("msg-expanded-only", !mainText && hasExpandedContent(msg));
 
     const debugText = buildDebugText(msg);
     msg.debugEl.textContent = debugText;

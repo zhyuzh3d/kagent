@@ -1,6 +1,6 @@
 import { dedupeStrings } from "./utils.js";
 
-export const DEFAULT_SANDBOX_TOKENS = ["allow-scripts", "allow-downloads"];
+export const DEFAULT_SANDBOX_TOKENS = ["allow-scripts", "allow-same-origin", "allow-downloads"];
 
 function normalizeAction(raw) {
   if (!raw || typeof raw !== "object") return null;

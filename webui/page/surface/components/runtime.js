@@ -179,6 +179,7 @@ export function createRuntimeController({
       surfaceID: targetSurfaceID,
       iframe: els.surfaceFrame,
       workspaceState: previewWorkspaceState(),
+      cacheBust: true,
     });
     state.entry = runtime.entry;
     renderSurfaceSelect(runtime.entry.surface_id);
@@ -237,9 +238,8 @@ export function createRuntimeController({
   }
 
   function reloadIframe() {
-    if (els.surfaceFrame && els.surfaceFrame.src && els.surfaceFrame.src !== "about:blank") {
-      els.surfaceFrame.contentWindow.location.reload();
-    }
+    if (!state.entry || !state.entry.surface_id) return Promise.resolve();
+    return loadSurface(state.entry.surface_id);
   }
 
   function syncWorkspaceStateFromLayout() {

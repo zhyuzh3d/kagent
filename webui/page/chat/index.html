@@ -38,6 +38,10 @@
       overflow: hidden;
     }
 
+    body.surface-window-interacting {
+      user-select: none;
+    }
+
     .sidebar {
       width: 280px;
       flex-shrink: 0;
@@ -398,18 +402,36 @@
     }
 
     .btn-ghost,
-    .btn-config,
-    .btn-surface {
+    .btn-config {
       background: transparent;
       color: var(--text);
       border: 1px solid var(--line);
     }
 
     .btn-config:hover:not(:disabled),
-    .btn-surface:hover:not(:disabled),
     .btn-ghost:hover:not(:disabled) {
       border-color: var(--accent2);
       color: var(--accent2);
+    }
+
+    .surface-select {
+      min-width: 196px;
+      max-width: min(24vw, 280px);
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.92);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .surface-select:hover,
+    .surface-select:focus {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
     }
 
     .btn-primary {
@@ -421,13 +443,70 @@
       background: var(--accent2);
     }
 
+    .chat-workspace {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: stretch;
+      position: relative;
+    }
+
+    .chat-main-pane {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+    }
+
     .chat-area {
       flex: 1;
+      min-width: 0;
+      min-height: 0;
       overflow-y: auto;
       padding: 16px 20px;
       display: flex;
       flex-direction: column;
       gap: 8px;
+    }
+
+    .surface-dock-shell {
+      display: none;
+      min-width: 280px;
+      max-width: min(72vw, 960px);
+      min-height: 0;
+      background: linear-gradient(180deg, rgba(18, 23, 37, 0.97), rgba(11, 16, 25, 0.97));
+      border-left: 1px solid rgba(129, 140, 248, 0.2);
+      position: relative;
+    }
+
+    .surface-dock-shell.open {
+      display: flex;
+    }
+
+    .surface-dock-resize {
+      width: 10px;
+      cursor: ew-resize;
+      flex-shrink: 0;
+      position: relative;
+      margin-left: -5px;
+      z-index: 2;
+    }
+
+    .surface-dock-resize::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(129, 140, 248, 0.28);
+    }
+
+    .surface-dock-host {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
     }
 
     .msg {
@@ -663,16 +742,15 @@
     }
 
     .surface-float-root {
-      position: fixed;
-      right: 18px;
-      bottom: 22px;
-      z-index: 18;
-      pointer-events: none;
+      display: contents;
     }
 
     .surface-float-panel {
-      width: min(560px, 94vw);
-      height: min(520px, 72vh);
+      position: fixed;
+      width: min(560px, calc(100vw - 24px));
+      height: min(520px, calc(100vh - 24px));
+      min-width: min(360px, calc(100vw - 24px));
+      min-height: min(260px, calc(100vh - 24px));
       border: 1px solid rgba(129, 140, 248, 0.35);
       border-radius: 14px;
       background: linear-gradient(180deg, rgba(18, 23, 37, 0.97), rgba(11, 16, 25, 0.97));
@@ -680,6 +758,7 @@
       overflow: hidden;
       display: none;
       flex-direction: column;
+      z-index: 18;
       pointer-events: auto;
     }
 
@@ -687,42 +766,96 @@
       display: flex;
     }
 
+    .surface-float-panel.is-docked {
+      position: relative;
+      left: auto !important;
+      top: auto !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-width: 0;
+      min-height: 0;
+      max-width: none;
+      max-height: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      z-index: auto;
+    }
+
     .surface-float-head {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
+      height: 32px;
+      padding: 0 12px;
       border-bottom: 1px solid rgba(129, 140, 248, 0.2);
       background: rgba(99, 102, 241, 0.08);
+      cursor: move;
+      user-select: none;
+      touch-action: none;
     }
 
     .surface-float-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--accent2);
       flex: 1;
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #dbe6ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .surface-float-actions {
       display: flex;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
     }
 
-    .surface-float-actions button {
-      padding: 5px 8px;
-      font-size: 11px;
-      border-radius: 7px;
-      background: rgba(18, 25, 42, 0.95);
-      color: var(--text);
-      border: 1px solid rgba(129, 140, 248, 0.2);
+    .surface-window-light {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 0;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.18);
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    .surface-window-light:hover {
+      transform: scale(1.05);
+      filter: saturate(1.08);
+    }
+
+    .surface-window-light svg {
+      width: 8px;
+      height: 8px;
+      stroke: rgba(15, 23, 42, 0.72);
+      stroke-width: 1.8;
+      fill: none;
+      opacity: 0.92;
+    }
+
+    .surface-window-light.close {
+      background: #ff5f57;
+    }
+
+    .surface-window-light.dock {
+      background: #febc2e;
+    }
+
+    .surface-window-light.refresh {
+      background: #28c840;
     }
 
     .surface-float-body {
       flex: 1;
       min-height: 0;
-      background: rgba(10, 14, 23, 0.9);
-      display: grid;
-      grid-template-columns: minmax(210px, 42%) minmax(260px, 58%);
+      background: #fff;
     }
 
     .surface-float-iframe {
@@ -732,115 +865,84 @@
       background: #fff;
     }
 
-    .surface-float-status {
-      font-size: 11px;
-      color: var(--muted);
-      padding: 6px 10px;
-      border-top: 1px solid rgba(129, 140, 248, 0.16);
-      background: rgba(15, 20, 32, 0.72);
-      font-family: "SF Mono", monospace;
-    }
-
-    .surface-manager-list {
-      overflow: auto;
-      border-right: 1px solid rgba(129, 140, 248, 0.22);
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      color: #dbe6ff;
-    }
-
-    .surface-manager-item {
-      border: 1px solid rgba(129, 140, 248, 0.2);
-      border-radius: 10px;
-      padding: 8px;
-      background: rgba(27, 37, 60, 0.5);
-      display: grid;
-      gap: 8px;
-    }
-
-    .surface-manager-meta {
-      font-size: 11px;
-      line-height: 1.45;
-      color: #c7d2fe;
-      word-break: break-word;
-    }
-
-    .surface-manager-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      justify-content: space-between;
-      font-size: 11px;
-      color: #dbeafe;
-    }
-
-    .surface-manager-actions button {
-      border: 1px solid rgba(129, 140, 248, 0.35);
-      border-radius: 8px;
-      background: rgba(30, 41, 59, 0.95);
-      color: #e2e8f0;
-      padding: 4px 9px;
-      font-size: 11px;
-    }
-
-    .surface-manager-actions button:disabled {
-      opacity: 0.48;
-      cursor: not-allowed;
-    }
-
-    .surface-manager-empty {
-      font-size: 12px;
-      color: #94a3b8;
-      padding: 8px;
-    }
-
-    .surface-manager-workspace {
-      overflow: auto;
-      padding: 10px;
+    .surface-window-workspace {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background: #fff;
     }
 
     .surface-runtime-host {
       height: 100%;
-      min-height: 240px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
+      min-height: 100%;
       overflow: hidden;
-      background: #f8fafc;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .surface-runtime-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #334155;
-      padding: 8px 10px;
-      background: #e2e8f0;
-      border-bottom: 1px solid #cbd5e1;
+      background: #fff;
     }
 
     .surface-runtime-host .surface-float-iframe {
-      flex: 1;
-      min-height: 0;
+      display: block;
+    }
+
+    .surface-float-resize {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 18px;
+      height: 18px;
+      cursor: nwse-resize;
+      touch-action: none;
+      background:
+        linear-gradient(135deg, transparent 0 46%, rgba(129, 140, 248, 0.12) 46% 54%, transparent 54% 100%),
+        linear-gradient(135deg, transparent 0 62%, rgba(129, 140, 248, 0.22) 62% 70%, transparent 70% 100%),
+        linear-gradient(135deg, transparent 0 78%, rgba(129, 140, 248, 0.34) 78% 86%, transparent 86% 100%);
+    }
+
+    .surface-interaction-shield {
+      position: fixed;
+      inset: 0;
+      display: none;
+      z-index: 19;
+      background: transparent;
+    }
+
+    .surface-interaction-shield.active {
+      display: block;
+    }
+
+    .surface-float-panel.is-docked .surface-float-head {
+      cursor: default;
+    }
+
+    .surface-float-panel.is-docked .surface-float-resize {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .surface-select {
+        min-width: 156px;
+        max-width: 34vw;
+      }
     }
 
     @media (max-width: 720px) {
-      .surface-float-panel {
-        width: min(96vw, 620px);
-        height: min(78vh, 620px);
+      .surface-select {
+        min-width: 140px;
+        max-width: 42vw;
       }
 
-      .surface-float-body {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
+      .chat-workspace {
+        flex-direction: column;
       }
 
-      .surface-manager-list {
-        border-right: 0;
-        border-bottom: 1px solid rgba(129, 140, 248, 0.22);
+      .surface-dock-shell {
+        width: 100% !important;
+        max-width: none;
+        min-width: 0;
+        min-height: 220px;
+      }
+
+      .surface-dock-resize {
+        display: none;
       }
     }
 
@@ -1167,7 +1269,9 @@
       <div id="statusDot" class="status-dot"></div>
       <div id="statusText" class="status-text">Idle</div>
       <button id="configBtn" class="btn-config">配置</button>
-      <button id="surfaceBtn" class="btn-surface">Surface</button>
+      <select id="surfaceSelect" class="surface-select" aria-label="选择 Surface">
+        <option value="">请选择Surface...</option>
+      </select>
       <button id="showMoreBtn" class="btn-ghost">Show More: Off</button>
       <button id="startBtn" class="btn-start">开始对话</button>
       <button id="stopBtn" class="btn-stop" disabled>停止</button>
@@ -1180,7 +1284,15 @@
       </div>
     </div>
 
-    <div id="chatArea" class="chat-area"></div>
+    <div id="chatWorkspace" class="chat-workspace">
+      <div class="chat-main-pane">
+        <div id="chatArea" class="chat-area"></div>
+      </div>
+      <div id="surfaceDockShell" class="surface-dock-shell">
+        <div id="surfaceDockResize" class="surface-dock-resize" aria-hidden="true"></div>
+        <div id="surfaceDockHost" class="surface-dock-host"></div>
+      </div>
+    </div>
     <div id="configShell" class="config-shell"></div>
     <div id="surfaceFloatRoot" class="surface-float-root"></div>
 
@@ -1300,8 +1412,11 @@
       statusText: document.getElementById('statusText'),
       versionText: document.getElementById('versionText'),
       chatArea: document.getElementById('chatArea'),
+      surfaceDockShell: document.getElementById('surfaceDockShell'),
+      surfaceDockHost: document.getElementById('surfaceDockHost'),
+      surfaceDockResize: document.getElementById('surfaceDockResize'),
       configBtn: document.getElementById('configBtn'),
-      surfaceBtn: document.getElementById('surfaceBtn'),
+      surfaceSelect: document.getElementById('surfaceSelect'),
       showMoreBtn: document.getElementById('showMoreBtn'),
       configShell: document.getElementById('configShell'),
       surfaceFloatRoot: document.getElementById('surfaceFloatRoot'),
@@ -1698,16 +1813,56 @@
       });
     }
 
+    let sessionController = null;
+
     const surfaceBridge = createSurfaceBridge({
       root: el.surfaceFloatRoot,
+      dockHost: el.surfaceDockHost,
+      dockShell: el.surfaceDockShell,
+      dockResizeHandle: el.surfaceDockResize,
       appendDebug: (...args) => appendDebug(...args, 'SURF'),
       appendSystem: (text) => chatStore.addChatMsg('system', text, 0),
       reportActionRecord,
+      onRequestAIReply: ({ surfaceID, reason }) => {
+        if (!sessionController || typeof sessionController.requestAIReply !== 'function') {
+          return { requested: false, reason: 'session_controller_not_ready' };
+        }
+        return sessionController.requestAIReply(reason || `surface:${surfaceID || 'unknown'}:call_ai_reply`);
+      },
+      onStateChange: renderSurfaceSelect,
       onSurfaceEvent: (evt) => {
         const turnId = App.activeTurnId || App.currentTurn || 0;
         actionEngine.handleSurfaceEffect(turnId, evt);
       },
     });
+
+    function escapeOptionHTML(text) {
+      return String(text || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function renderSurfaceSelect(payload) {
+      const state = payload && typeof payload === 'object' ? payload : {};
+      const items = Array.isArray(state.items) ? state.items : [];
+      const activeSurfaceID = typeof state.activeSurfaceID === 'string' ? state.activeSurfaceID : '';
+      const currentValue = activeSurfaceID || (el.surfaceSelect && typeof el.surfaceSelect.value === 'string' ? el.surfaceSelect.value : '');
+      const options = ['<option value="">请选择Surface...</option>'];
+      items.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const surfaceID = typeof item.surface_id === 'string' ? item.surface_id : '';
+        if (!surfaceID) return;
+        const label = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : surfaceID;
+        const meta = [item.surface_type || '', item.version ? `v${item.version}` : ''].filter(Boolean).join(' / ');
+        const selected = surfaceID === currentValue ? ' selected' : '';
+        const text = meta ? `${label} (${meta})` : label;
+        options.push(`<option value="${escapeOptionHTML(surfaceID)}"${selected}>${escapeOptionHTML(text)}</option>`);
+      });
+      el.surfaceSelect.innerHTML = options.join('');
+      el.surfaceSelect.value = activeSurfaceID || '';
+    }
 
     const actionEngine = createChatActionEngine({
       chatStore,
@@ -1749,7 +1904,7 @@
       },
     });
 
-    const sessionController = createSessionController({
+    sessionController = createSessionController({
       app: App,
       workerURL: './io-worker.js',
       audioPlayback,
@@ -1805,8 +1960,10 @@
     el.configBtn.addEventListener('click', () => {
       if (App.configDrawer) App.configDrawer.toggle();
     });
-    el.surfaceBtn.addEventListener('click', () => {
-      surfaceBridge.toggleVisible();
+    el.surfaceSelect.addEventListener('change', () => {
+      surfaceBridge.selectSurface(el.surfaceSelect.value).catch((err) => {
+        appendDebug('ERROR', 'SurfaceBridge', null, null, `surface select failed: ${err.message || err}`);
+      });
     });
     el.showMoreBtn.addEventListener('click', () => {
       toggleShowMore();
@@ -1820,6 +1977,9 @@
     async function initPage() {
       await loadClientConfig();
       await loadVersion();
+      await surfaceBridge.refreshRegistry().catch((err) => {
+        appendDebug('WARN', 'SurfaceBridge', null, null, `surface catalog preload failed: ${err.message || err}`);
+      });
       await sidebarController.init();
       const ctx = sidebarController.getCurrentContext();
       await sessionController.initWorkerConnection(ctx.projectId, ctx.threadId);

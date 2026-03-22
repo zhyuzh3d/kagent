@@ -91,7 +91,13 @@ func (s *Session) handleControl(ctrl ControlMessage) {
 		_ = s.sendEvent(EventMessage{Type: "turn_nack", TsMS: nowMS(), TurnID: tid})
 		Infof("[Turn:%d] turn_nack sent to frontend, skipped DB persistence", tid)
 		s.setState(StateListening, "no speech detected")
-		s.tryStartContinuation()
+	case "call_ai_reply":
+		if strings.TrimSpace(ctrl.Reason) != "" {
+			Infof("[Turn:%d] call_ai_reply requested (%s)", ctrl.TurnID, strings.TrimSpace(ctrl.Reason))
+		} else {
+			Infof("[Turn:%d] call_ai_reply requested", ctrl.TurnID)
+		}
+		s.requestFollowupReply()
 	case "start_listen":
 		// Explicit signal from frontend that a new turn is starting voice input
 		tid := s.adoptTurnID(ctrl.TurnID)
@@ -381,6 +387,7 @@ func (s *Session) stopAll() {
 	s.userTurnActive = false
 	s.continuationRunning = false
 	s.pendingFollowups = nil
+	s.followupReplyRequested = false
 	if s.followupFlushTimer != nil {
 		s.followupFlushTimer.Stop()
 		s.followupFlushTimer = nil

@@ -1,10 +1,16 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +19,16 @@ import (
 	"kagent/pkg/toolproto"
 
 	"github.com/gorilla/websocket"
+)
+
+const surfaceReloadQueryKey = "_surface_reload"
+
+var (
+	htmlAssetURLPattern    = regexp.MustCompile(`(?i)\b(href|src)\s*=\s*(['"])([^"'<>]+)(['"])`)
+	jsImportFromPattern    = regexp.MustCompile(`(?m)(\bfrom\s*)(['"])([^'"]+)(['"])`)
+	jsImportBarePattern    = regexp.MustCompile(`(?m)(\bimport\s*)(['"])([^'"]+)(['"])`)
+	jsImportDynamicPattern = regexp.MustCompile(`(?m)(\bimport\s*\(\s*)(['"])([^'"]+)(['"])(\s*\))`)
+	cssAssetURLPattern     = regexp.MustCompile(`url\(\s*(['"]?)([^'")]+)(['"]?)\s*\)`)
 )
 
 // SystemHandler handles Auth, Debug, Version, Config, Healthz, Smoke-test, and Shutdown endpoints.
@@ -233,10 +249,185 @@ func (h *SystemHandler) HandleStaticFiles(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/page/chat/", http.StatusFound)
 		return
 	}
+	if strings.HasPrefix(r.URL.Path, "/surface/") {
+		h.serveSurfaceStaticNoCache(w, r)
+		return
+	}
 	http.FileServer(http.Dir(h.webuiRoot)).ServeHTTP(w, r)
 }
 
 // UpdateLifecycleManager updates the lifecycle manager reference.
 func (h *SystemHandler) UpdateLifecycleManager(manager *supervisor.LifecycleManager) {
 	h.lifecycleManager = manager
+}
+
+func (h *SystemHandler) serveSurfaceStaticNoCache(w http.ResponseWriter, r *http.Request) {
+	resolvedPath, info, err := resolveStaticPathNoRedirect(h.webuiRoot, r.URL.Path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	file, err := os.Open(resolvedPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Close()
+
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	reloadToken := strings.TrimSpace(r.URL.Query().Get(surfaceReloadQueryKey))
+	if rewritten, contentType, ok := rewriteSurfaceResponse(resolvedPath, reloadToken); ok {
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(rewritten)
+		return
+	}
+
+	if contentType := mime.TypeByExtension(filepath.Ext(resolvedPath)); contentType != "" {
+		w.Header().Set("Content-Type", contentType)
+	}
+
+	http.ServeContent(w, r, info.Name(), time.Time{}, file)
+}
+
+func resolveStaticPathNoRedirect(root string, requestPath string) (string, os.FileInfo, error) {
+	cleanPath := path.Clean("/" + strings.TrimSpace(requestPath))
+	if cleanPath == "/" {
+		return "", nil, fmt.Errorf("empty static path")
+	}
+	relativePath := strings.TrimPrefix(cleanPath, "/")
+	resolvedRoot := filepath.Clean(root)
+	resolvedPath := filepath.Join(resolvedRoot, filepath.FromSlash(relativePath))
+	if rel, err := filepath.Rel(resolvedRoot, resolvedPath); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", nil, fmt.Errorf("static path escapes root")
+	}
+
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return "", nil, err
+	}
+	if info.IsDir() {
+		resolvedPath = filepath.Join(resolvedPath, "index.html")
+		info, err = os.Stat(resolvedPath)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	if !info.Mode().IsRegular() {
+		return "", nil, fmt.Errorf("static path is not a regular file")
+	}
+	return resolvedPath, info, nil
+}
+
+func rewriteSurfaceResponse(resolvedPath string, reloadToken string) ([]byte, string, bool) {
+	if strings.TrimSpace(reloadToken) == "" {
+		return nil, "", false
+	}
+	raw, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return nil, "", false
+	}
+	switch strings.ToLower(filepath.Ext(resolvedPath)) {
+	case ".html":
+		return []byte(rewriteHTMLAssetURLs(string(raw), reloadToken)), "text/html; charset=utf-8", true
+	case ".js", ".mjs":
+		return []byte(rewriteJSImportSpecifiers(string(raw), reloadToken)), "text/javascript; charset=utf-8", true
+	case ".css":
+		return []byte(rewriteCSSAssetURLs(string(raw), reloadToken)), "text/css; charset=utf-8", true
+	default:
+		return nil, "", false
+	}
+}
+
+func rewriteHTMLAssetURLs(raw string, reloadToken string) string {
+	return htmlAssetURLPattern.ReplaceAllStringFunc(raw, func(match string) string {
+		parts := htmlAssetURLPattern.FindStringSubmatch(match)
+		if len(parts) != 5 {
+			return match
+		}
+		return parts[1] + "=" + parts[2] + appendSurfaceReloadParam(parts[3], reloadToken) + parts[4]
+	})
+}
+
+func rewriteJSImportSpecifiers(raw string, reloadToken string) string {
+	rewritten := jsImportFromPattern.ReplaceAllStringFunc(raw, func(match string) string {
+		parts := jsImportFromPattern.FindStringSubmatch(match)
+		if len(parts) != 5 {
+			return match
+		}
+		return parts[1] + parts[2] + appendSurfaceReloadParam(parts[3], reloadToken) + parts[4]
+	})
+	rewritten = jsImportBarePattern.ReplaceAllStringFunc(rewritten, func(match string) string {
+		parts := jsImportBarePattern.FindStringSubmatch(match)
+		if len(parts) != 5 {
+			return match
+		}
+		trimmedPrefix := strings.TrimSpace(parts[1])
+		if trimmedPrefix != "import" {
+			return match
+		}
+		return parts[1] + parts[2] + appendSurfaceReloadParam(parts[3], reloadToken) + parts[4]
+	})
+	return jsImportDynamicPattern.ReplaceAllStringFunc(rewritten, func(match string) string {
+		parts := jsImportDynamicPattern.FindStringSubmatch(match)
+		if len(parts) != 6 {
+			return match
+		}
+		return parts[1] + parts[2] + appendSurfaceReloadParam(parts[3], reloadToken) + parts[4] + parts[5]
+	})
+}
+
+func rewriteCSSAssetURLs(raw string, reloadToken string) string {
+	return cssAssetURLPattern.ReplaceAllStringFunc(raw, func(match string) string {
+		parts := cssAssetURLPattern.FindStringSubmatch(match)
+		if len(parts) != 4 {
+			return match
+		}
+		quote := parts[1]
+		if quote == "" {
+			return "url(" + appendSurfaceReloadParam(parts[2], reloadToken) + ")"
+		}
+		return "url(" + quote + appendSurfaceReloadParam(parts[2], reloadToken) + parts[3] + ")"
+	})
+}
+
+func appendSurfaceReloadParam(rawURL string, reloadToken string) string {
+	target := strings.TrimSpace(rawURL)
+	if target == "" || strings.TrimSpace(reloadToken) == "" {
+		return target
+	}
+	lower := strings.ToLower(target)
+	if strings.HasPrefix(lower, "http://") ||
+		strings.HasPrefix(lower, "https://") ||
+		strings.HasPrefix(lower, "//") ||
+		strings.HasPrefix(lower, "data:") ||
+		strings.HasPrefix(lower, "blob:") ||
+		strings.HasPrefix(lower, "javascript:") ||
+		strings.HasPrefix(lower, "#") ||
+		strings.HasPrefix(lower, "/") {
+		return target
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	query := parsed.Query()
+	query.Set(surfaceReloadQueryKey, reloadToken)
+	parsed.RawQuery = query.Encode()
+	var buf bytes.Buffer
+	buf.WriteString(parsed.Path)
+	if parsed.RawQuery != "" {
+		buf.WriteByte('?')
+		buf.WriteString(parsed.RawQuery)
+	}
+	if parsed.Fragment != "" {
+		buf.WriteByte('#')
+		buf.WriteString(parsed.Fragment)
+	}
+	return buf.String()
 }

@@ -22,6 +22,13 @@ function normalizeActionDescriptor(action) {
   };
 }
 
+function buildSurfaceLoadURL(rawURL) {
+  const url = new URL(String(rawURL || ""), window.location.origin);
+  const nonce = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  url.searchParams.set("_surface_reload", nonce);
+  return url.toString();
+}
+
 export function createPageSurfaceHost(options = {}) {
   const callTool = typeof options.callTool === "function" ? options.callTool : null;
   if (!callTool) {
@@ -252,7 +259,7 @@ export function createPageSurfaceHost(options = {}) {
     }
   }
 
-  async function openSurface({ surfaceID, iframe, workspaceState = {} }) {
+  async function openSurface({ surfaceID, iframe, workspaceState = {}, cacheBust = false }) {
     const targetSurfaceID = String(surfaceID || "").trim();
     if (!targetSurfaceID) throw new Error("surface_id is required");
     if (!iframe || typeof iframe !== "object") throw new Error("iframe is required");
@@ -319,7 +326,7 @@ export function createPageSurfaceHost(options = {}) {
         workspace_state: runtime.workspaceState,
       }, "*", [channel.port2]);
     };
-    iframe.src = entry.entry_url;
+    iframe.src = cacheBust ? buildSurfaceLoadURL(entry.entry_url) : entry.entry_url;
     emit("surface_opening", runtime, { entry });
     return runtime;
   }

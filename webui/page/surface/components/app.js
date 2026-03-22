@@ -99,7 +99,7 @@ function bindEvents() {
 
   if (els.refreshFrameBtn) {
     els.refreshFrameBtn.addEventListener("click", () => {
-      runtimeController.reloadIframe();
+      runtimeController.reloadIframe().catch((err) => runtimeController.reportError(err));
     });
   }
 

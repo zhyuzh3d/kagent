@@ -18,6 +18,7 @@ func (s *Session) setUserTurnActive(active bool) {
 func (s *Session) clearPendingFollowupsForUserTurn() {
 	s.actionMu.Lock()
 	s.pendingFollowups = nil
+	s.followupReplyRequested = false
 	if s.followupFlushTimer != nil {
 		s.followupFlushTimer.Stop()
 		s.followupFlushTimer = nil
@@ -35,17 +36,28 @@ func (s *Session) enqueueFollowupMessage(message ChatMessage, aggregate bool) {
 		s.followupFlushTimer = time.AfterFunc(1*time.Second, func() {
 			s.actionMu.Lock()
 			s.followupFlushTimer = nil
+			requested := s.followupReplyRequested
 			s.actionMu.Unlock()
-			s.tryStartContinuation()
+			if requested {
+				s.tryStartContinuation()
+			}
 		})
 		s.actionMu.Unlock()
 		return
 	}
+	requested := s.followupReplyRequested
 	hasTimer := s.followupFlushTimer != nil
 	s.actionMu.Unlock()
-	if !hasTimer {
+	if requested && !hasTimer {
 		s.tryStartContinuation()
 	}
+}
+
+func (s *Session) requestFollowupReply() {
+	s.actionMu.Lock()
+	s.followupReplyRequested = true
+	s.actionMu.Unlock()
+	s.tryStartContinuation()
 }
 
 func (s *Session) tryStartContinuation() {
@@ -53,11 +65,12 @@ func (s *Session) tryStartContinuation() {
 		return
 	}
 	s.actionMu.Lock()
-	if s.userTurnActive || s.continuationRunning || len(s.pendingFollowups) == 0 || !s.started.Load() || s.followupFlushTimer != nil {
+	if s.userTurnActive || s.continuationRunning || len(s.pendingFollowups) == 0 || !s.started.Load() || s.followupFlushTimer != nil || !s.followupReplyRequested {
 		s.actionMu.Unlock()
 		return
 	}
 	s.pendingFollowups = nil
+	s.followupReplyRequested = false
 	s.continuationRunning = true
 	s.continuationSeq++
 	continuationSeq := s.continuationSeq
