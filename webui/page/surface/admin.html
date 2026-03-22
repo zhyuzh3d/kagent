@@ -1,113 +1,143 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Surface 治理台</title>
   <link rel="stylesheet" href="./admin.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div>
       <h1>Surface 治理台</h1>
-      <p>统一查看 catalog、包文件、运行态与 capability 令牌，不再把 package 编辑和运行观测割裂开。</p>
     </div>
     <div class="topbar-actions">
-      <button id="refreshBtn" class="primary">刷新 Catalog</button>
+      <button id="openGenerateBtn" class="primary">AI 生成</button>
+      <button id="refreshBtn">刷新 Catalog</button>
       <button id="rescanBtn">重扫目录</button>
+      <button id="cleanupBtn">清理陈旧记录</button>
       <button id="rebindBtn">重新绑定</button>
-      <span id="statusBadge" class="badge">idle</span>
     </div>
   </header>
 
-  <main class="page-shell">
-    <section class="overview-grid">
-      <article class="overview-card">
-        <span>Surface 总数</span>
-        <strong id="totalCount">0</strong>
-      </article>
-      <article class="overview-card">
-        <span>已启用</span>
-        <strong id="enabledCount">0</strong>
-      </article>
-      <article class="overview-card">
-        <span>可打开</span>
-        <strong id="readyCount">0</strong>
-      </article>
-    </section>
-
-    <section class="layout">
-      <article class="card">
-        <div class="card-head">
-          <h2>Catalog</h2>
-          <span class="hint">选择一个 surface 后，右侧会同步 package / token / runtime。</span>
-        </div>
-        <div class="card-body">
-          <div class="list" id="surfaceList"></div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h2>Package Editor</h2>
-          <span class="hint">包文件编辑、启用切换、session/capability 令牌发放。</span>
-        </div>
-        <div class="card-body">
-          <div class="action-row">
-            <button id="toggleEnableBtn">启用 / 停用</button>
-            <button id="openBtn" class="secondary">在加载器中打开</button>
-            <button id="issueSessionBtn">发放 Session</button>
-            <button id="issueCapBtn">发放 FS Capability</button>
-          </div>
-          <div class="meta-grid">
-            <label>Surface</label><div id="surfaceTitle" class="mono">-</div>
-            <label>Entry</label><div id="surfaceEntry" class="mono">-</div>
-            <label>Session</label><div id="sessionToken" class="mono token-text">-</div>
-            <label>Capability</label><div id="capToken" class="mono token-text">-</div>
-          </div>
-          <div class="editor-toolbar">
-            <select id="fileSelect"></select>
-            <button id="loadFileBtn">读取文件</button>
-            <button id="saveFileBtn" class="primary">保存文件</button>
-          </div>
-          <textarea id="fileEditor" class="mono editor"></textarea>
-        </div>
-      </article>
-
-      <div class="stack">
-        <article class="card">
+  <main class="page-shell viewport-layout">
+    <div class="pane-top">
+      <article class="card three-col-grid">
+        <!-- 1. Catalog -->
+        <div class="layout-col panel-col">
           <div class="card-head">
-            <h2>Generate Surface</h2>
-            <span class="hint">生成一个新的 package，并可直接在加载器中打开。</span>
+            <h2>Catalog</h2>
+            <span class="hint">选择surface</span>
           </div>
-          <div class="card-body">
-            <input id="generateName" placeholder="surface_name，例如 note_pad" />
-            <textarea id="generatePrompt" class="mono prompt-editor">创建一个可在 page/surface/index.html 里装载的轻量文本记录 surface，保留 state_change 与 action_result 回报。</textarea>
+          <div class="card-body no-padding scrollable">
+            <div class="list" id="surfaceList"></div>
+          </div>
+        </div>
+
+        <!-- 2. 信息和操作 -->
+        <div class="layout-col panel-col">
+          <div class="card-head">
+            <h2>Overview & Actions</h2>
+            <span class="hint">状态与核心指令</span>
+          </div>
+          <div class="card-body scrollable">
+            <div class="overview-grid-mini">
+              <article class="overview-card-mini">
+                <span>操作状态</span>
+                <div style="margin-top: 6px;"><span id="statusBadge" class="badge">idle</span></div>
+              </article>
+              <article class="overview-card-mini">
+                <span>总数</span>
+                <strong id="totalCount">0</strong>
+              </article>
+              <article class="overview-card-mini">
+                <span>已启用</span>
+                <strong id="enabledCount">0</strong>
+              </article>
+              <article class="overview-card-mini">
+                <span>可打开</span>
+                <strong id="readyCount">0</strong>
+              </article>
+            </div>
+
             <div class="action-row">
-              <button id="generateBtn" class="primary">生成</button>
-              <button id="generateOpenBtn">生成并打开</button>
+              <button id="toggleEnableBtn">启用 / 停用</button>
+              <button id="openBtn" class="secondary">在加载器中打开</button>
+              <button id="issueSessionBtn">发放 Session</button>
+            </div>
+
+            <div class="meta-grid">
+              <label>Surface</label>
+              <div id="surfaceTitle" class="mono">-</div>
+              <label>Entry</label>
+              <div id="surfaceEntry" class="mono">-</div>
+              <label>Session</label>
+              <div id="sessionToken" class="mono token-text">-</div>
             </div>
           </div>
-        </article>
+        </div>
 
-        <article class="card">
+        <!-- 3. 文件编辑 -->
+        <div class="layout-col">
           <div class="card-head">
-            <h2>Runtime / Logs</h2>
-            <span class="hint">查看 runtime 状态、日志以及 package 文件清单。</span>
+            <h2>File Editor</h2>
+            <span class="hint">包文件编辑</span>
           </div>
-          <div class="card-body">
-            <div class="action-row">
-              <button id="runtimeBtn">运行态</button>
-              <button id="logsBtn">日志</button>
-              <button id="pkgListBtn">包文件列表</button>
+          <div class="card-body col-flex flex-1">
+            <div class="editor-toolbar flex-row">
+              <select id="fileSelect" style="flex: 1; width: 0;"></select>
+              <button id="loadFileBtn">读取</button>
+              <button id="saveFileBtn" class="primary">保存</button>
             </div>
-            <pre id="infoPanel" class="mono result-box">(empty)</pre>
+            <textarea id="fileEditor" class="mono editor flex-1"></textarea>
           </div>
-        </article>
-      </div>
-    </section>
+        </div>
+      </article>
+    </div>
+
+    <!-- Divider for resizing -->
+    <div class="pane-divider" id="paneDivider"></div>
+
+    <!-- Bottom info panel -->
+    <div class="pane-bottom" id="paneBottom" style="height: 200px;">
+      <article class="card col-flex" style="height: 100%;">
+        <div class="card-head" style="padding: 0 18px; justify-content: flex-start; gap: 32px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <h2>信息面板</h2>
+          </div>
+          <div class="tabs"
+            style="border-bottom: 0; background: transparent; padding: 0; height: 100%; align-items: flex-end; gap: 16px;">
+            <button id="pkgListBtn" class="tab active">包清单</button>
+            <button id="runtimeBtn" class="tab">运行态</button>
+            <button id="logsBtn" class="tab">系统日志</button>
+          </div>
+        </div>
+        <div class="card-body col-flex" style="padding: 0;">
+          <pre id="infoPanel" class="mono result-box flex-1" style=""></pre>
+        </div>
+      </article>
+    </div>
   </main>
+
+  <dialog id="generateDialog" class="card" style="padding: 0;">
+    <div class="card-head">
+      <h2>AI 生成 Surface</h2>
+      <button id="closeGenerateBtn" class="secondary" style="padding: 4px 8px;">关闭</button>
+    </div>
+    <div class="card-body">
+      <input id="generateName" placeholder="surface_name，例如 note_pad" />
+      <textarea id="generatePrompt"
+        class="mono prompt-editor">创建一个可在 page/surface/index.html 里装载的轻量文本记录 surface，使用 surface_register / surface_ready / state_change / action_result 协议。</textarea>
+      <div class="action-row">
+        <button id="generateBtn" class="primary">生成</button>
+        <button id="generateOpenBtn">生成并打开</button>
+      </div>
+    </div>
+  </dialog>
 
   <script type="module" src="./admin.js"></script>
 </body>
+
 </html>

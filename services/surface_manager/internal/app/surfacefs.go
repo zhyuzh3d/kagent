@@ -1,22 +1,16 @@
 package app
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"kagent/pkg/hubsvc"
 )
 
 const (
-	SurfaceTokenKindSession    = "surface_session"
-	SurfaceTokenKindCapability = "surface_capability"
-
 	SurfaceScopeRead   = "fs.read"
 	SurfaceScopeWrite  = "fs.write"
 	SurfaceScopeList   = "fs.list"
@@ -27,15 +21,7 @@ const (
 	surfaceSecretFile = ".surface_secret"
 )
 
-type SurfaceTokenClaims struct {
-	Kind       string `json:"kind"`
-	UserID     string `json:"user_id"`
-	SurfaceID  string `json:"surface_id"`
-	Scope      string `json:"scope,omitempty"`
-	PathPrefix string `json:"path_prefix,omitempty"`
-	ExpMS      int64  `json:"exp_ms"`
-	Nonce      string `json:"nonce"`
-}
+type SurfaceTokenClaims = hubsvc.SurfaceTokenClaims
 
 type SurfaceFSService struct {
 	dataRoot string
@@ -100,8 +86,8 @@ func (s *SurfaceFSService) IssueSurfaceSessionToken(userID string, surfaceID str
 	if ttl <= 0 {
 		ttl = 30 * time.Minute
 	}
-	claims := SurfaceTokenClaims{
-		Kind:      SurfaceTokenKindSession,
+	claims := hubsvc.SurfaceTokenClaims{
+		Kind:      hubsvc.SurfaceTokenKindSession,
 		UserID:    uid,
 		SurfaceID: sid,
 		ExpMS:     nowMS() + ttl.Milliseconds(),
@@ -120,7 +106,7 @@ func (s *SurfaceFSService) IssueCapabilityTokenFromSession(sessionToken string, 
 	if err != nil {
 		return "", 0, err
 	}
-	if claims.Kind != SurfaceTokenKindSession {
+	if claims.Kind != hubsvc.SurfaceTokenKindSession {
 		return "", 0, fmt.Errorf("token kind is not surface_session")
 	}
 	cleanScope := normalizeCapabilityScope(scope)
@@ -138,8 +124,8 @@ func (s *SurfaceFSService) IssueCapabilityTokenFromSession(sessionToken string, 
 	if exp > claims.ExpMS {
 		exp = claims.ExpMS
 	}
-	capClaims := SurfaceTokenClaims{
-		Kind:       SurfaceTokenKindCapability,
+	capClaims := hubsvc.SurfaceTokenClaims{
+		Kind:       hubsvc.SurfaceTokenKindCapability,
 		UserID:     claims.UserID,
 		SurfaceID:  claims.SurfaceID,
 		Scope:      cleanScope,
@@ -155,7 +141,7 @@ func (s *SurfaceFSService) IssueCapabilityTokenFromSession(sessionToken string, 
 	return token, capClaims.ExpMS, nil
 }
 
-func (s *SurfaceFSService) noteSessionIssued(claims SurfaceTokenClaims) {
+func (s *SurfaceFSService) noteSessionIssued(claims hubsvc.SurfaceTokenClaims) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rt := s.ensureRuntimeLocked(claims.SurfaceID)
@@ -166,7 +152,7 @@ func (s *SurfaceFSService) noteSessionIssued(claims SurfaceTokenClaims) {
 	s.pruneRuntimeLocked(rt, nowMS())
 }
 
-func (s *SurfaceFSService) noteCapabilityIssued(claims SurfaceTokenClaims) {
+func (s *SurfaceFSService) noteCapabilityIssued(claims hubsvc.SurfaceTokenClaims) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rt := s.ensureRuntimeLocked(claims.SurfaceID)
@@ -233,46 +219,46 @@ func (s *SurfaceFSService) RuntimeStatus(surfaceID string) SurfaceRuntimeStatus 
 	return status
 }
 
-func (s *SurfaceFSService) ParseAnySurfaceToken(token string) (SurfaceTokenClaims, error) {
+func (s *SurfaceFSService) ParseAnySurfaceToken(token string) (hubsvc.SurfaceTokenClaims, error) {
 	return s.verifyClaims(token)
 }
 
-func (s *SurfaceFSService) ValidateCapabilityToken(capabilityToken string, requiredScope string, surfaceID string, relPath string) (SurfaceTokenClaims, error) {
+func (s *SurfaceFSService) ValidateCapabilityToken(capabilityToken string, requiredScope string, surfaceID string, relPath string) (hubsvc.SurfaceTokenClaims, error) {
 	claims, _, err := s.verifyCapability(capabilityToken, requiredScope, surfaceID, relPath)
 	if err != nil {
-		return SurfaceTokenClaims{}, err
+		return hubsvc.SurfaceTokenClaims{}, err
 	}
 	return claims, nil
 }
 
-func (s *SurfaceFSService) ValidateCapabilityRequest(capabilityToken string, requiredScope string, surfaceID string, relPath string) (SurfaceTokenClaims, string, error) {
+func (s *SurfaceFSService) ValidateCapabilityRequest(capabilityToken string, requiredScope string, surfaceID string, relPath string) (hubsvc.SurfaceTokenClaims, string, error) {
 	claims, cleanPath, err := s.verifyCapability(capabilityToken, requiredScope, surfaceID, relPath)
 	if err != nil {
-		return SurfaceTokenClaims{}, "", err
+		return hubsvc.SurfaceTokenClaims{}, "", err
 	}
 	return claims, cleanPath, nil
 }
 
-func (s *SurfaceFSService) verifyCapability(capabilityToken string, requiredScope string, surfaceID string, relPath string) (SurfaceTokenClaims, string, error) {
+func (s *SurfaceFSService) verifyCapability(capabilityToken string, requiredScope string, surfaceID string, relPath string) (hubsvc.SurfaceTokenClaims, string, error) {
 	claims, err := s.verifyClaims(capabilityToken)
 	if err != nil {
-		return SurfaceTokenClaims{}, "", err
+		return hubsvc.SurfaceTokenClaims{}, "", err
 	}
-	if claims.Kind != SurfaceTokenKindCapability {
-		return SurfaceTokenClaims{}, "", fmt.Errorf("token kind is not surface_capability")
+	if claims.Kind != hubsvc.SurfaceTokenKindCapability {
+		return hubsvc.SurfaceTokenClaims{}, "", fmt.Errorf("token kind is not surface_capability")
 	}
 	if strings.TrimSpace(surfaceID) != "" && strings.TrimSpace(surfaceID) != strings.TrimSpace(claims.SurfaceID) {
-		return SurfaceTokenClaims{}, "", fmt.Errorf("surface_id mismatch")
+		return hubsvc.SurfaceTokenClaims{}, "", fmt.Errorf("surface_id mismatch")
 	}
 	if !capabilityScopeAllows(claims.Scope, requiredScope) {
-		return SurfaceTokenClaims{}, "", fmt.Errorf("capability scope denied: required=%s", requiredScope)
+		return hubsvc.SurfaceTokenClaims{}, "", fmt.Errorf("capability scope denied: required=%s", requiredScope)
 	}
 	cleanPath, err := normalizeRelativePath(relPath)
 	if err != nil {
-		return SurfaceTokenClaims{}, "", err
+		return hubsvc.SurfaceTokenClaims{}, "", err
 	}
 	if !pathPrefixAllows(claims.PathPrefix, cleanPath) {
-		return SurfaceTokenClaims{}, "", fmt.Errorf("path out of capability prefix")
+		return hubsvc.SurfaceTokenClaims{}, "", fmt.Errorf("path out of capability prefix")
 	}
 	return claims, cleanPath, nil
 }
@@ -346,57 +332,16 @@ func normalizeRelativePath(raw string) (string, error) {
 	return clean, nil
 }
 
-func (s *SurfaceFSService) signClaims(claims SurfaceTokenClaims) (string, error) {
+func (s *SurfaceFSService) signClaims(claims hubsvc.SurfaceTokenClaims) (string, error) {
 	if s == nil || len(s.secret) == 0 {
 		return "", fmt.Errorf("surfacefs secret is not ready")
 	}
-	if claims.ExpMS <= nowMS() {
-		return "", fmt.Errorf("token expiration must be in the future")
-	}
-	raw, err := json.Marshal(claims)
-	if err != nil {
-		return "", fmt.Errorf("marshal token claims: %w", err)
-	}
-	payload := base64.RawURLEncoding.EncodeToString(raw)
-	mac := hmac.New(sha256.New, s.secret)
-	_, _ = mac.Write([]byte(payload))
-	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return payload + "." + signature, nil
+	return hubsvc.SignSurfaceToken(s.secret, claims)
 }
 
-func (s *SurfaceFSService) verifyClaims(token string) (SurfaceTokenClaims, error) {
-	clean := strings.TrimSpace(token)
-	if clean == "" {
-		return SurfaceTokenClaims{}, fmt.Errorf("token is empty")
+func (s *SurfaceFSService) verifyClaims(token string) (hubsvc.SurfaceTokenClaims, error) {
+	if s == nil || len(s.secret) == 0 {
+		return hubsvc.SurfaceTokenClaims{}, fmt.Errorf("surfacefs secret is not ready")
 	}
-	parts := strings.Split(clean, ".")
-	if len(parts) != 2 {
-		return SurfaceTokenClaims{}, fmt.Errorf("token format is invalid")
-	}
-	payload := parts[0]
-	sigGivenRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return SurfaceTokenClaims{}, fmt.Errorf("token signature is invalid")
-	}
-	mac := hmac.New(sha256.New, s.secret)
-	_, _ = mac.Write([]byte(payload))
-	sigExpected := mac.Sum(nil)
-	if subtle.ConstantTimeCompare(sigExpected, sigGivenRaw) != 1 {
-		return SurfaceTokenClaims{}, fmt.Errorf("token signature mismatch")
-	}
-	rawClaims, err := base64.RawURLEncoding.DecodeString(payload)
-	if err != nil {
-		return SurfaceTokenClaims{}, fmt.Errorf("token payload is invalid")
-	}
-	var claims SurfaceTokenClaims
-	if err := json.Unmarshal(rawClaims, &claims); err != nil {
-		return SurfaceTokenClaims{}, fmt.Errorf("token claims parse failed")
-	}
-	if claims.ExpMS <= nowMS() {
-		return SurfaceTokenClaims{}, fmt.Errorf("token is expired")
-	}
-	if strings.TrimSpace(claims.UserID) == "" || strings.TrimSpace(claims.SurfaceID) == "" {
-		return SurfaceTokenClaims{}, fmt.Errorf("token claims missing user_id or surface_id")
-	}
-	return claims, nil
+	return hubsvc.VerifySurfaceToken(s.secret, token)
 }

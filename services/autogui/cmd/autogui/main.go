@@ -80,7 +80,7 @@ func main() {
 		Visibility:  "public",
 		Provides: []toolproto.ServiceTool{
 			{
-				ToolID: "autogui.mouse.move", Description: "移动鼠标到指定的绝对坐标 (x, y)", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.mouse.move", Description: "移动鼠标到指定的绝对坐标 (x, y)", AllowedCallerTypes: []string{"user", "service", "surface"},
 				InputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -91,7 +91,7 @@ func main() {
 				},
 			},
 			{
-				ToolID: "autogui.mouse.click", Description: "模拟鼠标按键点击 (左键/右键/中键)", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.mouse.click", Description: "模拟鼠标按键点击 (左键/右键/中键)", AllowedCallerTypes: []string{"user", "service", "surface"},
 				InputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -101,7 +101,7 @@ func main() {
 				},
 			},
 			{
-				ToolID: "autogui.mouse.scroll", Description: "模拟鼠标滚轮滚动", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.mouse.scroll", Description: "模拟鼠标滚轮滚动", AllowedCallerTypes: []string{"user", "service", "surface"},
 				InputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -111,7 +111,7 @@ func main() {
 				},
 			},
 			{
-				ToolID: "autogui.keyboard.type", Description: "在当前焦点处模拟键盘输入字符串", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.keyboard.type", Description: "在当前焦点处模拟键盘输入字符串", AllowedCallerTypes: []string{"user", "service", "surface"},
 				InputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -121,7 +121,7 @@ func main() {
 				},
 			},
 			{
-				ToolID: "autogui.keyboard.press", Description: "模拟单个按键及组合键的按下", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.keyboard.press", Description: "模拟单个按键及组合键的按下", AllowedCallerTypes: []string{"user", "service", "surface"},
 				InputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -132,7 +132,7 @@ func main() {
 				},
 			},
 			{
-				ToolID: "autogui.screen.capture", Description: "全屏截图并返回 Base64 编码的 PNG 数据", AllowedCallerTypes: []string{"user", "service"},
+				ToolID: "autogui.screen.capture", Description: "全屏截图并返回 Base64 编码的 PNG 数据", AllowedCallerTypes: []string{"user", "service", "surface"},
 				OutputSchema: map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -142,7 +142,35 @@ func main() {
 					},
 				},
 			},
-			{ToolID: "autogui.screen.capture_region", Description: "指定区域截图", AllowedCallerTypes: []string{"user", "service"}},
+			{
+				ToolID:             "autogui.screen.capture_region",
+				Description:        "指定区域截图",
+				AllowedCallerTypes: []string{"user", "service", "surface"},
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"x":      map[string]any{"type": "integer"},
+						"y":      map[string]any{"type": "integer"},
+						"width":  map[string]any{"type": "integer"},
+						"height": map[string]any{"type": "integer"},
+					},
+				},
+			},
+			{
+				ToolID:             "autogui.text.insert",
+				Description:        "优先通过剪贴板粘贴插入文本，必要时回退到逐字输入，并可选择清空或提交。",
+				AllowedCallerTypes: []string{"user", "service", "surface"},
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"text":         map[string]any{"type": "string"},
+						"mode":         map[string]any{"type": "string", "enum": []string{"paste_preferred", "type_only"}, "default": "paste_preferred"},
+						"clear_before": map[string]any{"type": "boolean", "default": false},
+						"submit":       map[string]any{"type": "boolean", "default": false},
+					},
+					"required": []string{"text"},
+				},
+			},
 			{ToolID: "service.lifecycle.health", Description: "服务健康状况探测", AllowedCallerTypes: []string{"service"}},
 			{ToolID: "service.lifecycle.state.get", Description: "获取服务运行状态快照", AllowedCallerTypes: []string{"service"}},
 			{ToolID: "service.lifecycle.shutdown", Description: "强制停止服务进程", AllowedCallerTypes: []string{"service"}},
@@ -275,6 +303,51 @@ func execute(req toolproto.CallRequest, serviceID string, instance string, addr 
 		}
 		robotgo.KeyTap(key, args...)
 		return map[string]any{"key": key, "modifiers": mods}, nil
+	case "autogui.text.insert":
+		text := asString(req.Args["text"])
+		if text == "" {
+			return nil, fmt.Errorf("text is required")
+		}
+		mode := firstNonEmpty(asString(req.Args["mode"]), "paste_preferred")
+		clearBefore := asBool(req.Args["clear_before"], false)
+		submit := asBool(req.Args["submit"], false)
+		insertMode := "type_only"
+		if clearBefore {
+			clearModifier := "ctrl"
+			if runtime.GOOS == "darwin" {
+				clearModifier = "command"
+			}
+			robotgo.KeyTap("a", clearModifier)
+			time.Sleep(40 * time.Millisecond)
+			robotgo.KeyTap("backspace")
+			time.Sleep(40 * time.Millisecond)
+		}
+		if mode != "type_only" {
+			if err := robotgo.WriteAll(text); err == nil {
+				pasteModifier := "ctrl"
+				if runtime.GOOS == "darwin" {
+					pasteModifier = "command"
+				}
+				robotgo.KeyTap("v", pasteModifier)
+				insertMode = "paste"
+			} else {
+				insertMode = "type_fallback"
+				robotgo.TypeStr(text)
+			}
+		} else {
+			robotgo.TypeStr(text)
+		}
+		if submit {
+			time.Sleep(40 * time.Millisecond)
+			robotgo.KeyTap("enter")
+		}
+		return map[string]any{
+			"text":         text,
+			"mode":         mode,
+			"insert_mode":  insertMode,
+			"clear_before": clearBefore,
+			"submit":       submit,
+		}, nil
 	case "autogui.screen.capture":
 		return captureRegion(0, 0, 0, 0)
 	case "autogui.screen.capture_region":

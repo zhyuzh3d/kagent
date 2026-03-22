@@ -1,0 +1,139 @@
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
+  background:
+    radial-gradient(circle at top right, rgba(234, 88, 12, 0.18), transparent 30%),
+    linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  color: #431407;
+}
+
+.task-shell {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.task-panel {
+  min-height: calc(100vh - 36px);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(251, 146, 60, 0.24);
+  box-shadow: 0 24px 60px rgba(124, 45, 18, 0.12);
+  padding: 18px;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #c2410c;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 6px;
+  font-size: 30px;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+.status-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+input {
+  border: 1px solid rgba(194, 65, 12, 0.2);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: linear-gradient(135deg, #c2410c, #ea580c);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.task-columns {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 16px;
+}
+
+.task-list,
+.timeline-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.task-item,
+.timeline-item {
+  border-radius: 16px;
+  padding: 12px;
+  background: #fffaf5;
+  border: 1px solid rgba(194, 65, 12, 0.14);
+}
+
+.task-item.done {
+  opacity: 0.72;
+}
+
+.task-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-meta,
+.timeline-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(67, 20, 7, 0.68);
+}
+
+@media (max-width: 780px) {
+  .task-columns {
+    grid-template-columns: 1fr;
+  }
+}

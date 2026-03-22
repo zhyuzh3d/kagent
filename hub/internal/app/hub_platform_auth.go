@@ -166,3 +166,10 @@ func (h *HubPlatform) VerifyOriginCallerToken(token string, expectedServiceID st
 	}
 	return claims, nil
 }
+
+func (h *HubPlatform) VerifySurfaceToken(token string) (hubsvc.SurfaceTokenClaims, error) {
+	if h == nil {
+		return hubsvc.SurfaceTokenClaims{}, fmt.Errorf("hub platform is nil")
+	}
+	return hubsvc.VerifySurfaceToken(h.surfaceSecret, token)
+}

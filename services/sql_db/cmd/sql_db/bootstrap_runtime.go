@@ -445,6 +445,44 @@ func runSQLDB() {
 				"items": rows,
 				"count": len(rows),
 			}
+		case "storage.share.delete":
+			if strings.ToLower(strings.TrimSpace(caller.Type)) != "service" || strings.TrimSpace(caller.ServiceID) == "" {
+				resp = toErrResp(toolproto.ErrorCodeForbidden, "share.delete requires service caller", false)
+				break
+			}
+			if err := ensureShareTable(); err != nil {
+				resp = toErrResp(toolproto.ErrorCodeInternalError, "ensure share table failed: "+err.Error(), true)
+				break
+			}
+			namespace := asString(req.Args["namespace"])
+			category := asString(req.Args["category"])
+			key := asString(req.Args["key"])
+			if strings.TrimSpace(namespace) == "" || strings.TrimSpace(category) == "" || strings.TrimSpace(key) == "" {
+				resp = toErrResp(toolproto.ErrorCodeBadRequest, "namespace/category/key are required", false)
+				break
+			}
+			affected, _, err := scopedDBService.Execute(buildShareTarget(), `
+				DELETE FROM share_records
+				WHERE namespace = ? AND category = ? AND service_id = ? AND key = ?
+			`, []any{
+				namespace,
+				category,
+				caller.ServiceID,
+				key,
+			})
+			if err != nil {
+				resp = toErrResp(toolproto.ErrorCodeToolExecError, "share delete failed: "+err.Error(), false)
+				break
+			}
+			resp.Ok = true
+			resp.Result = map[string]any{
+				"namespace":     namespace,
+				"category":      category,
+				"service_id":    caller.ServiceID,
+				"key":           key,
+				"deleted":       affected > 0,
+				"rows_affected": affected,
+			}
 		default:
 			resp = toErrResp(toolproto.ErrorCodeToolNotFound, "tool not found", false)
 		}

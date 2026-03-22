@@ -29,6 +29,7 @@ const (
 
 var (
 	uuidV4LikePattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
+	surfaceIDPattern  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 )
 
 type SurfaceManifest struct {
@@ -229,11 +230,15 @@ func isUUIDLike(raw string) bool {
 	return uuidV4LikePattern.MatchString(strings.TrimSpace(raw))
 }
 
+func isValidSurfaceID(raw string) bool {
+	return surfaceIDPattern.MatchString(strings.TrimSpace(raw))
+}
+
 func markSurfaceConflicts(items []ScannedSurface) {
 	conflicts := map[string][]int{}
 	for i := range items {
 		sid := strings.TrimSpace(items[i].SurfaceID)
-		if !isUUIDLike(sid) {
+		if sid == "" {
 			continue
 		}
 		conflicts[sid] = append(conflicts[sid], i)
@@ -282,10 +287,10 @@ func scanOneSurfacePkg(typeRoot string, surfaceType string, pkgPath string, scan
 		return result
 	}
 	manifest.ID = strings.TrimSpace(manifest.ID)
-	if isUUIDLike(manifest.ID) {
+	if isValidSurfaceID(manifest.ID) {
 		result.SurfaceID = manifest.ID
 	} else if manifest.ID != "" {
-		result.Error = "manifest id must be UUID"
+		result.Error = "manifest id contains unsupported characters"
 		return result
 	} else {
 		result.Error = "manifest missing id"

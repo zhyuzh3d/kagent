@@ -4,11 +4,11 @@ export function getElements() {
     surfaceSelect: document.getElementById("surfaceSelect"),
     loadBtn: document.getElementById("loadBtn"),
     resetLayoutBtn: document.getElementById("resetLayoutBtn"),
-    statusBadge: document.getElementById("statusBadge"),
 
     // 运行区
     surfaceFrame: document.getElementById("surfaceFrame"),
     refreshFrameBtn: document.getElementById("refreshFrameBtn"),
+    previewStatus: document.getElementById("previewStatus"),
 
     // 分隔面板控制
     logResizer: document.getElementById("logResizer"),
@@ -33,6 +33,7 @@ export function getElements() {
     runtimeStatus: document.getElementById("runtimeStatus"),
     eventLog: document.getElementById("eventLog"),
     clearLogsBtn: document.getElementById("clearLogsBtn"),
+    toastViewport: document.getElementById("toastViewport"),
 
     // 标签页导航
     tabsNav: document.getElementById("tabsNav"),

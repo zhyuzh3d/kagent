@@ -105,17 +105,7 @@ func (h *ToolHandler) prepareCallRequest(w http.ResponseWriter, r *http.Request)
 
 	identity := h.resolveRequestIdentity(r)
 	ctx := context.WithValue(r.Context(), app.RemoteAddrContextKey, r.RemoteAddr)
-	caller := toolproto.Caller{
-		Type:      strings.ToLower(string(identity.Type)),
-		UserID:    identity.ID,
-		ServiceID: identity.ID,
-	}
-	if identity.Type != app.IdentityUser {
-		caller.UserID = ""
-	}
-	if identity.Type != app.IdentityService {
-		caller.ServiceID = ""
-	}
+	caller := identity.Caller()
 	req.Context.Caller = caller
 
 	originCaller, originToken, err := h.resolveOriginDelegation(caller, req.Context, "")

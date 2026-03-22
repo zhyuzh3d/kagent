@@ -1,3 +1,4 @@
+import { createPageSurfaceHost } from "../../lib/pageSurfaceTool.js";
 import { callTool } from "./tool-call.js";
 
 function createPanel(root) {
@@ -21,6 +22,14 @@ function createPanel(root) {
   return panel;
 }
 
+function escapeHTML(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function toCanonicalActionName(rawName) {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "";
@@ -36,8 +45,6 @@ function toCanonicalActionName(rawName) {
     ["surface.close", "close_surface"],
     ["surface.get_state", "surface.get_state"],
     ["get_state", "surface.get_state"],
-    ["surface.show", "open_surface"],
-    ["surface.hide", "close_surface"],
   ]);
   const lower = name.toLowerCase();
   if (aliases.has(lower)) return aliases.get(lower);
@@ -60,18 +67,10 @@ function toActionPayload(action) {
   };
 }
 
-function escapeHTML(text) {
-  return String(text || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function parseSurfaceCallName(name) {
   const parts = String(name || "").split(".");
   if (parts.length < 4) return null;
-  if (parts[0] !== "surface" || (parts[1] !== "call" && parts[1] !== "action")) return null;
+  if (parts[0] !== "surface" || parts[1] !== "call") return null;
   return {
     surfaceID: parts[2],
     actionName: parts.slice(3).join("."),
@@ -92,8 +91,38 @@ export function createSurfaceBridge(options) {
   const reportActionRecord = typeof options.reportActionRecord === "function" ? options.reportActionRecord : () => {};
 
   const registry = new Map();
-  const runtimes = new Map();
-  const actionWaiters = new Map();
+  const runtimeViews = new Map();
+  const host = createPageSurfaceHost({
+    callTool,
+    pageID: "chat",
+    pageType: "host",
+    hostActions: [
+      {
+        name: "host.flash",
+        description: "在 chat 面板输出系统提示",
+        handler: async ({ args, runtime }) => {
+          const message = typeof args.message === "string" ? args.message : "(empty)";
+          appendSystem(`[surface:${runtime.surfaceID}] ${message}`);
+          return { delivered: true };
+        },
+      },
+    ],
+    onRuntimeEvent: (event) => {
+      if (!event || !event.runtime) return;
+      const snapshot = host.getRuntimeSnapshot(event.runtime.surfaceID);
+      if (snapshot) {
+        onSurfaceEvent({
+          type: event.type,
+          surface_id: snapshot.surface_id,
+          payload: snapshot.state || {},
+        });
+      }
+      renderRegistry();
+    },
+    onError: (error) => {
+      appendDebug("ERROR", "SurfaceBridge", null, null, error && error.message ? error.message : String(error));
+    },
+  });
 
   let panel = null;
   let statusEl = null;
@@ -105,39 +134,39 @@ export function createSurfaceBridge(options) {
     if (statusEl) statusEl.textContent = text;
   }
 
+  function ensurePanel() {
+    if (panel) return;
+    panel = createPanel(root);
+    statusEl = panel.querySelector(".surface-float-status");
+    listEl = panel.querySelector(".surface-manager-list");
+    workspaceEl = panel.querySelector(".surface-manager-workspace");
+    panel.querySelector('[data-act="refresh"]').addEventListener("click", () => {
+      refreshRegistry().catch((error) => appendSystem(error.message || String(error)));
+    });
+    panel.querySelector('[data-act="close"]').addEventListener("click", () => {
+      setVisible(false);
+    });
+  }
+
+  function availableItems() {
+    return Array.from(registry.values()).filter((item) => item.enabled && item.status === "ok");
+  }
+
   function findSurfaceByTarget(target) {
     const key = String(target || "").trim();
     if (!key) return null;
     if (registry.has(key)) return registry.get(key);
     const lower = key.toLowerCase();
-    for (const item of registry.values()) {
-      if (String(item.name || "").trim().toLowerCase() === lower) return item;
-    }
-    return null;
+    return availableItems().find((item) => String(item.name || "").toLowerCase() === lower) || null;
   }
 
-  function surfaceMeta(surfaceID) {
-    const item = registry.get(surfaceID);
-    return {
-      surface_id: surfaceID,
-      surface_type: item && item.surface_type ? item.surface_type : "app",
-      surface_version: item && item.version ? item.version : "1",
-    };
-  }
-
-  function availableRegistryItems() {
-    const out = [];
-    for (const item of registry.values()) {
-      if (item.enabled && item.status === "ok") out.push(item);
-    }
-    return out;
+  function runtimeSnapshot(surfaceID) {
+    return host.getRuntimeSnapshot(surfaceID);
   }
 
   function snapshotSurfaceDescriptor(surfaceID) {
     const item = registry.get(surfaceID);
-    const runtime = runtimes.get(surfaceID);
-    const state = runtime && runtime.state ? runtime.state : {};
-    const actions = runtime ? Array.from(runtime.actions.values()) : [];
+    const runtime = runtimeSnapshot(surfaceID);
     return {
       surface_id: surfaceID,
       surface_type: item && item.surface_type ? item.surface_type : "app",
@@ -147,93 +176,31 @@ export function createSurfaceBridge(options) {
       status: item ? item.status : "unknown",
       enabled: !!(item && item.enabled),
       available: !!(item && item.enabled && item.status === "ok"),
-      visible: !!(runtime && runtime.open),
+      visible: !!runtime,
       ready: !!(runtime && runtime.ready),
-      entry: item && item.entry ? item.entry : "",
       entry_url: item && item.entry_url ? item.entry_url : "",
-      error: item && item.error ? item.error : "",
-      capabilities: runtime ? runtime.capabilities : {},
-      actions: actions.map((it) => ({ name: it.name, description: it.description || "" })),
-      state_version: Number.isFinite(state.state_version) ? state.state_version : 0,
-      business_state: state.business_state && typeof state.business_state === "object" ? state.business_state : {},
-      visible_text: typeof state.visible_text === "string" ? state.visible_text : "",
+      actions: runtime ? runtime.actions : [],
+      business_state: runtime && runtime.state ? runtime.state.business_state || {} : {},
+      visible_text: runtime && runtime.state ? runtime.state.visible_text || "" : "",
+      state_version: runtime && runtime.state ? runtime.state.state_version || 0 : 0,
     };
-  }
-
-  function emitSurfaceState(evtType, surfaceID, payload) {
-    onSurfaceEvent({
-      type: evtType,
-      surface_id: surfaceID,
-      payload: payload && typeof payload === "object" ? payload : {},
-    });
-  }
-
-  function resolveAction(actionID, result) {
-    const waiter = actionWaiters.get(actionID);
-    if (!waiter) return;
-    clearTimeout(waiter.timer);
-    actionWaiters.delete(actionID);
-    waiter.resolve(result);
-  }
-
-  function rejectActionsForSurface(surfaceID, reason) {
-    for (const [actionID, waiter] of actionWaiters.entries()) {
-      if (waiter.surfaceID !== surfaceID) continue;
-      clearTimeout(waiter.timer);
-      waiter.resolve({ ok: false, reason: reason || "surface_closed" });
-      actionWaiters.delete(actionID);
-    }
-  }
-
-  function registerRuntimeActions(runtime, actions) {
-    if (!Array.isArray(actions)) return;
-    for (const action of actions) {
-      if (!action || typeof action !== "object") continue;
-      const name = typeof action.name === "string" ? action.name.trim() : "";
-      if (!name) continue;
-      runtime.actions.set(name, {
-        name,
-        description: typeof action.description === "string" ? action.description : "",
-        args_schema: action.args_schema && typeof action.args_schema === "object" ? action.args_schema : {},
-      });
-    }
-  }
-
-  function ensurePanel() {
-    if (panel) return;
-    panel = createPanel(root);
-    statusEl = panel.querySelector(".surface-float-status");
-    listEl = panel.querySelector(".surface-manager-list");
-    workspaceEl = panel.querySelector(".surface-manager-workspace");
-    panel.querySelector('[data-act="refresh"]').addEventListener("click", () => {
-      refreshRegistry().catch((err) => {
-        appendDebug("ERROR", "SurfaceBridge", null, null, `refresh surfaces failed: ${err.message || err}`);
-      });
-    });
-    panel.querySelector('[data-act="close"]').addEventListener("click", () => {
-      setVisible(false);
-    });
   }
 
   function renderRegistry() {
     if (!listEl) return;
-    const rows = [];
-    for (const item of registry.values()) {
-      const runtime = runtimes.get(item.surface_id);
-      const opened = !!(runtime && runtime.open);
-      const disabled = item.status !== "ok";
-      const statusText = `${item.status}${item.error ? ` (${item.error})` : ""}`;
-      rows.push(`
+    const rows = Array.from(registry.values()).map((item) => {
+      const opened = !!runtimeSnapshot(item.surface_id);
+      return `
         <div class="surface-manager-item" data-surface-id="${escapeHTML(item.surface_id)}">
           <div class="surface-manager-meta">
             <div><strong>${escapeHTML(item.name || item.surface_id)}</strong></div>
             <div>${escapeHTML(item.surface_id)}</div>
             <div>${escapeHTML(item.surface_type)} / v${escapeHTML(item.version || "1")}</div>
-            <div>${escapeHTML(statusText)}</div>
+            <div>${escapeHTML(item.status || "unknown")}</div>
           </div>
           <div class="surface-manager-actions">
             <label>
-              <input type="checkbox" data-act="enable" ${item.enabled ? "checked" : ""} ${disabled ? "disabled" : ""}/>
+              <input type="checkbox" data-act="enable" ${item.enabled ? "checked" : ""} ${item.status === "ok" ? "" : "disabled"} />
               启用
             </label>
             <button type="button" data-act="${opened ? "close_surface" : "open_surface"}" ${item.enabled && item.status === "ok" ? "" : "disabled"}>
@@ -241,449 +208,108 @@ export function createSurfaceBridge(options) {
             </button>
           </div>
         </div>
-      `);
-    }
-    if (rows.length === 0) {
-      listEl.innerHTML = `<div class="surface-manager-empty">暂无 surface 包</div>`;
-    } else {
-      listEl.innerHTML = rows.join("");
-    }
+      `;
+    });
+    listEl.innerHTML = rows.length ? rows.join("") : `<div class="surface-manager-empty">暂无 surface 包</div>`;
+
     listEl.querySelectorAll("[data-act='enable']").forEach((inputEl) => {
-      inputEl.addEventListener("change", async (ev) => {
-        const itemEl = ev.target.closest(".surface-manager-item");
+      inputEl.addEventListener("change", async (event) => {
+        const itemEl = event.target.closest(".surface-manager-item");
         if (!itemEl) return;
         const surfaceID = itemEl.getAttribute("data-surface-id");
-        const enabled = !!ev.target.checked;
+        const enabled = !!event.target.checked;
         try {
-          await callTool("ui.surface.enable_set", {
-            surface_id: surfaceID,
-            enabled,
-          });
-          const current = registry.get(surfaceID);
-          if (current) current.enabled = enabled;
+          await callTool("ui.surface.enable_set", { surface_id: surfaceID, enabled });
+          const item = registry.get(surfaceID);
+          if (item) item.enabled = enabled;
           renderRegistry();
-        } catch (err) {
-          ev.target.checked = !enabled;
-          appendSystem(`更新 surface 启用状态失败: ${err.message || err}`);
+        } catch (error) {
+          event.target.checked = !enabled;
+          appendSystem(error.message || String(error));
         }
       });
     });
-    listEl.querySelectorAll("[data-act='open_surface']").forEach((btnEl) => {
-      btnEl.addEventListener("click", async (ev) => {
-        const itemEl = ev.target.closest(".surface-manager-item");
+
+    listEl.querySelectorAll("[data-act='open_surface']").forEach((button) => {
+      button.addEventListener("click", async (event) => {
+        const itemEl = event.target.closest(".surface-manager-item");
         if (!itemEl) return;
-        const surfaceID = itemEl.getAttribute("data-surface-id");
         try {
-          await ensureSurfaceOpen(surfaceID);
+          await ensureSurfaceOpen(itemEl.getAttribute("data-surface-id"));
           renderRegistry();
-        } catch (err) {
-          appendSystem(`打开 surface 失败: ${err.message || err}`);
+        } catch (error) {
+          appendSystem(error.message || String(error));
         }
       });
     });
-    listEl.querySelectorAll("[data-act='close_surface']").forEach((btnEl) => {
-      btnEl.addEventListener("click", (ev) => {
-        const itemEl = ev.target.closest(".surface-manager-item");
+
+    listEl.querySelectorAll("[data-act='close_surface']").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const itemEl = event.target.closest(".surface-manager-item");
         if (!itemEl) return;
-        const surfaceID = itemEl.getAttribute("data-surface-id");
-        closeSurface(surfaceID, "user_click");
-        renderRegistry();
+        closeSurface(itemEl.getAttribute("data-surface-id"), "manual");
       });
     });
   }
 
   function createRuntimeView(item) {
-    const host = document.createElement("div");
-    host.className = "surface-runtime-host";
-    host.setAttribute("data-surface-id", item.surface_id);
-    const title = document.createElement("div");
-    title.className = "surface-runtime-title";
-    title.textContent = `${item.name || item.surface_id} (${item.surface_id})`;
+    const hostEl = document.createElement("div");
+    hostEl.className = "surface-runtime-host";
+    hostEl.setAttribute("data-surface-id", item.surface_id);
+    hostEl.innerHTML = `<div class="surface-runtime-title">${escapeHTML(item.name || item.surface_id)}</div>`;
     const iframe = document.createElement("iframe");
     iframe.className = "surface-float-iframe";
     iframe.setAttribute("sandbox", "allow-scripts allow-downloads");
-    iframe.src = item.entry_url;
-    host.appendChild(title);
-    host.appendChild(iframe);
-    workspaceEl.appendChild(host);
-    return { host, iframe };
+    hostEl.appendChild(iframe);
+    workspaceEl.appendChild(hostEl);
+    runtimeViews.set(item.surface_id, { hostEl, iframe });
+    return iframe;
   }
 
   async function refreshRegistry() {
-    const result = await callTool("ui.surface.catalog_list", {});
+    const result = await host.refreshCatalog();
     const items = Array.isArray(result && result.items) ? result.items : [];
     registry.clear();
-    for (const item of items) {
-      if (!item || typeof item !== "object") continue;
-      const surfaceID = typeof item.surface_id === "string" ? item.surface_id.trim() : "";
-      if (!surfaceID) continue;
-      registry.set(surfaceID, {
-        surface_id: surfaceID,
-        surface_type: typeof item.surface_type === "string" ? item.surface_type : "app",
-        name: typeof item.name === "string" ? item.name : surfaceID,
-        version: typeof item.version === "string" ? item.version : "1",
-        entry: typeof item.entry === "string" ? item.entry : "",
-        entry_url: typeof item.entry_url === "string" ? item.entry_url : "",
-        desc: typeof item.desc === "string" ? item.desc : "",
-        status: typeof item.status === "string" ? item.status : "invalid",
-        error: typeof item.error === "string" ? item.error : "",
-        enabled: !!item.enabled,
-      });
-    }
+    items.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      registry.set(item.surface_id, item);
+    });
     setStatus(`surfaces=${registry.size}`);
     renderRegistry();
     return items;
   }
 
-  function runtimeFromSurfaceID(surfaceID) {
-    const sid = String(surfaceID || "").trim();
-    if (!sid) return null;
-    return runtimes.get(sid) || null;
-  }
-
-  async function ensureCapability(runtime, scope, pathPrefix = ".") {
-    const key = `${scope}|${pathPrefix}`;
-    const cached = runtime.capabilityCache.get(key);
-    if (cached && Number.isFinite(cached.exp_ms) && cached.exp_ms - Date.now() > 1000) {
-      return cached.token;
-    }
-    const payload = await callTool("ui.surface.capability_issue", {
-      surface_session_token: runtime.sessionToken,
-      scope,
-      path_prefix: pathPrefix,
-      ttl_seconds: 300,
-    });
-    const token = payload && typeof payload.capability_token === "string" ? payload.capability_token : "";
-    if (!token) throw new Error("surfacefs capability token is empty");
-    runtime.capabilityCache.set(key, {
-      token,
-      exp_ms: Number.isFinite(payload.exp_ms) ? payload.exp_ms : Date.now() + 4 * 60 * 1000,
-    });
-    return token;
-  }
-
-  async function handleSurfaceFSRequest(runtime, msg) {
-    const requestID = typeof msg.request_id === "string" ? msg.request_id : `fs-${Date.now()}`;
-    const op = typeof msg.op === "string" ? msg.op : "";
-    const relPath = typeof msg.path === "string" ? msg.path : ".";
-    try {
-      if (op === "read") {
-        const capabilityToken = await ensureCapability(runtime, "fs.read", ".");
-        const payload = await callTool("ui.surface.fs_read", {
-          capability_token: capabilityToken,
-          surface_id: runtime.surfaceID,
-          path: relPath,
-        });
-        runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
-        return;
-      }
-      if (op === "write") {
-        const capabilityToken = await ensureCapability(runtime, "fs.write", ".");
-        const dataBase64 = typeof msg.data_base64 === "string" ? msg.data_base64 : "";
-        const payload = await callTool("ui.surface.fs_write", {
-          capability_token: capabilityToken,
-          surface_id: runtime.surfaceID,
-          path: relPath,
-          data_base64: dataBase64,
-        });
-        runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
-        return;
-      }
-      if (op === "list") {
-        const capabilityToken = await ensureCapability(runtime, "fs.list", ".");
-        const payload = await callTool("ui.surface.fs_list", {
-          capability_token: capabilityToken,
-          surface_id: runtime.surfaceID,
-          path: relPath,
-        });
-        runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
-        return;
-      }
-      if (op === "delete") {
-        const capabilityToken = await ensureCapability(runtime, "fs.delete", ".");
-        const payload = await callTool("ui.surface.fs_delete", {
-          capability_token: capabilityToken,
-          surface_id: runtime.surfaceID,
-          path: relPath,
-          recursive: !!msg.recursive,
-        });
-        runtime.port.postMessage({ type: "surfacefs_response", request_id: requestID, ok: true, payload });
-        return;
-      }
-      if (op === "sign_static") {
-        const capabilityToken = await ensureCapability(runtime, "fs.static", relPath);
-        const payload = await callTool("ui.surface.fs_sign_static", {
-          capability_token: capabilityToken,
-          surface_id: runtime.surfaceID,
-          path: relPath,
-        });
-        const signedURL = payload && typeof payload.url === "string" ? payload.url : "";
-        if (!signedURL) {
-          throw new Error("sign_static result url is empty");
-        }
-        runtime.port.postMessage({
-          type: "surfacefs_response",
-          request_id: requestID,
-          ok: true,
-          payload: { url: signedURL, path: relPath },
-        });
-        return;
-      }
-      throw new Error(`unsupported surfacefs op: ${op}`);
-    } catch (err) {
-      runtime.port.postMessage({
-        type: "surfacefs_response",
-        request_id: requestID,
-        ok: false,
-        error: err && err.message ? err.message : String(err),
-      });
-    }
-  }
-
-  function recordHostCall(runtime, capability, args, result, ok) {
-    reportActionRecord({
-      turnId: 0,
-      actionId: `host-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
-      category: "surface_host",
-      actionName: `surface.host.${capability}`,
-      actionSurfaceID: runtime.surfaceID,
-      actionSurfaceType: runtime.surfaceType,
-      actionSurfaceVersion: runtime.surfaceVersion,
-      status: ok ? "ok" : "fail",
-      followup: "none",
-      content: "",
-      args,
-      result: result && typeof result === "object" ? result : {},
-      effect: { source: "surface.host.proxy", capability },
-      state: runtime.state && runtime.state.business_state ? runtime.state.business_state : {},
-    });
-  }
-
-  function handleHostCall(runtime, msg) {
-    const callID = typeof msg.call_id === "string" ? msg.call_id : `host-${Date.now()}`;
-    const capability = typeof msg.capability === "string" ? msg.capability.trim() : "";
-    const args = msg.args && typeof msg.args === "object" ? msg.args : {};
-    let ok = true;
-    let payload = {};
-    if (capability === "flash") {
-      const message = typeof args.message === "string" ? args.message : "(empty)";
-      appendSystem(`[surface:${runtime.surfaceID}] ${message}`);
-      payload = { delivered: true };
-    } else if (capability === "chat" || capability === "tts" || capability === "asr" || capability === "isr") {
-      payload = { accepted: false, reason: "not_implemented_yet" };
-      ok = false;
-    } else {
-      payload = { accepted: false, reason: "unsupported_capability" };
-      ok = false;
-    }
-    recordHostCall(runtime, capability, args, payload, ok);
-    runtime.port.postMessage({
-      type: "host_call_result",
-      call_id: callID,
-      capability,
-      ok,
-      payload,
-    });
-  }
-
-  function onRuntimeMessage(runtime, msg) {
-    if (!msg || typeof msg !== "object") return;
-
-    if (msg.type === "surface_ready") {
-      runtime.ready = true;
-      runtime.capabilities = msg.capabilities && typeof msg.capabilities === "object" ? msg.capabilities : {};
-      registerRuntimeActions(runtime, msg.actions);
-      if (runtime.capabilities.get_state && !runtime.actions.has("get_state")) {
-        runtime.actions.set("get_state", { name: "get_state", description: "读取当前状态", args_schema: {} });
-      }
-      runtime.state = msg.state && typeof msg.state === "object"
-        ? { ...msg.state }
-        : {
-            surface_id: runtime.surfaceID,
-            surface_type: runtime.surfaceType,
-            surface_version: runtime.surfaceVersion,
-            event_type: "surface_open",
-            business_state: {},
-            visible_text: "",
-            status: "ready",
-            state_version: 1,
-            updated_at_ms: Date.now(),
-          };
-      emitSurfaceState("surface_open", runtime.surfaceID, {
-        ...runtime.state,
-        event_type: "surface_open",
-      });
-      setStatus(`${runtime.surfaceID} ready`);
-      return;
-    }
-
-    if (msg.type === "surface_register_actions") {
-      registerRuntimeActions(runtime, msg.actions);
-      emitSurfaceState("state_change", runtime.surfaceID, {
-        surface_id: runtime.surfaceID,
-        surface_type: runtime.surfaceType,
-        surface_version: runtime.surfaceVersion,
-        event_type: "surface_actions_registered",
-        business_state: runtime.state && runtime.state.business_state ? runtime.state.business_state : {},
-        visible_text: runtime.state && typeof runtime.state.visible_text === "string" ? runtime.state.visible_text : "",
-        status: runtime.state && typeof runtime.state.status === "string" ? runtime.state.status : "ready",
-        state_version: runtime.state && Number.isFinite(runtime.state.state_version) ? runtime.state.state_version : 0,
-        updated_at_ms: Date.now(),
-        actions: Array.from(runtime.actions.keys()),
-      });
-      return;
-    }
-
-    if (msg.type === "state_change") {
-      runtime.state = { ...msg };
-      emitSurfaceState("state_change", runtime.surfaceID, runtime.state);
-      return;
-    }
-
-    if (msg.type === "action_result") {
-      const actionID = typeof msg.action_id === "string" ? msg.action_id : "";
-      if (msg.business_state && typeof msg.business_state === "object") {
-        const nextState = runtime.state && typeof runtime.state === "object" ? { ...runtime.state } : {};
-        nextState.business_state = msg.business_state;
-        nextState.visible_text = typeof msg.visible_text === "string" ? msg.visible_text : (nextState.visible_text || "");
-        nextState.state_version = Number.isFinite(msg.state_version) ? msg.state_version : (Number.isFinite(nextState.state_version) ? nextState.state_version : 0);
-        runtime.state = nextState;
-      }
-      resolveAction(actionID, {
-        ok: (msg.status || "ok") === "ok",
-        status: typeof msg.status === "string" ? msg.status : "ok",
-        reason: typeof msg.error === "string" ? msg.error : "",
-        action_id: actionID,
-        action_name: typeof msg.action_name === "string" ? msg.action_name : "",
-        surface_id: runtime.surfaceID,
-        surface_type: runtime.surfaceType,
-        surface_version: runtime.surfaceVersion,
-        result: msg.result && typeof msg.result === "object" ? msg.result : {},
-        business_state: runtime.state && runtime.state.business_state ? runtime.state.business_state : {},
-        state_version: runtime.state && Number.isFinite(runtime.state.state_version) ? runtime.state.state_version : 0,
-        effect: {
-          source: "surface.action_result",
-          business_state: runtime.state && runtime.state.business_state ? runtime.state.business_state : {},
-          visible_text: runtime.state && typeof runtime.state.visible_text === "string" ? runtime.state.visible_text : "",
-        },
-      });
-      return;
-    }
-
-    if (msg.type === "surfacefs_request") {
-      handleSurfaceFSRequest(runtime, msg).catch((err) => {
-        appendDebug("ERROR", "SurfaceFS", null, null, err.message || String(err));
-      });
-      return;
-    }
-
-    if (msg.type === "host_call") {
-      handleHostCall(runtime, msg);
-      return;
-    }
-  }
-
-  async function createRuntime(item) {
-    const sessionPayload = await callTool("ui.surface.session_issue", {
-      surface_id: item.surface_id,
-    });
-    const sessionToken = sessionPayload && typeof sessionPayload.surface_session_token === "string"
-      ? sessionPayload.surface_session_token
-      : "";
-    if (!sessionToken) throw new Error("surface session token is empty");
-
-    const view = createRuntimeView(item);
-    const runtime = {
-      surfaceID: item.surface_id,
-      surfaceType: item.surface_type || "app",
-      surfaceVersion: item.version || "1",
-      open: true,
-      ready: false,
-      iframe: view.iframe,
-      hostEl: view.host,
-      port: null,
-      state: {},
-      actions: new Map(),
-      capabilities: {},
-      sessionToken,
-      capabilityCache: new Map(),
-    };
-    runtimes.set(runtime.surfaceID, runtime);
-
-    view.iframe.addEventListener("load", () => {
-      if (!runtime.open) return;
-      const channel = new MessageChannel();
-      runtime.port = channel.port1;
-      runtime.port.onmessage = (ev) => onRuntimeMessage(runtime, ev.data);
-      runtime.port.start();
-      try {
-        runtime.iframe.contentWindow.postMessage({
-          type: "surface_connect",
-          surface_id: runtime.surfaceID,
-          surface_type: runtime.surfaceType,
-          surface_version: runtime.surfaceVersion,
-          session_token: runtime.sessionToken,
-        }, "*", [channel.port2]);
-      } catch (err) {
-        appendDebug("ERROR", "SurfaceBridge", null, null, `surface connect failed: ${err.message || err}`);
-      }
-    }, { once: true });
-
-    return runtime;
-  }
-
-  async function waitRuntimeReady(runtime, timeoutMs = 4000) {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      if (!runtime.open) return false;
-      if (runtime.ready) return true;
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => setTimeout(resolve, 40));
-    }
-    return runtime.ready;
-  }
-
   async function ensureSurfaceOpen(surfaceID) {
-    const item = registry.get(surfaceID);
-    if (!item) throw new Error(`surface 不存在: ${surfaceID}`);
-    if (!item.enabled || item.status !== "ok") throw new Error(`surface 不可用: ${surfaceID}`);
-    const existing = runtimes.get(surfaceID);
-    if (existing && existing.open) return existing;
-    const runtime = await createRuntime(item);
-    const ready = await waitRuntimeReady(runtime, 4500);
-    if (!ready) {
-      throw new Error(`surface 打开超时: ${surfaceID}`);
-    }
-    renderRegistry();
+    const item = registry.get(String(surfaceID || "").trim());
+    if (!item) throw new Error(`surface not found: ${surfaceID}`);
+    if (runtimeSnapshot(item.surface_id)) return runtimeSnapshot(item.surface_id);
+    const iframe = createRuntimeView(item);
+    const runtime = await host.openSurface({
+      surfaceID: item.surface_id,
+      iframe,
+      workspaceState: {
+        open: true,
+        focused: true,
+        frozen: false,
+        minimized: false,
+        maximized: false,
+        geometry: { x: 0, y: 0, width: 0, height: 0 },
+        z_index: 0,
+      },
+    });
     return runtime;
   }
 
-  function closeSurface(surfaceID, reason = "manual") {
-    const runtime = runtimes.get(surfaceID);
-    if (!runtime) return false;
-    runtime.open = false;
-    if (runtime.port) {
-      try { runtime.port.close(); } catch (_) {}
-      runtime.port = null;
+  function closeSurface(surfaceID, reason = "closed") {
+    const sid = String(surfaceID || "").trim();
+    const closed = host.closeSurface(sid, reason);
+    const view = runtimeViews.get(sid);
+    if (view && view.hostEl.parentElement) {
+      view.hostEl.parentElement.removeChild(view.hostEl);
     }
-    rejectActionsForSurface(surfaceID, reason === "ai_action" ? "surface_closed" : reason);
-    if (runtime.hostEl && runtime.hostEl.parentElement) {
-      runtime.hostEl.parentElement.removeChild(runtime.hostEl);
-    }
-    runtimes.delete(surfaceID);
-
-    emitSurfaceState("state_change", surfaceID, {
-      surface_id: surfaceID,
-      surface_type: runtime.surfaceType,
-      surface_version: runtime.surfaceVersion,
-      event_type: "surface_closed",
-      business_state: {},
-      visible_text: "",
-      status: "closed",
-      state_version: Number.isFinite(runtime.state && runtime.state.state_version) ? runtime.state.state_version + 1 : 1,
-      updated_at_ms: Date.now(),
-    });
-    return true;
+    runtimeViews.delete(sid);
+    renderRegistry();
+    return closed;
   }
 
   function setVisible(nextVisible) {
@@ -691,175 +317,72 @@ export function createSurfaceBridge(options) {
     visible = !!nextVisible;
     panel.classList.toggle("open", visible);
     if (visible) {
-      refreshRegistry().catch((err) => {
-        appendDebug("ERROR", "SurfaceBridge", null, null, `refresh surfaces failed: ${err.message || err}`);
-      });
+      refreshRegistry().catch((error) => appendSystem(error.message || String(error)));
     }
   }
 
   async function dispatchAction(rawAction) {
     const action = toActionPayload(rawAction);
     if (!action) return { ok: false, reason: "invalid_action" };
-    if (registry.size === 0) {
+    if (!registry.size) {
       await refreshRegistry();
     }
-
     if (action.name === "get_surfaces") {
-      const surfaces = availableRegistryItems().map((it) => snapshotSurfaceDescriptor(it.surface_id));
-      return {
-        ok: true,
-        status: "ok",
-        action_id: action.id,
-        action_name: action.name,
-        surface_id: "surface_registry",
-        surface_type: "meta",
-        surface_version: "1",
-        result: { total: surfaces.length, surfaces },
-        business_state: {},
-        state_version: 0,
-        effect: { source: "surface.registry", surfaces },
-      };
+      const surfaces = availableItems().map((item) => snapshotSurfaceDescriptor(item.surface_id));
+      return { ok: true, result: { total: surfaces.length, surfaces } };
     }
-
     if (action.name === "open_surface") {
-      const target = typeof action.args.target === "string" && action.args.target.trim()
-        ? action.args.target.trim()
-        : (typeof action.args.surface_id === "string" && action.args.surface_id.trim() ? action.args.surface_id.trim() : "");
-      const item = target ? findSurfaceByTarget(target) : (availableRegistryItems().length === 1 ? availableRegistryItems()[0] : null);
+      const target = action.args.target || action.args.surface_id || "";
+      const item = findSurfaceByTarget(target);
       if (!item) return { ok: false, reason: `surface_not_found:${target}` };
-      const runtime = await ensureSurfaceOpen(item.surface_id);
-      const descriptor = snapshotSurfaceDescriptor(runtime.surfaceID);
-      return {
-        ok: true,
-        status: "ok",
-        action_id: action.id,
-        action_name: action.name,
-        surface_id: runtime.surfaceID,
-        surface_type: runtime.surfaceType,
-        surface_version: runtime.surfaceVersion,
-        result: { opened: true, surface: descriptor },
-        business_state: descriptor.business_state,
-        state_version: descriptor.state_version || 0,
-        effect: {
-          source: "surface.open",
-          business_state: descriptor.business_state || {},
-          visible_text: descriptor.visible_text || "",
-        },
-      };
+      await ensureSurfaceOpen(item.surface_id);
+      return { ok: true, result: { opened: true, surface: snapshotSurfaceDescriptor(item.surface_id) } };
     }
-
     if (action.name === "close_surface") {
-      const target = typeof action.args.target === "string" && action.args.target.trim()
-        ? action.args.target.trim()
-        : (typeof action.args.surface_id === "string" && action.args.surface_id.trim() ? action.args.surface_id.trim() : "");
-      let item = target ? findSurfaceByTarget(target) : null;
-      if (!item && !target && runtimes.size === 1) {
-        const firstID = Array.from(runtimes.keys())[0];
-        item = registry.get(firstID) || null;
-      }
+      const target = action.args.target || action.args.surface_id || "";
+      const item = findSurfaceByTarget(target);
       if (!item) return { ok: false, reason: `surface_not_found:${target}` };
-      const closed = closeSurface(item.surface_id, "ai_action");
-      renderRegistry();
-      const meta = surfaceMeta(item.surface_id);
-      return {
-        ok: true,
-        status: "ok",
-        action_id: action.id,
-        action_name: action.name,
-        surface_id: item.surface_id,
-        surface_type: meta.surface_type,
-        surface_version: meta.surface_version,
-        result: { closed: true, already_closed: !closed },
-        business_state: {},
-        state_version: 0,
-        effect: { source: "surface.close", business_state: {}, visible_text: "" },
-      };
+      closeSurface(item.surface_id, "ai_action");
+      return { ok: true, result: { closed: true, surface_id: item.surface_id } };
     }
-
     if (action.name === "surface.get_state") {
-      const target = typeof action.args.surface_id === "string" && action.args.surface_id.trim()
-        ? action.args.surface_id.trim()
-        : (typeof action.args.target === "string" && action.args.target.trim() ? action.args.target.trim() : "");
-      let item = target ? findSurfaceByTarget(target) : null;
-      if (!item && !target) {
-        if (runtimes.size === 1) {
-          const firstID = Array.from(runtimes.keys())[0];
-          item = registry.get(firstID) || null;
-        } else if (availableRegistryItems().length === 1) {
-          item = availableRegistryItems()[0];
-        }
-      }
+      const target = action.args.target || action.args.surface_id || "";
+      const item = target ? findSurfaceByTarget(target) : availableItems()[0];
       if (!item) return { ok: false, reason: `surface_not_found:${target}` };
-      const runtime = runtimeFromSurfaceID(item.surface_id);
-      if (!runtime || !runtime.open) return { ok: false, reason: "surface_closed" };
-      const state = runtime.state && typeof runtime.state === "object" ? runtime.state : {};
+      const snapshot = runtimeSnapshot(item.surface_id);
+      if (!snapshot) return { ok: false, reason: "surface_closed" };
       return {
         ok: true,
-        status: "ok",
-        action_id: action.id,
-        action_name: action.name,
-        surface_id: runtime.surfaceID,
-        surface_type: runtime.surfaceType,
-        surface_version: runtime.surfaceVersion,
-        result: { from_cache: true },
-        business_state: state.business_state && typeof state.business_state === "object" ? state.business_state : {},
-        state_version: Number.isFinite(state.state_version) ? state.state_version : 0,
-        effect: {
-          source: "surface.cache",
-          business_state: state.business_state && typeof state.business_state === "object" ? state.business_state : {},
-          visible_text: typeof state.visible_text === "string" ? state.visible_text : "",
+        result: {
+          surface: snapshotSurfaceDescriptor(item.surface_id),
+          state: snapshot.state || {},
         },
       };
     }
-
     if (action.name.startsWith("surface.call.")) {
       const parsed = parseSurfaceCallName(action.name);
-      if (!parsed) return { ok: false, reason: "invalid_surface_call_name" };
-      let runtime = runtimeFromSurfaceID(parsed.surfaceID);
-      if ((!runtime || !runtime.open) && registry.has(parsed.surfaceID)) {
-        runtime = await ensureSurfaceOpen(parsed.surfaceID);
-      }
-      if (!runtime || !runtime.open) return { ok: false, reason: "surface_closed" };
-      if (!runtime.ready || !runtime.port) return { ok: false, reason: "surface_not_ready" };
-      if (!runtime.actions.has(parsed.actionName)) {
-        return { ok: false, reason: `action_not_registered:${parsed.actionName}` };
-      }
-      return new Promise((resolve) => {
-        const timer = setTimeout(() => {
-          actionWaiters.delete(action.id);
-          resolve({ ok: false, reason: "surface_action_timeout" });
-        }, 5000);
-        actionWaiters.set(action.id, { resolve, timer, surfaceID: runtime.surfaceID });
-        runtime.port.postMessage({
-          type: "action_call",
-          action: {
-            id: action.id,
-            name: parsed.actionName,
-            args: action.args || {},
-          },
-        });
+      if (!parsed) return { ok: false, reason: "invalid_surface_call" };
+      const runtime = runtimeSnapshot(parsed.surfaceID) || await ensureSurfaceOpen(parsed.surfaceID);
+      if (!runtime) return { ok: false, reason: "surface_closed" };
+      const result = await host.callSurfaceAction(parsed.surfaceID, parsed.actionName, action.args || {}, { actionID: action.id });
+      reportActionRecord({
+        turnId: 0,
+        actionId: action.id,
+        category: "surface_action",
+        actionName: action.name,
+        actionSurfaceID: parsed.surfaceID,
+        status: result.status || "ok",
+        args: action.args || {},
+        result,
+        state: result.business_state || {},
       });
+      return { ok: true, result };
     }
-
     if (action.name.startsWith("tool.call.")) {
       const toolID = parseToolCallName(action.name);
-      if (!toolID) return { ok: false, reason: "invalid_tool_call_name" };
-      const payload = await callTool(toolID, action.args || {});
-      return {
-        ok: true,
-        status: "ok",
-        action_id: action.id,
-        action_name: action.name,
-        surface_id: "hub_tool",
-        surface_type: "tool",
-        surface_version: "1",
-        result: payload && typeof payload === "object" ? payload : { value: payload },
-        business_state: {},
-        state_version: 0,
-        effect: { source: "hub.tool", tool_id: toolID, payload },
-      };
+      const result = await callTool(toolID, action.args || {});
+      return { ok: true, result };
     }
-
     return { ok: false, reason: "unsupported_action" };
   }
 
@@ -868,23 +391,25 @@ export function createSurfaceBridge(options) {
   }
 
   function getCachedState(surfaceID) {
-    const runtime = runtimeFromSurfaceID(surfaceID);
-    if (!runtime || !runtime.state) return null;
-    return runtime.state;
+    const runtime = runtimeSnapshot(surfaceID);
+    return runtime ? runtime.state || null : null;
   }
 
   function hasCapability(surfaceID, capability = "get_state") {
-    const runtime = runtimeFromSurfaceID(surfaceID);
+    const runtime = runtimeSnapshot(surfaceID);
     if (!runtime) return false;
-    return !!runtime.capabilities[capability];
+    if (capability === "get_state") {
+      return Array.isArray(runtime.actions) && runtime.actions.some((item) => item.name === "get_state");
+    }
+    return false;
   }
 
   return {
-    setVisible,
-    toggleVisible,
     dispatchAction,
     getCachedState,
     hasCapability,
     refreshRegistry,
+    setVisible,
+    toggleVisible,
   };
 }

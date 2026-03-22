@@ -24,9 +24,10 @@ func (h *ToolHandler) resolveRequestIdentity(r *http.Request) app.Identity {
 		return identity
 	}
 	return app.Identity{
-		Type: app.IdentityService,
-		ID:   strings.TrimSpace(verified.ServiceID),
-		Name: strings.TrimSpace(verified.ServiceID),
+		Type:      app.IdentityService,
+		ID:        strings.TrimSpace(verified.ServiceID),
+		Name:      strings.TrimSpace(verified.ServiceID),
+		ServiceID: strings.TrimSpace(verified.ServiceID),
 	}
 }
 

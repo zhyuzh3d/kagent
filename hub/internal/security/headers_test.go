@@ -15,6 +15,7 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	src.Set("X-Caller-User-Id", "bad-user")
 	src.Set(hubsvc.HeaderOriginCallerToken, "bad-origin")
 	src.Set(hubsvc.HeaderHubAuth, "bad-auth")
+	src.Set(hubsvc.HeaderSurfaceToken, "bad-surface")
 	src.Set("X-Custom-Header", "ok")
 
 	out := SanitizeForwardHeaders(src)
@@ -32,6 +33,9 @@ func TestSanitizeForwardHeadersStripsProtected(t *testing.T) {
 	}
 	if got := out.Get(hubsvc.HeaderHubAuth); got != "" {
 		t.Fatalf("expected %s removed, got %q", hubsvc.HeaderHubAuth, got)
+	}
+	if got := out.Get(hubsvc.HeaderSurfaceToken); got != "" {
+		t.Fatalf("expected %s removed, got %q", hubsvc.HeaderSurfaceToken, got)
 	}
 	if got := out.Get("X-Custom-Header"); got != "ok" {
 		t.Fatalf("expected custom header preserved, got %q", got)

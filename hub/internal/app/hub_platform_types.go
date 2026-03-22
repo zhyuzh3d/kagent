@@ -20,6 +20,7 @@ const (
 	ServiceStatusDown      = "down"
 	originCallerTokenTTL   = 10 * time.Minute
 	originCallerSecretFile = ".origin_caller_secret"
+	surfaceSecretFile      = ".surface_secret"
 )
 
 type ServiceToolDescriptor = toolproto.ServiceTool
@@ -108,6 +109,7 @@ type HubPlatform struct {
 	dataRoot       string
 	routeStatePath string
 	originSecret   []byte
+	surfaceSecret  []byte
 
 	services      map[string]HubServiceRegistration
 	serviceAuths  map[string]HubServiceAuth
@@ -163,6 +165,11 @@ func NewHubPlatform(dataRoot string) (*HubPlatform, error) {
 		return nil, fmt.Errorf("origin caller secret init: %w", err)
 	}
 	hub.originSecret = secret
+	surfaceSecret, err := loadOrCreateSecret(filepath.Join(root, surfaceSecretFile))
+	if err != nil {
+		return nil, fmt.Errorf("surface token secret init: %w", err)
+	}
+	hub.surfaceSecret = surfaceSecret
 	hub.loadPersistedStateLocked()
 	return hub, nil
 }

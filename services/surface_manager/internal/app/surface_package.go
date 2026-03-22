@@ -213,99 +213,59 @@ func renderGeneratedSurfaceHTML(manifest SurfaceManifest, prompt string) string 
     </div>
     <pre id="stateBox">等待 Page 握手...</pre>
   </div>
-  <script>
-    let surfacePort = null;
-    let surfaceID = "";
-    let stateVersion = 0;
+  <script type="module">
+    import { createSurfaceRuntime } from "../../../../lib/surfaceTool.js";
     const inputEl = document.getElementById("noteInput");
     const stateBox = document.getElementById("stateBox");
+    const state = { note: inputEl.value || "", stateVersion: 0 };
     function businessState() {
-      return { note: inputEl.value || "", desc: %q };
+      return { note: state.note || "", desc: %q };
     }
-    function emitStateChange(eventType) {
-      if (!surfacePort) return;
-      stateVersion += 1;
-      surfacePort.postMessage({
-        type: "state_change",
-        surface_id: surfaceID,
-        surface_type: "custom",
-        surface_version: "1.0",
-        event_type: eventType || "state_change",
-        business_state: businessState(),
-        visible_text: inputEl.value || "",
-        status: "ready",
-        state_version: stateVersion,
-        updated_at_ms: Date.now(),
-      });
+    function render(note) {
       stateBox.textContent = JSON.stringify(businessState(), null, 2);
     }
-    function actionResult(action, status, result, errorText) {
-      if (!surfacePort) return;
-      surfacePort.postMessage({
-        type: "action_result",
-        action_id: action && action.id || "",
-        action_name: action && action.name || "",
-        status: status || "ok",
-        result: result || {},
-        error: errorText || "",
-        surface_id: surfaceID,
-        surface_type: "custom",
-        surface_version: "1.0",
-        business_state: businessState(),
-        visible_text: inputEl.value || "",
-        state_version: stateVersion,
-        updated_at_ms: Date.now(),
-      });
+    function commit(eventType) {
+      state.note = inputEl.value || "";
+      state.stateVersion += 1;
+      runtime.setState(businessState(), "ready");
+      render();
+      runtime.emitStateChange(eventType || "state_change");
     }
-    function handleAction(action) {
+    async function handleAction(action) {
       const name = action && action.name ? action.name : "";
       const args = action && action.args && typeof action.args === "object" ? action.args : {};
       if (name === "get_state") {
-        emitStateChange("get_state");
-        actionResult(action, "ok", { state: businessState() }, "");
-        return;
+        return { state: businessState() };
       }
       if (name === "set_note") {
         inputEl.value = typeof args.note === "string" ? args.note : inputEl.value;
-        emitStateChange("set_note");
-        actionResult(action, "ok", { note: inputEl.value }, "");
-        return;
+        commit("action.set_note");
+        return { note: inputEl.value };
       }
-      actionResult(action, "error", {}, "unsupported action");
+      throw new Error("unsupported action");
     }
-    document.getElementById("syncBtn").addEventListener("click", () => emitStateChange("sync"));
-    document.getElementById("clearBtn").addEventListener("click", () => { inputEl.value = ""; emitStateChange("clear"); });
-    inputEl.addEventListener("input", () => emitStateChange("input"));
-    window.addEventListener("message", (event) => {
-      const msg = event.data || {};
-      if (msg.type !== "surface_connect") return;
-      surfaceID = msg.surface_id || "";
-      if (event.ports && event.ports[0]) {
-        surfacePort = event.ports[0];
-        surfacePort.onmessage = (ev) => {
-          const data = ev.data || {};
-          if (data.type === "surface_action") handleAction(data);
-          if (data.type === "action_call" && data.action && typeof data.action === "object") handleAction(data.action);
-        };
-        surfacePort.start();
-        surfacePort.postMessage({
-          type: "surface_ready",
-          surface_id: surfaceID,
-          manifest: {
-            surface_id: surfaceID,
-            surface_type: "custom",
-            surface_version: "1.0",
-            title: %q,
-            description: %q,
-            actions: [
-              { name: "get_state", description: "读取当前状态", args_schema: {} },
-              { name: "set_note", description: "设置文本内容", args_schema: { note: "string" } }
-            ]
-          }
-        });
-        emitStateChange("ready");
-      }
+    const runtime = createSurfaceRuntime({
+      surfaceType: "custom",
+      surfaceVersion: "1.0",
+      title: %q,
+      description: %q,
+      actions: [
+        { name: "get_state", description: "读取当前状态", args_schema: {}, result_schema: { state: "object" }, timeout_ms_default: 2000, side_effect: "none", streaming: false },
+        { name: "set_note", description: "设置文本内容", args_schema: { note: "string" }, result_schema: { note: "string" }, timeout_ms_default: 2000, side_effect: "write", streaming: false }
+      ],
+      initialState: businessState(),
+      getVisibleText: () => inputEl.value || "",
+      getStateVersion: () => state.stateVersion,
+      onReady: async ({ setState }) => {
+        setState(businessState(), "ready");
+        render();
+      },
+      onAction: async ({ action }) => handleAction(action),
     });
+    document.getElementById("syncBtn").addEventListener("click", () => commit("sync"));
+    document.getElementById("clearBtn").addEventListener("click", () => { inputEl.value = ""; commit("clear"); });
+    inputEl.addEventListener("input", () => commit("input"));
+    render();
   </script>
 </body>
 </html>

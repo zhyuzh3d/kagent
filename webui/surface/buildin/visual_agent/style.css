@@ -1,0 +1,232 @@
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Suisse Intl", "Inter", "PingFang SC", sans-serif;
+  color: #171717;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.18), transparent 24%),
+    linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.agent-shell {
+  min-height: 100vh;
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.hero-panel,
+.goal-panel,
+.panel {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.1);
+}
+
+.hero-panel {
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #0369a1;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 6px;
+  font-size: 34px;
+}
+
+h3 {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.phase-text {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: #334155;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+button.primary {
+  background: linear-gradient(135deg, #0369a1, #0ea5e9);
+  color: #fff;
+}
+
+button.ghost {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+  color: #fff;
+}
+
+.goal-panel {
+  padding: 16px 20px;
+}
+
+.goal-panel label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.goal-panel textarea {
+  width: 100%;
+  min-height: 110px;
+  margin-top: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 18px;
+  padding: 14px;
+  resize: vertical;
+  font: inherit;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.goal-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.grid-panels {
+  display: grid;
+  grid-template-columns: 0.9fr 1.2fr 0.9fr;
+  gap: 16px;
+}
+
+.panel {
+  padding: 16px;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subtask-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.subtask-item {
+  border-radius: 18px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.subtask-item.active {
+  border-color: rgba(14, 165, 233, 0.38);
+  background: #eff6ff;
+}
+
+.subtask-title {
+  font-weight: 700;
+}
+
+.subtask-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.capture-frame {
+  margin-top: 14px;
+  min-height: 320px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #cbd5e1, #f8fafc);
+  display: grid;
+  place-items: center;
+}
+
+.capture-frame img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.code-box {
+  margin: 14px 0 0;
+  padding: 12px;
+  border-radius: 18px;
+  background: #020617;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 120px;
+  overflow: auto;
+}
+
+@media (max-width: 1080px) {
+  .grid-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-panel {
+    flex-direction: column;
+  }
+
+  .hero-actions {
+    justify-content: flex-start;
+  }
+}

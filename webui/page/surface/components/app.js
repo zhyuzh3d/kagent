@@ -12,6 +12,8 @@ const state = {
   port: null,
   catalogItems: [],
   actions: [],
+  windowManager: null,
+  surfaceHost: null,
 };
 
 const actionsPanel = createActionsPanel({ els, state });
@@ -23,13 +25,48 @@ const runtimeController = createRuntimeController({
   renderSurfaceSelect: catalogController.renderSurfaceSelect,
   setActions: actionsPanel.setActions,
 });
-const windowManager = initWindowManager();
+const windowManager = initWindowManager({
+  onLayoutChange: () => {
+    runtimeController.syncWorkspaceStateFromLayout();
+  },
+});
+state.windowManager = windowManager;
+
+window.surfacePageRuntime = {
+  appendLog: (label, payload) => runtimeController.appendLog(label, payload),
+  dispatchAction: () => runtimeController.dispatchAction(),
+  executeAction: async (payload) => {
+    if (els.actionEditor) {
+      els.actionEditor.value = JSON.stringify(payload == null ? {} : payload, null, 2);
+    }
+    return runtimeController.dispatchAction();
+  },
+  getActionDraft: () => (els.actionEditor ? els.actionEditor.value : ""),
+  getCurrentSurfaceID: () => (state.entry && state.entry.surface_id ? state.entry.surface_id : ""),
+  getEventLogText: () => (els.eventLog ? els.eventLog.textContent : ""),
+  getRuntimeStatusText: () => (els.runtimeStatus ? els.runtimeStatus.textContent : ""),
+  getState: () => ({
+    actions: Array.isArray(state.actions) ? [...state.actions] : [],
+    catalogItems: Array.isArray(state.catalogItems) ? [...state.catalogItems] : [],
+    entry: state.entry ? { ...state.entry } : null,
+  }),
+  loadRuntime: (silent = false) => runtimeController.loadRuntime(silent),
+  loadSurface: (surfaceID) => runtimeController.loadSurface(surfaceID),
+  reloadIframe: () => runtimeController.reloadIframe(),
+  reportError: (error) => runtimeController.reportError(error),
+  setActionDraft: (payload) => {
+    if (els.actionEditor) {
+      els.actionEditor.value = typeof payload === "string" ? payload : JSON.stringify(payload == null ? {} : payload, null, 2);
+    }
+  },
+  showToast: (message, cls = "") => runtimeController.showToast(message, cls),
+};
 
 function bindEvents() {
   els.surfaceSelect.addEventListener("change", () => {
     const selectedID = (els.surfaceSelect.value || "").trim();
     if (!selectedID) return;
-    runtimeController.loadSurface(selectedID).catch((err) => runtimeController.setStatus(err.message, "err"));
+    runtimeController.loadSurface(selectedID).catch((err) => runtimeController.reportError(err));
   });
 
   els.actionSelect.addEventListener("change", () => {
@@ -37,11 +74,11 @@ function bindEvents() {
   });
 
   els.loadBtn.addEventListener("click", () => {
-    runtimeController.loadSurface((els.surfaceSelect.value || "").trim()).catch((err) => runtimeController.setStatus(err.message, "err"));
+    runtimeController.loadSurface((els.surfaceSelect.value || "").trim()).catch((err) => runtimeController.reportError(err));
   });
 
   els.dispatchBtn?.addEventListener("click", () => {
-    runtimeController.dispatchAction().catch((err) => runtimeController.setStatus(err.message, "err"));
+    runtimeController.dispatchAction().catch((err) => runtimeController.reportError(err));
   });
 
   els.actionTabsNav?.addEventListener("click", (ev) => {
@@ -85,6 +122,7 @@ function bindEvents() {
 
   els.resetLayoutBtn?.addEventListener("click", () => {
     windowManager?.resetLayout();
+    runtimeController.syncWorkspaceStateFromLayout();
   });
 
   // 状态面板自动实时刷新
@@ -106,7 +144,7 @@ async function bootstrap() {
       await runtimeController.loadSurface(surfaceID || selectedID);
     }
   } catch (err) {
-    runtimeController.setStatus(err.message || String(err), "err");
+    runtimeController.reportError(err);
   }
 }
 

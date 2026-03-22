@@ -1,0 +1,93 @@
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Avenir Next", "PingFang SC", sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(14, 116, 144, 0.18), transparent 42%),
+    linear-gradient(180deg, #f8fafc 0%, #dbeafe 100%);
+  color: #0f172a;
+}
+
+.counter-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.counter-card {
+  width: min(100%, 360px);
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.16);
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+h1 {
+  margin: 10px 0 0;
+  font-size: 28px;
+}
+
+.count-value {
+  margin: 20px 0;
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f766e;
+}
+
+.counter-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+button.primary {
+  color: #fff;
+  background: linear-gradient(135deg, #0f766e, #0891b2);
+}
+
+button.ghost {
+  width: 100%;
+  margin-top: 12px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.state-box {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: 16px;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

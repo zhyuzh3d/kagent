@@ -74,6 +74,10 @@ func (s *HubStore) shareRead(ctx context.Context, args map[string]any) ([]map[st
 	return out, nil
 }
 
+func (s *HubStore) shareDelete(ctx context.Context, args map[string]any) (map[string]any, error) {
+	return s.callTool(ctx, "storage.share.delete", args)
+}
+
 func (s *HubStore) callTool(ctx context.Context, toolID string, args map[string]any) (map[string]any, error) {
 	if s == nil || s.toolCallURL == "" {
 		return nil, fmt.Errorf("hub store is not configured")

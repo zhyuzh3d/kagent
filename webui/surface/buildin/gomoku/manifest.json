@@ -1,0 +1,13 @@
+{
+  "id": "7335fca0-223c-4a37-a49d-09b9f2244e38",
+  "name": "Gomoku",
+  "version": "1.0",
+  "min_supported_version": "1.0",
+  "entry": "index.html",
+  "desc": "极简但完整的本地双人五子棋 surface",
+  "tags": ["buildin", "game", "gomoku"],
+  "permissions": {
+    "sandbox": ["allow-scripts", "allow-downloads"],
+    "allow": []
+  }
+}

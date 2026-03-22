@@ -351,6 +351,22 @@ func handleSurfaceToolExec(w http.ResponseWriter, r *http.Request, manifest app.
 		}
 		resp.Ok = true
 		resp.Result = map[string]any{"ok": true, "total": len(items), "items": items}
+	case "ui.surface.catalog_cleanup":
+		if _, err := requireCallerUser(); err != nil {
+			resp = toErrResp(toolproto.ErrorCodeUnauthorized, err.Error(), false)
+			break
+		}
+		deletedIDs, err := store.CleanupDuplicateCatalogEntries(reqCtx)
+		if err != nil {
+			resp = toErrResp(toolproto.ErrorCodeToolExecError, "cleanup surface catalog failed: "+err.Error(), false)
+			break
+		}
+		resp.Ok = true
+		resp.Result = map[string]any{
+			"deleted_ids":   deletedIDs,
+			"deleted_count": len(deletedIDs),
+			"cleaned":       len(deletedIDs) > 0,
+		}
 	case "ui.surface.rebind":
 		userID, err := requireCallerUser()
 		if err != nil {

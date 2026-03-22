@@ -103,6 +103,7 @@ func BuiltinServiceManifests() []ServiceManifest {
 				{ToolID: "storage.database.schema", Category: "storage", Type: "database", Tool: "schema", Description: "获取数据库表结构定义", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.share.read", Category: "storage", Type: "share", Tool: "read", Description: "read shared records", ScopeSupport: []string{"user", "surface", "service"}},
 				{ToolID: "storage.share.write", Category: "storage", Type: "share", Tool: "write", Description: "write shared records", ScopeSupport: []string{"service"}},
+				{ToolID: "storage.share.delete", Category: "storage", Type: "share", Tool: "delete", Description: "delete shared records", ScopeSupport: []string{"service"}},
 			},
 		},
 		{

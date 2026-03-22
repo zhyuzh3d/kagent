@@ -108,9 +108,27 @@ func runAIDoubao() {
 			OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}},
 			SideEffect:           "none",
 			CapabilitiesRequired: []string{"ai.llm"},
-			AllowedCallerTypes:   []string{"service", "user"},
+			AllowedCallerTypes:   []string{"service", "user", "surface"},
 			Idempotency:          "idempotent",
 			TimeoutMSDefault:     65000,
+			Streaming:            "none",
+		},
+		{
+			Name:        "ai.vision.isr",
+			Description: "Image structured reasoning: 输入图片、任务说明与期望 schema，返回结构化 JSON。",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+				"instruction":     map[string]any{"type": "string"},
+				"images":          map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"response_schema": map[string]any{"type": "object"},
+				"system_prompt":   map[string]any{"type": "string"},
+				"temperature":     map[string]any{"type": "number"},
+			}, "required": []string{"instruction", "images"}},
+			OutputSchema:         map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}, "json": map[string]any{"type": "object"}, "model": map[string]any{"type": "string"}, "finish_reason": map[string]any{"type": "string"}}},
+			SideEffect:           "none",
+			CapabilitiesRequired: []string{"ai.vision.isr"},
+			AllowedCallerTypes:   []string{"service", "user", "surface"},
+			Idempotency:          "idempotent",
+			TimeoutMSDefault:     70000,
 			Streaming:            "none",
 		},
 		{
@@ -310,6 +328,14 @@ func runAIDoubao() {
 			resp.Result = map[string]any{
 				"text": finalText,
 			}
+		case "ai.vision.isr":
+			result, err := callVisionISR(r.Context(), cfg, req.Args)
+			if err != nil {
+				resp.Error = &app.ToolError{Code: app.ErrorCodeToolExecError, Message: "vision isr failed: " + err.Error()}
+				break
+			}
+			resp.Ok = true
+			resp.Result = result
 		default:
 			resp.Error = &app.ToolError{
 				Code:    app.ErrorCodeToolNotFound,
@@ -399,7 +425,7 @@ func runAIDoubao() {
 			ServiceName:  "ai_doubao",
 			Version:      version,
 			Provider:     "ai_doubao",
-			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.llm.generate", "ai.speech.tts"},
+			Capabilities: []string{"ai.speech.asr", "ai.llm.stream", "ai.llm.generate", "ai.vision.isr", "ai.speech.tts"},
 			Transport:    "http+ws",
 		}
 		manifest := app.BuildAIServiceManifest(info, toolDescriptors)

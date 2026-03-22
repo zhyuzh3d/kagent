@@ -7,13 +7,17 @@ const FALLBACK_MIN_HEIGHT = 160;
 const CONTROL_WIDTH = 450;
 const LOG_HEIGHT = 200;
 
-export function initWindowManager() {
+export function initWindowManager(options = {}) {
   const desktop = document.querySelector(".window-desktop");
   const windowNodes = Array.from(document.querySelectorAll(".panel-window"));
+  const onLayoutChange = typeof options.onLayoutChange === "function" ? options.onLayoutChange : null;
 
   if (!desktop || !windowNodes.length) {
     return {
       resetLayout() {},
+      snapshotLayouts() {
+        return {};
+      },
     };
   }
 
@@ -377,16 +381,14 @@ export function initWindowManager() {
     try {
       const payload = {
         version: PANEL_LAYOUT_VERSION,
-        panels: {},
+        panels: snapshotLayouts(),
       };
-
-      panels.forEach((panel) => {
-        payload.panels[panel.id] = snapshotPanelLayout(panel);
-      });
-
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (_) {
       // Ignore storage failures. Layout should still work for the current session.
+    }
+    if (onLayoutChange) {
+      onLayoutChange(snapshotLayouts());
     }
   }
 
@@ -424,8 +426,17 @@ export function initWindowManager() {
       width: visibleRect.width,
       height: visibleRect.height,
       collapsed: panel.collapsed,
+      z_index: Number(panel.node.style.zIndex || panel.baseZ || 0),
       lastExpandedRect: expandedRect,
     };
+  }
+
+  function snapshotLayouts() {
+    const out = {};
+    panels.forEach((panel) => {
+      out[panel.id] = snapshotPanelLayout(panel);
+    });
+    return out;
   }
 
   function syncCollapsedAnchor(panel) {
@@ -602,7 +613,7 @@ export function initWindowManager() {
 
   function getCollapsedHeight(panel) {
     const headerHeight = panel.header?.offsetHeight || 44;
-    return headerHeight + 2;
+    return headerHeight;
   }
 
   function getMinWidth(panel, bounds) {
@@ -653,6 +664,7 @@ export function initWindowManager() {
 
   return {
     resetLayout,
+    snapshotLayouts,
   };
 }
 

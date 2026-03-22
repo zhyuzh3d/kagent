@@ -4,200 +4,34 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Task Surface</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "IBM Plex Sans", "PingFang SC", sans-serif;
-      background: linear-gradient(180deg, #f3efe6, #dfe9f0);
-      color: #16202a;
-    }
-    .app { padding: 14px; display: grid; gap: 12px; }
-    .card { background: rgba(255,255,255,.92); border: 1px solid #d5dde3; border-radius: 14px; padding: 12px; box-shadow: 0 10px 28px rgba(12,20,32,.08); }
-    h1, h2 { margin: 0 0 8px; }
-    h1 { font-size: 18px; }
-    h2 { font-size: 13px; color: #155e75; }
-    textarea { width: 100%; min-height: 90px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; font: inherit; resize: vertical; }
-    button { border: 0; border-radius: 999px; padding: 8px 12px; background: #155e75; color: #fff; cursor: pointer; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 10px; background: #e2e8f0; font-size: 12px; }
-    .timeline { display: grid; gap: 8px; max-height: 280px; overflow: auto; }
-    .op { border: 1px solid #d8e0e8; border-radius: 10px; padding: 8px; background: #f8fbfc; }
-    pre { margin: 0; white-space: pre-wrap; word-break: break-word; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; }
-  </style>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="app">
-    <div class="card">
-      <h1>Task Surface</h1>
-      <div class="row">
-        <span id="statusBadge" class="badge">draft</span>
-        <button id="confirmBtn">继续</button>
-        <button id="pauseBtn">暂停</button>
-        <button id="abortBtn">终止</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Task Input</h2>
-      <textarea id="taskInput">打开一个页面，执行受控操作，并持续记录结果。</textarea>
-    </div>
-    <div class="card">
-      <h2>Plan</h2>
-      <pre id="planBox">(empty)</pre>
-    </div>
-    <div class="card">
-      <h2>Operations</h2>
-      <div id="timeline" class="timeline"></div>
-    </div>
-    <div class="card">
-      <h2>Latest Verification</h2>
-      <pre id="verifyBox">(empty)</pre>
-    </div>
-  </div>
-
-  <script>
-    let surfacePort = null;
-    let surfaceID = "";
-    let stateVersion = 0;
-    const state = {
-      status: "draft",
-      task_input: document.getElementById("taskInput").value,
-      plan: [],
-      operations: [],
-      verification: {},
-    };
-
-    const ACTIONS = [
-      { name: "set_task", description: "设置任务说明", args_schema: { text: "string" } },
-      { name: "set_status", description: "设置任务状态", args_schema: { status: "string" } },
-      { name: "set_plan", description: "设置计划步骤", args_schema: { plan: "array" } },
-      { name: "append_operation", description: "追加操作记录", args_schema: { operation: "object" } },
-      { name: "set_verification", description: "设置最近校验结果", args_schema: { verification: "object" } },
-      { name: "clear_operations", description: "清空操作记录", args_schema: {} },
-      { name: "get_state", description: "读取当前 task 状态", args_schema: {} }
-    ];
-
-    function render() {
-      document.getElementById("statusBadge").textContent = state.status;
-      document.getElementById("taskInput").value = state.task_input || "";
-      document.getElementById("planBox").textContent = JSON.stringify(state.plan || [], null, 2);
-      document.getElementById("verifyBox").textContent = JSON.stringify(state.verification || {}, null, 2);
-      const timeline = document.getElementById("timeline");
-      const items = Array.isArray(state.operations) ? state.operations : [];
-      timeline.innerHTML = items.map((item) => `
-        <div class="op">
-          <strong>${item.type || item.operation_id || "operation"}</strong>
-          <div>${item.status || "pending"}</div>
-          <pre>${JSON.stringify(item, null, 2)}</pre>
+  <main class="task-shell">
+    <section class="task-panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Execution Surface</p>
+          <h1>Task Board</h1>
         </div>
-      `).join("");
-    }
-
-    function businessState() {
-      return {
-        status: state.status,
-        task_input: state.task_input,
-        plan: state.plan,
-        operations: state.operations,
-        verification: state.verification,
-      };
-    }
-
-    function emitStateChange(eventType) {
-      if (!surfacePort) return;
-      stateVersion += 1;
-      surfacePort.postMessage({
-        type: "state_change",
-        surface_id: surfaceID,
-        surface_type: "task",
-        surface_version: "1.0",
-        event_type: eventType || "state_change",
-        business_state: businessState(),
-        visible_text: `${state.status} / ops=${state.operations.length}`,
-        status: state.status,
-        state_version: stateVersion,
-        updated_at_ms: Date.now(),
-      });
-    }
-
-    function actionResult(action, status, result, errorText) {
-      if (!surfacePort) return;
-      surfacePort.postMessage({
-        type: "action_result",
-        action_id: action && action.id || "",
-        action_name: action && action.name || "",
-        status: status || "ok",
-        result: result || {},
-        error: errorText || "",
-        surface_id: surfaceID,
-        surface_type: "task",
-        surface_version: "1.0",
-        business_state: businessState(),
-        visible_text: `${state.status} / ops=${state.operations.length}`,
-        state_version: stateVersion,
-        updated_at_ms: Date.now(),
-      });
-    }
-
-    function applyAction(action) {
-      const name = action && action.name ? action.name : "";
-      const args = action && action.args && typeof action.args === "object" ? action.args : {};
-      if (name === "set_task") {
-        state.task_input = typeof args.text === "string" ? args.text : state.task_input;
-      } else if (name === "set_status") {
-        state.status = typeof args.status === "string" ? args.status : state.status;
-      } else if (name === "set_plan") {
-        state.plan = Array.isArray(args.plan) ? args.plan : state.plan;
-      } else if (name === "append_operation") {
-        state.operations.push(args.operation && typeof args.operation === "object" ? args.operation : {});
-      } else if (name === "set_verification") {
-        state.verification = args.verification && typeof args.verification === "object" ? args.verification : {};
-      } else if (name === "clear_operations") {
-        state.operations = [];
-      } else if (name !== "get_state") {
-        actionResult(action, "error", {}, "unsupported action");
-        return;
-      }
-      render();
-      emitStateChange(name || "action");
-      actionResult(action, "ok", { state: businessState() }, "");
-    }
-
-    document.getElementById("taskInput").addEventListener("input", (event) => {
-      state.task_input = event.target.value || "";
-      emitStateChange("task_input");
-    });
-    document.getElementById("confirmBtn").addEventListener("click", () => { state.status = "running"; render(); emitStateChange("confirm"); });
-    document.getElementById("pauseBtn").addEventListener("click", () => { state.status = "paused"; render(); emitStateChange("pause"); });
-    document.getElementById("abortBtn").addEventListener("click", () => { state.status = "aborted"; render(); emitStateChange("abort"); });
-
-    window.addEventListener("message", (event) => {
-      const msg = event.data || {};
-      if (msg.type !== "surface_connect") return;
-      surfaceID = msg.surface_id || "";
-      if (event.ports && event.ports[0]) {
-        surfacePort = event.ports[0];
-        surfacePort.onmessage = (ev) => {
-          const data = ev.data || {};
-          if (data.type === "surface_action") applyAction(data);
-          if (data.type === "action_call" && data.action && typeof data.action === "object") applyAction(data.action);
-        };
-        surfacePort.start();
-        surfacePort.postMessage({
-          type: "surface_ready",
-          surface_id: surfaceID,
-          manifest: {
-            surface_id: surfaceID,
-            surface_type: "task",
-            surface_version: "1.0",
-            title: "Task",
-            description: "task execution console",
-            actions: ACTIONS
-          }
-        });
-        render();
-        emitStateChange("ready");
-      }
-    });
-  </script>
+        <span id="statusChip" class="status-chip">idle</span>
+      </div>
+      <div class="composer">
+        <input id="taskInput" type="text" placeholder="新增任务，例如 打开 doubao.com" />
+        <button id="addTaskBtn" type="button">添加</button>
+      </div>
+      <div class="task-columns">
+        <section>
+          <h2>Tasks</h2>
+          <div id="taskList" class="task-list"></div>
+        </section>
+        <section>
+          <h2>Timeline</h2>
+          <div id="timelineList" class="timeline-list"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gomoku Surface</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="gomoku-shell">
+    <section class="info-panel">
+      <p class="eyebrow">Local Surface Game</p>
+      <h1>Gomoku</h1>
+      <p id="statusText" class="status-text">等待宿主连接…</p>
+      <div class="meta-grid">
+        <div>
+          <span>当前</span>
+          <strong id="currentPlayer">Black</strong>
+        </div>
+        <div>
+          <span>手数</span>
+          <strong id="moveCount">0</strong>
+        </div>
+        <div>
+          <span>结果</span>
+          <strong id="winnerText">-</strong>
+        </div>
+      </div>
+      <button id="newGameBtn" type="button">New Game</button>
+    </section>
+    <section class="board-panel">
+      <div id="board" class="board" aria-label="Gomoku Board"></div>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

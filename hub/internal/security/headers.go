@@ -27,6 +27,7 @@ var protectedHeaders = map[string]struct{}{
 	hubsvc.HeaderHubServiceID:          {},
 	hubsvc.HeaderHubInstanceID:         {},
 	hubsvc.HeaderHubAuth:               {},
+	hubsvc.HeaderSurfaceToken:          {},
 	"X-Hub-Service-Token":              {},
 	"X-Hub-Platform-Token":             {},
 }

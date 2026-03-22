@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 )
 
 func makeTestAuthService(t *testing.T) *AuthService {
@@ -30,6 +31,15 @@ func makeTestHubPlatform(t *testing.T) *HubPlatform {
 	return hp
 }
 
+func issueTestSurfaceToken(t *testing.T, hp *HubPlatform, claims hubsvc.SurfaceTokenClaims) string {
+	t.Helper()
+	token, err := hubsvc.SignSurfaceToken(hp.surfaceSecret, claims)
+	if err != nil {
+		t.Fatalf("SignSurfaceToken: %v", err)
+	}
+	return token
+}
+
 func TestIdentityFromContext_Default(t *testing.T) {
 	ctx := context.Background()
 	id := IdentityFromContext(ctx)
@@ -43,11 +53,27 @@ func TestIdentityFromContext_Default(t *testing.T) {
 
 func TestContextWithIdentity_Roundtrip(t *testing.T) {
 	ctx := context.Background()
-	want := Identity{Type: IdentityUser, ID: "u-123", Name: "alice"}
+	want := Identity{Type: IdentityUser, ID: "u-123", Name: "alice", UserID: "u-123"}
 	ctx = ContextWithIdentity(ctx, want)
 	got := IdentityFromContext(ctx)
 	if got.Type != want.Type || got.ID != want.ID || got.Name != want.Name {
 		t.Fatalf("roundtrip mismatch: got %+v, want %+v", got, want)
+	}
+}
+
+func TestIdentityCaller_Surface(t *testing.T) {
+	got := (Identity{
+		Type:      IdentitySurface,
+		UserID:    "user-1",
+		SurfaceID: "surface-1",
+	}).Caller()
+	want := toolproto.Caller{
+		Type:      toolproto.CallerTypeSurface,
+		UserID:    "user-1",
+		SurfaceID: "surface-1",
+	}
+	if got != want {
+		t.Fatalf("caller mismatch: got %+v want %+v", got, want)
 	}
 }
 
@@ -77,6 +103,9 @@ func TestIdentityMiddleware_ValidJWT(t *testing.T) {
 	}
 	if captured.Name != "zhyuzh" {
 		t.Fatalf("expected Name 'zhyuzh', got %q", captured.Name)
+	}
+	if captured.UserID != "user-001" {
+		t.Fatalf("expected UserID 'user-001', got %q", captured.UserID)
 	}
 }
 
@@ -153,7 +182,43 @@ func TestIdentityMiddleware_ValidServiceToken(t *testing.T) {
 	}
 }
 
-func TestIdentityMiddleware_SurfacePlaceholder(t *testing.T) {
+func TestIdentityMiddleware_ValidSurfaceToken(t *testing.T) {
+	auth := makeTestAuthService(t)
+	hp := makeTestHubPlatform(t)
+	token := issueTestSurfaceToken(t, hp, hubsvc.SurfaceTokenClaims{
+		Kind:      hubsvc.SurfaceTokenKindSession,
+		UserID:    "user-surface",
+		SurfaceID: "surface-123",
+		ExpMS:     time.Now().Add(5 * time.Minute).UnixMilli(),
+		Nonce:     "nonce-1",
+	})
+
+	var captured Identity
+	handler := IdentityMiddleware(auth, hp)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured = IdentityFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set(hubsvc.HeaderSurfaceToken, token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if captured.Type != IdentitySurface {
+		t.Fatalf("expected SURFACE, got %s", captured.Type)
+	}
+	if captured.SurfaceID != "surface-123" {
+		t.Fatalf("expected surface_id 'surface-123', got %q", captured.SurfaceID)
+	}
+	if captured.UserID != "user-surface" {
+		t.Fatalf("expected user_id 'user-surface', got %q", captured.UserID)
+	}
+	if captured.Name != "surface:surface-123" {
+		t.Fatalf("expected surface name, got %q", captured.Name)
+	}
+}
+
+func TestIdentityMiddleware_InvalidSurfaceTokenFallsBackAnonymous(t *testing.T) {
 	auth := makeTestAuthService(t)
 	hp := makeTestHubPlatform(t)
 
@@ -164,15 +229,40 @@ func TestIdentityMiddleware_SurfacePlaceholder(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("X-Surface-Token", "some-surf-token")
+	req.Header.Set(hubsvc.HeaderSurfaceToken, "bad.token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if captured.Type != IdentitySurface {
-		t.Fatalf("expected SURFACE, got %s", captured.Type)
+	if captured.Type != IdentityAnonymous {
+		t.Fatalf("expected ANONYMOUS, got %s", captured.Type)
 	}
-	if captured.Name != "surface" {
-		t.Fatalf("expected name 'surface', got %q", captured.Name)
+}
+
+func TestIdentityMiddleware_ExpiredSurfaceTokenFallsBackAnonymous(t *testing.T) {
+	auth := makeTestAuthService(t)
+	hp := makeTestHubPlatform(t)
+	token := issueTestSurfaceToken(t, hp, hubsvc.SurfaceTokenClaims{
+		Kind:      hubsvc.SurfaceTokenKindSession,
+		UserID:    "user-surface",
+		SurfaceID: "surface-expired",
+		ExpMS:     time.Now().Add(5 * time.Millisecond).UnixMilli(),
+		Nonce:     "nonce-expired",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	var captured Identity
+	handler := IdentityMiddleware(auth, hp)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured = IdentityFromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set(hubsvc.HeaderSurfaceToken, token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if captured.Type != IdentityAnonymous {
+		t.Fatalf("expected ANONYMOUS, got %s", captured.Type)
 	}
 }
 

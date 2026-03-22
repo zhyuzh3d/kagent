@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visual Agent</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="agent-shell">
+    <section class="hero-panel">
+      <div>
+        <p class="eyebrow">Autonomous Surface</p>
+        <h1>Visual Agent</h1>
+        <p id="phaseText" class="phase-text">idle</p>
+      </div>
+      <div class="hero-actions">
+        <button id="startBtn" type="button" class="primary">Start</button>
+        <button id="stepBtn" type="button">Step</button>
+        <button id="pauseBtn" type="button">Pause</button>
+        <button id="resumeBtn" type="button">Resume</button>
+        <button id="abortBtn" type="button" class="ghost">Abort</button>
+      </div>
+    </section>
+
+    <section class="goal-panel">
+      <label for="goalInput">Mission</label>
+      <textarea id="goalInput">进入 doubao.com 的画图模式，生成一个画图美女提示词，填入并触发生成。</textarea>
+      <div class="goal-meta">
+        <span id="subtaskMeta">subtasks: 0</span>
+        <span id="retryMeta">retry: 0</span>
+      </div>
+    </section>
+
+    <section class="grid-panels">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Task</h2>
+          <span id="currentSubtaskChip" class="chip">No subtask</span>
+        </div>
+        <div id="subtaskList" class="subtask-list"></div>
+        <h3>Generated Prompt</h3>
+        <pre id="promptBox" class="code-box">(empty)</pre>
+      </article>
+
+      <article class="panel panel-visual">
+        <div class="panel-head">
+          <h2>Vision</h2>
+          <span id="captureMeta" class="chip">No capture</span>
+        </div>
+        <div class="capture-frame">
+          <img id="captureImage" alt="Latest capture" />
+        </div>
+        <pre id="observationBox" class="code-box">(empty)</pre>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Execution</h2>
+          <span id="blockedChip" class="chip">ok</span>
+        </div>
+        <pre id="commandBox" class="code-box">(empty)</pre>
+        <pre id="resultBox" class="code-box">(empty)</pre>
+      </article>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

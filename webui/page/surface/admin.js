@@ -1,6 +1,7 @@
 const els = {
   refreshBtn: document.getElementById("refreshBtn"),
   rescanBtn: document.getElementById("rescanBtn"),
+  cleanupBtn: document.getElementById("cleanupBtn"),
   rebindBtn: document.getElementById("rebindBtn"),
   statusBadge: document.getElementById("statusBadge"),
   totalCount: document.getElementById("totalCount"),
@@ -10,11 +11,9 @@ const els = {
   surfaceTitle: document.getElementById("surfaceTitle"),
   surfaceEntry: document.getElementById("surfaceEntry"),
   sessionToken: document.getElementById("sessionToken"),
-  capToken: document.getElementById("capToken"),
   toggleEnableBtn: document.getElementById("toggleEnableBtn"),
   openBtn: document.getElementById("openBtn"),
   issueSessionBtn: document.getElementById("issueSessionBtn"),
-  issueCapBtn: document.getElementById("issueCapBtn"),
   fileSelect: document.getElementById("fileSelect"),
   loadFileBtn: document.getElementById("loadFileBtn"),
   saveFileBtn: document.getElementById("saveFileBtn"),
@@ -23,17 +22,21 @@ const els = {
   generatePrompt: document.getElementById("generatePrompt"),
   generateBtn: document.getElementById("generateBtn"),
   generateOpenBtn: document.getElementById("generateOpenBtn"),
+  openGenerateBtn: document.getElementById("openGenerateBtn"),
+  closeGenerateBtn: document.getElementById("closeGenerateBtn"),
+  generateDialog: document.getElementById("generateDialog"),
   runtimeBtn: document.getElementById("runtimeBtn"),
   logsBtn: document.getElementById("logsBtn"),
   pkgListBtn: document.getElementById("pkgListBtn"),
   infoPanel: document.getElementById("infoPanel"),
+  paneDivider: document.getElementById("paneDivider"),
+  paneBottom: document.getElementById("paneBottom"),
 };
 
 const state = {
   items: [],
   selectedID: "",
   sessionToken: "",
-  capabilityToken: "",
 };
 
 function setStatus(text, cls = "") {
@@ -120,15 +123,14 @@ async function refreshList() {
 async function selectSurface(surfaceID) {
   state.selectedID = surfaceID;
   state.sessionToken = "";
-  state.capabilityToken = "";
   renderList();
   const item = selected();
   if (!item) return;
   els.surfaceTitle.textContent = `${item.name || item.surface_id} / ${item.surface_type}`;
   els.surfaceEntry.textContent = item.entry_url || "-";
   els.sessionToken.textContent = "-";
-  els.capToken.textContent = "-";
   els.fileEditor.value = "";
+  switchTab(els.pkgListBtn);
   await listPackageFiles();
 }
 
@@ -171,26 +173,19 @@ async function toggleEnable() {
   await selectSurface(item.surface_id);
 }
 
+async function cleanupCatalog() {
+  const result = await callTool("ui.surface.catalog_cleanup", {});
+  els.infoPanel.textContent = pretty(result);
+  await refreshList();
+  setStatus(result.deleted_count > 0 ? `cleaned ${result.deleted_count}` : "nothing to clean", result.deleted_count > 0 ? "ok" : "");
+}
+
 async function issueSession() {
   const item = selected();
   if (!item) return;
   const result = await callTool("ui.surface.session_issue", { surface_id: item.surface_id });
   state.sessionToken = result.surface_session_token || "";
   els.sessionToken.textContent = state.sessionToken || "-";
-  els.infoPanel.textContent = pretty(result);
-}
-
-async function issueCapability() {
-  const item = selected();
-  if (!item) return;
-  if (!state.sessionToken) await issueSession();
-  const result = await callTool("ui.surface.capability_issue", {
-    surface_session_token: state.sessionToken,
-    scope: "fs.write",
-    path_prefix: ".",
-  });
-  state.capabilityToken = result.capability_token || "";
-  els.capToken.textContent = state.capabilityToken || "-";
   els.infoPanel.textContent = pretty(result);
 }
 
@@ -203,9 +198,15 @@ async function generate(openAfter) {
   await refreshList();
   if (state.selectedID) await selectSurface(state.selectedID);
   if (openAfter && state.selectedID) {
-    window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
+    window.open(`/page/surface/lab.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
   }
   setStatus("generated", "ok");
+  els.generateDialog.close();
+}
+
+function switchTab(activeBtn) {
+  [els.pkgListBtn, els.runtimeBtn, els.logsBtn].forEach(b => b.classList.remove("active"));
+  activeBtn.classList.add("active");
 }
 
 async function loadRuntime() {
@@ -224,19 +225,50 @@ async function loadLogs() {
 
 els.refreshBtn.addEventListener("click", () => refreshList().catch((err) => setStatus(err.message, "err")));
 els.rescanBtn.addEventListener("click", () => callTool("ui.surface.rescan", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
+els.cleanupBtn.addEventListener("click", () => cleanupCatalog().catch((err) => setStatus(err.message, "err")));
 els.rebindBtn.addEventListener("click", () => callTool("ui.surface.rebind", {}).then(refreshList).catch((err) => setStatus(err.message, "err")));
 els.toggleEnableBtn.addEventListener("click", () => toggleEnable().catch((err) => setStatus(err.message, "err")));
 els.openBtn.addEventListener("click", () => {
-  if (state.selectedID) window.open(`/page/surface/index.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
+  if (state.selectedID) window.open(`/page/surface/lab.html?surface_id=${encodeURIComponent(state.selectedID)}`, "_blank");
 });
 els.issueSessionBtn.addEventListener("click", () => issueSession().catch((err) => setStatus(err.message, "err")));
-els.issueCapBtn.addEventListener("click", () => issueCapability().catch((err) => setStatus(err.message, "err")));
 els.loadFileBtn.addEventListener("click", () => loadFile().catch((err) => setStatus(err.message, "err")));
 els.saveFileBtn.addEventListener("click", () => saveFile().catch((err) => setStatus(err.message, "err")));
 els.generateBtn.addEventListener("click", () => generate(false).catch((err) => setStatus(err.message, "err")));
 els.generateOpenBtn.addEventListener("click", () => generate(true).catch((err) => setStatus(err.message, "err")));
-els.runtimeBtn.addEventListener("click", () => loadRuntime().catch((err) => setStatus(err.message, "err")));
-els.logsBtn.addEventListener("click", () => loadLogs().catch((err) => setStatus(err.message, "err")));
-els.pkgListBtn.addEventListener("click", () => listPackageFiles().catch((err) => setStatus(err.message, "err")));
+els.openGenerateBtn.addEventListener("click", () => els.generateDialog.showModal());
+els.closeGenerateBtn.addEventListener("click", () => els.generateDialog.close());
+
+els.runtimeBtn.addEventListener("click", () => { switchTab(els.runtimeBtn); loadRuntime().catch((err) => setStatus(err.message, "err")); });
+els.logsBtn.addEventListener("click", () => { switchTab(els.logsBtn); loadLogs().catch((err) => setStatus(err.message, "err")); });
+els.pkgListBtn.addEventListener("click", () => { switchTab(els.pkgListBtn); listPackageFiles().catch((err) => setStatus(err.message, "err")); });
+
+let isResizing = false;
+let startY = 0;
+let startHeight = 0;
+
+els.paneDivider.addEventListener("mousedown", (e) => {
+  isResizing = true;
+  startY = e.clientY;
+  startHeight = els.paneBottom.offsetHeight;
+  document.body.style.cursor = "ns-resize";
+  document.body.style.userSelect = "none";
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!isResizing) return;
+  const dy = startY - e.clientY;
+  const newHeight = Math.max(100, Math.min(window.innerHeight - 120, startHeight + dy));
+  els.paneBottom.style.height = `${newHeight}px`;
+});
+
+document.addEventListener("mouseup", () => {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }
+});
 
 refreshList().catch((err) => setStatus(err.message, "err"));

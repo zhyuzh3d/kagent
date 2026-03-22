@@ -23,17 +23,7 @@ func (h *ToolHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	identity := h.resolveRequestIdentity(r)
-	caller := toolproto.Caller{
-		Type:      strings.ToLower(string(identity.Type)),
-		UserID:    identity.ID,
-		ServiceID: identity.ID,
-	}
-	if identity.Type != app.IdentityUser {
-		caller.UserID = ""
-	}
-	if identity.Type != app.IdentityService {
-		caller.ServiceID = ""
-	}
+	caller := identity.Caller()
 	originCaller, originToken, err := h.resolveOriginDelegation(caller, nil, hubsvc.OriginCallerTokenFromHeaders(r.Header))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)

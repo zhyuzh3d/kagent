@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"kagent/pkg/hubsvc"
+	"kagent/pkg/toolproto"
 )
 
 // IdentityType classifies the source of a request.
@@ -20,9 +21,12 @@ const (
 
 // Identity represents the resolved caller of an HTTP request.
 type Identity struct {
-	Type IdentityType // USER, SERVICE, SURFACE, ANONYMOUS
-	ID   string       // unique id (e.g. user_8f2a, ai_doubao)
-	Name string       // display name for logging (e.g. zhyuzh)
+	Type      IdentityType // USER, SERVICE, SURFACE, ANONYMOUS
+	ID        string       // primary id for legacy callers
+	Name      string       // display name for logging
+	UserID    string
+	ServiceID string
+	SurfaceID string
 }
 
 type identityContextKey struct{}
@@ -47,6 +51,22 @@ func IdentityFromContext(ctx context.Context) Identity {
 	return Identity{Type: IdentityAnonymous, Name: "anonymous"}
 }
 
+func (id Identity) Caller() toolproto.Caller {
+	caller := toolproto.Caller{
+		Type: strings.ToLower(strings.TrimSpace(string(id.Type))),
+	}
+	switch id.Type {
+	case IdentityUser:
+		caller.UserID = strings.TrimSpace(firstNonEmpty(id.UserID, id.ID))
+	case IdentityService:
+		caller.ServiceID = strings.TrimSpace(firstNonEmpty(id.ServiceID, id.ID))
+	case IdentitySurface:
+		caller.UserID = strings.TrimSpace(firstNonEmpty(id.UserID, id.ID))
+		caller.SurfaceID = strings.TrimSpace(firstNonEmpty(id.SurfaceID, id.ID))
+	}
+	return caller
+}
+
 // IdentityMiddleware creates an HTTP middleware that extracts caller identity
 // from the request (JWT cookie, Service Token, etc.) and injects it into the request context.
 // Downstream handlers and loggers can retrieve it via IdentityFromContext.
@@ -61,9 +81,10 @@ func IdentityMiddleware(authService *AuthService, hubPlatform *HubPlatform) func
 				if serviceID != "" || instanceID != "" || serviceAuth != "" {
 					if verified, err := hubPlatform.VerifyServiceAuth(serviceID, instanceID, serviceAuth); err == nil {
 						identity = Identity{
-							Type: IdentityService,
-							ID:   strings.TrimSpace(verified.ServiceID),
-							Name: strings.TrimSpace(verified.ServiceID),
+							Type:      IdentityService,
+							ID:        strings.TrimSpace(verified.ServiceID),
+							Name:      strings.TrimSpace(verified.ServiceID),
+							ServiceID: strings.TrimSpace(verified.ServiceID),
 						}
 						goto INJECT
 					}
@@ -71,23 +92,31 @@ func IdentityMiddleware(authService *AuthService, hubPlatform *HubPlatform) func
 			}
 
 			// 2. Check Surface Token (Capability Token) - To be refined when surface tokens are fully implemented
-			// For now, look for a header as a placeholder
-			if surfToken := strings.TrimSpace(r.Header.Get("X-Surface-Token")); surfToken != "" {
-				// Dummy verification for now or placeholder for future logic
-				identity = Identity{
-					Type: IdentitySurface,
-					ID:   "surf_placeholder",
-					Name: "surface",
+			if hubPlatform != nil {
+				if surfToken := strings.TrimSpace(r.Header.Get(hubsvc.HeaderSurfaceToken)); surfToken != "" {
+					claims, err := hubPlatform.VerifySurfaceToken(surfToken)
+					if err == nil {
+						surfaceID := strings.TrimSpace(claims.SurfaceID)
+						userID := strings.TrimSpace(claims.UserID)
+						identity = Identity{
+							Type:      IdentitySurface,
+							ID:        surfaceID,
+							Name:      "surface:" + surfaceID,
+							UserID:    userID,
+							SurfaceID: surfaceID,
+						}
+						goto INJECT
+					}
 				}
-				goto INJECT
 			}
 
 			// 3. User JWT Cookie (Legacy/Frontend)
 			if claims, err := ExtractJWTClaims(r, authService); err == nil {
 				identity = Identity{
-					Type: IdentityUser,
-					ID:   strings.TrimSpace(claims.UserID),
-					Name: strings.TrimSpace(claims.Username),
+					Type:   IdentityUser,
+					ID:     strings.TrimSpace(claims.UserID),
+					Name:   strings.TrimSpace(claims.Username),
+					UserID: strings.TrimSpace(claims.UserID),
 				}
 				if identity.Name == "" {
 					identity.Name = identity.ID

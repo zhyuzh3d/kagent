@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -108,6 +109,124 @@ func (s *HubStore) writeCatalogEntry(ctx context.Context, entry SurfaceCatalogEn
 		"visibility": "public",
 	})
 	return err
+}
+
+func (s *HubStore) CleanupDuplicateCatalogEntries(ctx context.Context) ([]string, error) {
+	items, err := s.readCatalogEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	grouped := map[string][]SurfaceCatalogEntry{}
+	for _, item := range items {
+		pkgKey := strings.TrimSpace(item.SurfaceType) + "|" + strings.TrimSpace(item.RawPkgPath)
+		if strings.TrimSpace(item.RawPkgPath) == "" {
+			continue
+		}
+		grouped[pkgKey] = append(grouped[pkgKey], item)
+	}
+	deleted := make([]string, 0, 8)
+	for _, group := range grouped {
+		if len(group) < 2 {
+			continue
+		}
+		keepIdx := pickCanonicalCatalogEntry(group)
+		for idx, item := range group {
+			surfaceID := strings.TrimSpace(item.SurfaceID)
+			if surfaceID == "" || idx == keepIdx {
+				continue
+			}
+			if err := s.deleteCatalogEntry(ctx, surfaceID); err != nil {
+				return deleted, err
+			}
+			deleted = append(deleted, surfaceID)
+		}
+	}
+	if err := s.deleteUserSurfaceSettings(ctx, deleted); err != nil {
+		return deleted, err
+	}
+	sort.Strings(deleted)
+	return deleted, nil
+}
+
+func (s *HubStore) deleteCatalogEntry(ctx context.Context, surfaceID string) error {
+	if strings.TrimSpace(surfaceID) == "" {
+		return nil
+	}
+	_, err := s.shareDelete(ctx, map[string]any{
+		"namespace": surfaceCatalogNamespace,
+		"category":  surfaceCatalogCategory,
+		"key":       strings.TrimSpace(surfaceID),
+	})
+	return err
+}
+
+func (s *HubStore) deleteUserSurfaceSettings(ctx context.Context, surfaceIDs []string) error {
+	if len(surfaceIDs) == 0 {
+		return nil
+	}
+	placeholders := make([]string, 0, len(surfaceIDs))
+	args := make([]any, 0, len(surfaceIDs))
+	for _, surfaceID := range surfaceIDs {
+		sid := strings.TrimSpace(surfaceID)
+		if sid == "" {
+			continue
+		}
+		placeholders = append(placeholders, "?")
+		args = append(args, sid)
+	}
+	if len(placeholders) == 0 {
+		return nil
+	}
+	_, err := s.databaseExecute(ctx, `
+		DELETE FROM user_surfaces
+		WHERE surface_id IN (`+strings.Join(placeholders, ",")+`)
+	`, args)
+	return err
+}
+
+func pickCanonicalCatalogEntry(items []SurfaceCatalogEntry) int {
+	bestIdx := 0
+	for i := 1; i < len(items); i++ {
+		if preferCatalogEntry(items[i], items[bestIdx]) {
+			bestIdx = i
+		}
+	}
+	return bestIdx
+}
+
+func preferCatalogEntry(left SurfaceCatalogEntry, right SurfaceCatalogEntry) bool {
+	leftStatus := strings.TrimSpace(left.Status)
+	rightStatus := strings.TrimSpace(right.Status)
+	if leftStatus == SurfaceStatusOK && rightStatus != SurfaceStatusOK {
+		return true
+	}
+	if rightStatus == SurfaceStatusOK && leftStatus != SurfaceStatusOK {
+		return false
+	}
+	if leftStatus != SurfaceStatusMissing && rightStatus == SurfaceStatusMissing {
+		return true
+	}
+	if rightStatus != SurfaceStatusMissing && leftStatus == SurfaceStatusMissing {
+		return false
+	}
+	leftID := strings.TrimSpace(left.SurfaceID)
+	rightID := strings.TrimSpace(right.SurfaceID)
+	if isUUIDLike(leftID) && !isUUIDLike(rightID) {
+		return true
+	}
+	if isUUIDLike(rightID) && !isUUIDLike(leftID) {
+		return false
+	}
+	if !strings.HasPrefix(leftID, "invalid-") && strings.HasPrefix(rightID, "invalid-") {
+		return true
+	}
+	if !strings.HasPrefix(rightID, "invalid-") && strings.HasPrefix(leftID, "invalid-") {
+		return false
+	}
+	if left.ScannedAtMS != right.ScannedAtMS {
+		return left.ScannedAtMS > right.ScannedAtMS
+	}
+	return leftID < rightID
 }
 
 func buildCatalogEntry(item ScannedSurface) SurfaceCatalogEntry {

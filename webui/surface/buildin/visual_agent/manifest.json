@@ -1,0 +1,13 @@
+{
+  "id": "6fbe413d-fd44-4140-8c4a-9aa0185797de",
+  "name": "Visual Agent",
+  "version": "1.0",
+  "min_supported_version": "1.0",
+  "entry": "index.html",
+  "desc": "面向 GUI 任务的视觉闭环自治 surface，可截图理解、GUI 操作与提示词生成。",
+  "tags": ["buildin", "agent", "visual", "doubao"],
+  "permissions": {
+    "sandbox": ["allow-scripts", "allow-downloads"],
+    "allow": []
+  }
+}
